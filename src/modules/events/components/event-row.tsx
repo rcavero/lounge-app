@@ -1,0 +1,81 @@
+"use client";
+
+import Link from "next/link";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import type { EventWithTeams } from "../types";
+import { TeamLogo } from "./team-logo";
+
+interface EventRowProps {
+  event: EventWithTeams;
+  href?: string;
+}
+
+// Get all active screens from event.screens field
+function getActiveScreens(event: EventWithTeams): string[] {
+  if (!event.screens) return [];
+  return event.screens.split(",").filter(Boolean);
+}
+
+const screenColors: Record<string, string> = {
+  PROYECTOR: "bg-[#D4AF37] text-black",
+  TV1: "bg-[#b91c1c] text-white",
+  TV2: "bg-[#3b82f6] text-white",
+};
+
+export function EventRow({ event, href }: EventRowProps) {
+  const eventDate = new Date(event.eventDate);
+  const activeScreens = getActiveScreens(event);
+
+  // Format: "Mié 15 Ene"
+  const dayName = format(eventDate, "EEE", { locale: es });
+  const dayNumber = format(eventDate, "d");
+  const monthName = format(eventDate, "MMM", { locale: es });
+  const time = format(eventDate, "HH:mm");
+
+  // Capitalize first letter
+  const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
+  const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+
+  return (
+    <Link href={href || `/eventos/${event.id}`} className="block">
+      <div className="bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors">
+        {/* Home Team */}
+        <div className="flex flex-col items-center w-20">
+          <TeamLogo team={event.homeTeam} size="lg" />
+          <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
+            {event.homeTeam.shortName}
+          </span>
+        </div>
+
+        {/* Center - Date, Time & Screen */}
+        <div className="flex flex-col items-center flex-1 px-2">
+          <span className="text-white/80 text-xs font-medium">
+            {formattedDay} {dayNumber} {formattedMonth}
+          </span>
+          <span className="text-white text-2xl font-bold">
+            {time}
+          </span>
+          <div className="flex gap-1 mt-1 flex-wrap justify-center">
+            {activeScreens.map((screen) => (
+              <span
+                key={screen}
+                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${screenColors[screen]}`}
+              >
+                {screen}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        {/* Away Team */}
+        <div className="flex flex-col items-center w-20">
+          <TeamLogo team={event.awayTeam} size="lg" />
+          <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
+            {event.awayTeam.shortName}
+          </span>
+        </div>
+      </div>
+    </Link>
+  );
+}

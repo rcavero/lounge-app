@@ -1,0 +1,168 @@
+"use server";
+
+import prisma from "@/lib/prisma";
+import type { EventWithTeams } from "../types";
+
+export async function getUpcomingEvents(): Promise<EventWithTeams[]> {
+  const events = await prisma.event.findMany({
+    where: {
+      status: {
+        in: ["UPCOMING", "LIVE"],
+      },
+      eventDate: {
+        gte: new Date(),
+      },
+    },
+    include: {
+      homeTeam: true,
+      awayTeam: true,
+    },
+    orderBy: {
+      eventDate: "asc",
+    },
+  });
+
+  return events as EventWithTeams[];
+}
+
+export async function getEventById(id: string): Promise<EventWithTeams | null> {
+  const event = await prisma.event.findUnique({
+    where: { id },
+    include: {
+      homeTeam: true,
+      awayTeam: true,
+    },
+  });
+
+  if (!event) return null;
+
+  return event as EventWithTeams;
+}
+
+export async function getAllEvents(): Promise<EventWithTeams[]> {
+  const events = await prisma.event.findMany({
+    include: {
+      homeTeam: true,
+      awayTeam: true,
+    },
+    orderBy: {
+      eventDate: "desc",
+    },
+  });
+
+  return events as EventWithTeams[];
+}
+
+// Get all teams for selection
+export async function getAllTeams() {
+  const teams = await prisma.team.findMany({
+    orderBy: {
+      name: "asc",
+    },
+  });
+
+  return teams;
+}
+
+// Create a new event
+export async function createEvent(data: {
+  homeTeamId: string;
+  awayTeamId: string;
+  eventDate: Date;
+  screens: string[];
+  competition?: string;
+}): Promise<{ success: boolean; eventId?: string; error?: string }> {
+  try {
+    const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId } });
+    const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId } });
+
+    if (!homeTeam || !awayTeam) {
+      return { success: false, error: "Equipo no encontrado" };
+    }
+
+    const event = await prisma.event.create({
+      data: {
+        title: `${homeTeam.shortName} vs ${awayTeam.shortName}`,
+        homeTeamId: data.homeTeamId,
+        awayTeamId: data.awayTeamId,
+        eventDate: data.eventDate,
+        competition: data.competition || "Liga",
+        screens: data.screens.join(","),
+        status: "UPCOMING",
+      },
+    });
+
+    // Initialize seat statuses for this event
+    const seats = await prisma.seat.findMany();
+    await prisma.seatStatus.createMany({
+      data: seats.map((seat) => ({
+        eventId: event.id,
+        seatId: seat.id,
+        status: "AVAILABLE" as const,
+      })),
+    });
+
+    return { success: true, eventId: event.id };
+  } catch (error) {
+    console.error("Error creating event:", error);
+    return { success: false, error: "Error al crear el evento" };
+  }
+}
+
+// Update an existing event
+export async function updateEvent(
+  id: string,
+  data: {
+    homeTeamId: string;
+    awayTeamId: string;
+    eventDate: Date;
+    screens: string[];
+    competition?: string;
+  }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId } });
+    const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId } });
+
+    if (!homeTeam || !awayTeam) {
+      return { success: false, error: "Equipo no encontrado" };
+    }
+
+    await prisma.event.update({
+      where: { id },
+      data: {
+        title: `${homeTeam.shortName} vs ${awayTeam.shortName}`,
+        homeTeamId: data.homeTeamId,
+        awayTeamId: data.awayTeamId,
+        eventDate: data.eventDate,
+        competition: data.competition || "Liga",
+        screens: data.screens.join(","),
+      },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error updating event:", error);
+    return { success: false, error: "Error al actualizar el evento" };
+  }
+}
+
+// Delete an event
+export async function deleteEvent(id: string): Promise<{ success: boolean; error?: string }> {
+  try {
+    // First delete related seat statuses
+    await prisma.seatStatus.deleteMany({
+      where: { eventId: id },
+    });
+
+    // Then delete the event
+    await prisma.event.delete({
+      where: { id },
+    });
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error deleting event:", error);
+    return { success: false, error: "Error al eliminar el evento" };
+  }
+}
