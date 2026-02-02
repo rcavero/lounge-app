@@ -34,6 +34,7 @@ export async function login(
   session.isLoggedIn = true;
   session.email = adminUser.email;
   session.adminId = adminUser.id;
+  session.role = adminUser.role as "ADMIN" | "WORKER";
   await session.save();
 
   redirect("/admin");
@@ -47,8 +48,36 @@ export async function logout() {
 
 export async function getSessionData() {
   const session = await getSession();
+
+  // If session has role, return it directly
+  if (session.role) {
+    return {
+      isLoggedIn: session.isLoggedIn ?? false,
+      email: session.email ?? "",
+      role: session.role,
+    };
+  }
+
+  // If no role in session but user is logged in, fetch from database
+  // This handles sessions created before the role field was added
+  if (session.isLoggedIn && session.adminId) {
+    const user = await prisma.adminUser.findUnique({
+      where: { id: session.adminId },
+      select: { role: true },
+    });
+
+    if (user) {
+      return {
+        isLoggedIn: true,
+        email: session.email ?? "",
+        role: user.role as "ADMIN" | "WORKER",
+      };
+    }
+  }
+
   return {
     isLoggedIn: session.isLoggedIn ?? false,
     email: session.email ?? "",
+    role: "WORKER" as const,
   };
 }

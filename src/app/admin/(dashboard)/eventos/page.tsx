@@ -1,8 +1,8 @@
 import Link from "next/link";
+import { ArrowLeft, Calendar, Plus } from "lucide-react";
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Button } from "@/components/ui/button";
-import { Calendar, Plus } from "lucide-react";
 
 export default async function AdminEventsPage() {
   const events = await getUpcomingEvents();
@@ -12,9 +12,17 @@ export default async function AdminEventsPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 bg-black/95 backdrop-blur border-b border-white/10">
         <div className="flex items-center justify-between px-4 py-3">
-          <div>
-            <h1 className="text-white font-semibold text-sm">Configurar Eventos</h1>
-            <p className="text-white/50 text-xs">Crea o modifica un evento</p>
+          <div className="flex items-center gap-3">
+            <Link
+              href="/admin"
+              className="text-white/70 hover:text-white transition-colors"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </Link>
+            <div>
+              <h1 className="text-white font-semibold text-sm">Configurar Eventos</h1>
+              <p className="text-white/50 text-xs">Crea o modifica un evento</p>
+            </div>
           </div>
           <Link href="/admin/eventos/nuevo">
             <Button

@@ -39,6 +39,25 @@ export interface EventWithReservationCount extends EventWithTeams {
   };
 }
 
+export interface ReportMonth {
+  year: number;
+  month: number;
+  label: string;
+  eventCount: number;
+}
+
+export interface MonthlyReportEvent {
+  id: string;
+  eventDate: Date;
+  homeTeam: { name: string; shortName: string };
+  awayTeam: { name: string; shortName: string };
+  reservations: {
+    id: string;
+    numberOfSeats: number;
+    totalPrice: number;
+  }[];
+}
+
 export async function createReservation(data: {
   eventId: string;
   seatIds: string[];
@@ -217,4 +236,134 @@ export async function getReservationWithSeats(reservationId: string) {
   });
 
   return reservation;
+}
+
+// Get past events from the last 35 days with reservation counts
+export async function getPastEventsLast35Days(): Promise<EventWithReservationCount[]> {
+  const now = new Date();
+  const thirtyFiveDaysAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
+
+  const events = await prisma.event.findMany({
+    where: {
+      eventDate: {
+        lt: now,
+        gte: thirtyFiveDaysAgo,
+      },
+    },
+    include: {
+      homeTeam: true,
+      awayTeam: true,
+      _count: {
+        select: {
+          reservations: true,
+        },
+      },
+    },
+    orderBy: {
+      eventDate: "desc",
+    },
+  });
+
+  return events as EventWithReservationCount[];
+}
+
+// Get available months for reports (last 90 days)
+export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
+  const now = new Date();
+  const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+
+  const events = await prisma.event.findMany({
+    where: {
+      eventDate: {
+        lt: now,
+        gte: ninetyDaysAgo,
+      },
+    },
+    select: {
+      eventDate: true,
+    },
+  });
+
+  // Group events by month
+  const monthsMap = new Map<string, { year: number; month: number; count: number }>();
+  const monthNames = [
+    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+  ];
+
+  for (const event of events) {
+    const date = new Date(event.eventDate);
+    const year = date.getFullYear();
+    const month = date.getMonth();
+    const key = `${year}-${month}`;
+
+    if (monthsMap.has(key)) {
+      monthsMap.get(key)!.count++;
+    } else {
+      monthsMap.set(key, { year, month, count: 1 });
+    }
+  }
+
+  // Convert to array and sort by date descending
+  const months: ReportMonth[] = Array.from(monthsMap.values()).map((m) => ({
+    year: m.year,
+    month: m.month,
+    label: `${monthNames[m.month]} ${m.year}`,
+    eventCount: m.count,
+  }));
+
+  months.sort((a, b) => {
+    if (a.year !== b.year) return b.year - a.year;
+    return b.month - a.month;
+  });
+
+  return months;
+}
+
+// Get monthly report data for PDF generation
+export async function getMonthlyReportData(year: number, month: number): Promise<MonthlyReportEvent[]> {
+  const startDate = new Date(year, month, 1);
+  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+
+  const events = await prisma.event.findMany({
+    where: {
+      eventDate: {
+        gte: startDate,
+        lte: endDate,
+      },
+    },
+    include: {
+      homeTeam: {
+        select: {
+          name: true,
+          shortName: true,
+        },
+      },
+      awayTeam: {
+        select: {
+          name: true,
+          shortName: true,
+        },
+      },
+      reservations: {
+        select: {
+          id: true,
+          numberOfSeats: true,
+          totalPrice: true,
+        },
+      },
+    },
+    orderBy: {
+      eventDate: "asc",
+    },
+  });
+
+  // Convert Decimal to number for client serialization
+  return events.map((event) => ({
+    ...event,
+    reservations: event.reservations.map((res) => ({
+      ...res,
+      totalPrice: Number(res.totalPrice),
+    })),
+  }));
 }

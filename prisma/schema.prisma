@@ -115,7 +115,7 @@ model Reservation {
   id              String            @id @default(cuid())
 
   eventId         String
-  event           Event             @relation(fields: [eventId], references: [id])
+  event           Event             @relation(fields: [eventId], references: [id], onDelete: Cascade)
 
   // Datos del cliente
   customerName    String
@@ -157,11 +157,18 @@ enum PaymentStatus {
 
 // Usuarios administradores
 model AdminUser {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String   // bcrypt hash
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        String    @id @default(cuid())
+  email     String    @unique
+  password  String    // bcrypt hash
+  name      String    @default("")
+  role      AdminRole @default(WORKER)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+enum AdminRole {
+  ADMIN
+  WORKER
 }
 
 // Configuración de etiquetas de zona en el mapa

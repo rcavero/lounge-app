@@ -1,14 +1,8 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { getAllSeats, getZoneLabels } from "@/modules/seating/actions";
-import { SeatPositionEditor } from "./client";
+import { UserForm } from "../user-form";
 
-export default async function AdminSeatsPage() {
-  const [seats, zoneLabels] = await Promise.all([
-    getAllSeats(),
-    getZoneLabels(),
-  ]);
-
+export default function NewUserPage() {
   return (
     <div className="min-h-screen bg-black flex flex-col">
       {/* Header */}
@@ -16,23 +10,23 @@ export default async function AdminSeatsPage() {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <Link
-              href="/admin"
+              href="/admin/usuarios"
               className="text-white/70 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-white font-semibold text-sm">Configurar Asientos</h1>
-              <p className="text-white/50 text-xs">Arrastra los asientos para posicionarlos</p>
+              <h1 className="text-white font-semibold text-sm">Añadir Usuario</h1>
+              <p className="text-white/50 text-xs">Crea un nuevo usuario del sistema</p>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content */}
+      {/* Form */}
       <main className="flex-1 px-4 py-4">
         <div className="max-w-lg mx-auto">
-          <SeatPositionEditor seats={seats} zoneLabels={zoneLabels} />
+          <UserForm mode="create" />
         </div>
       </main>
 

@@ -1,10 +1,22 @@
 import Link from "next/link";
-import { ArrowLeft, Calendar } from "lucide-react";
-import { getEventsWithReservationCount } from "@/modules/reservations/actions";
-import { EventRowWithBadge } from "@/modules/events/components/event-row-with-badge";
+import { ArrowLeft } from "lucide-react";
+import {
+  getEventsWithReservationCount,
+  getPastEventsLast35Days,
+  getAvailableReportMonths,
+} from "@/modules/reservations/actions";
+import { getSessionData } from "@/modules/auth/actions";
+import { ReservasClient } from "./client";
 
 export default async function AdminReservationsPage() {
-  const events = await getEventsWithReservationCount();
+  const [upcomingEvents, pastEvents, reportMonths, session] = await Promise.all([
+    getEventsWithReservationCount(),
+    getPastEventsLast35Days(),
+    getAvailableReportMonths(),
+    getSessionData(),
+  ]);
+
+  const isAdmin = session.role === "ADMIN";
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -28,21 +40,12 @@ export default async function AdminReservationsPage() {
 
       {/* Events List */}
       <main className="flex-1 px-4 py-4">
-        {events.length === 0 ? (
-          <div className="text-center py-16">
-            <Calendar className="w-12 h-12 text-white/30 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No hay eventos programados</h3>
-            <p className="text-white/50">
-              Crea un evento primero para poder gestionar reservas.
-            </p>
-          </div>
-        ) : (
-          <div className="max-w-lg mx-auto space-y-3">
-            {events.map((event) => (
-              <EventRowWithBadge key={event.id} event={event} />
-            ))}
-          </div>
-        )}
+        <ReservasClient
+          upcomingEvents={upcomingEvents}
+          pastEvents={pastEvents}
+          reportMonths={reportMonths}
+          isAdmin={isAdmin}
+        />
       </main>
 
       {/* Footer */}
