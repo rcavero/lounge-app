@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ArrowLeft } from "lucide-react";
@@ -8,6 +9,7 @@ import { getSeatsForEvent, getZoneLabels } from "@/modules/seating/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { FloorPlanView } from "@/modules/seating/components/floor-plan-view";
 import { SEAT_PRICE } from "@/modules/events/types";
+import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
 
 interface Props {
   params: Promise<{ id: string; reservationId: string }>;
@@ -76,7 +78,19 @@ export default async function ReservationDetailPage({ params }: Props) {
       <main className="flex-1 px-4 py-4">
         <div className="max-w-lg mx-auto space-y-4">
           {/* Event Info Card */}
-          <div className="bg-[#1a1a1a] rounded-2xl p-4">
+          <div className="bg-[#1a1a1a] rounded-2xl p-4 relative">
+            {event.competition && COMPETITION_EMBLEM[event.competition] && (
+              <div className="absolute top-2 left-2 bg-white/90 rounded-full p-1">
+                <Image
+                  src={COMPETITION_EMBLEM[event.competition]}
+                  alt={event.competition}
+                  width={20}
+                  height={20}
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+            )}
             <div className="flex items-center justify-between">
               {/* Home Team */}
               <div className="flex flex-col items-center w-20">

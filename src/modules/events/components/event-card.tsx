@@ -7,9 +7,11 @@ import { Calendar, Clock, MapPin } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import Link from "next/link";
+import Image from "next/image";
 import type { EventWithTeams } from "../types";
 import { SEAT_PRICE } from "../types";
 import { TeamLogo } from "./team-logo";
+import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
 
 interface EventCardProps {
   event: EventWithTeams;
@@ -38,7 +40,17 @@ export function EventCard({ event }: EventCardProps) {
       <div className="px-4 pt-4 flex items-center justify-between">
         <div className="flex items-center gap-2">
           {event.competition && (
-            <Badge variant="secondary" className="text-xs">
+            <Badge variant="secondary" className="text-xs flex items-center gap-1.5">
+              {COMPETITION_EMBLEM[event.competition] && (
+                <Image
+                  src={COMPETITION_EMBLEM[event.competition]}
+                  alt={event.competition}
+                  width={16}
+                  height={16}
+                  className="object-contain"
+                  unoptimized
+                />
+              )}
               {event.competition}
             </Badge>
           )}

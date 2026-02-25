@@ -3,37 +3,22 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { updateEvent, deleteEvent } from "@/modules/events/actions";
 import { ArrowLeft, Save, Check, Trash2, X } from "lucide-react";
 import type { Team, EventWithTeams } from "@/modules/events/types";
+import {
+  COMPETITION_NAMES,
+  COMPETITION_LEAGUES,
+  COMPETITION_EMBLEM,
+} from "@/modules/football-data/config/competitions";
 
 interface EditEventFormProps {
   event: EventWithTeams;
   teams: Team[];
 }
-
-const COMPETITIONS = [
-  "La Liga",
-  "Premier League",
-  "Serie A",
-  "Bundesliga",
-  "Ligue 1",
-  "Champions League",
-  "Europa League",
-];
-
-// Mapping from competition to leagues that participate
-const COMPETITION_LEAGUES: Record<string, string[]> = {
-  "La Liga": ["La Liga"],
-  "Premier League": ["Premier League"],
-  "Serie A": ["Serie A"],
-  "Bundesliga": ["Bundesliga"],
-  "Ligue 1": ["Ligue 1"],
-  "Champions League": ["La Liga", "Premier League", "Serie A", "Bundesliga", "Ligue 1"],
-  "Europa League": ["La Liga", "Premier League", "Serie A", "Bundesliga", "Ligue 1"],
-};
 
 const SCREENS = [
   { id: "TV1", label: "TV1", color: "bg-[#7f1d1d] border-[#b91c1c]" },
@@ -184,17 +169,31 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         {/* Competition Selection */}
         <div className="space-y-2">
           <label className="text-white/70 text-xs font-medium">Competición</label>
-          <select
-            value={competition}
-            onChange={(e) => handleCompetitionChange(e.target.value)}
-            className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
-          >
-            {COMPETITIONS.map((comp) => (
-              <option key={comp} value={comp}>
-                {comp}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            {COMPETITION_EMBLEM[competition] && (
+              <div className="bg-white/90 rounded-full p-1 shrink-0">
+                <Image
+                  src={COMPETITION_EMBLEM[competition]}
+                  alt={competition}
+                  width={20}
+                  height={20}
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
+            )}
+            <select
+              value={competition}
+              onChange={(e) => handleCompetitionChange(e.target.value)}
+              className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
+            >
+              {COMPETITION_NAMES.map((comp) => (
+                <option key={comp} value={comp}>
+                  {comp}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
 
         {/* Team Selection */}

@@ -31,13 +31,6 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
               backgroundRepeat: "no-repeat",
             }}
           />
-          {/* Dark overlay to hide white edges */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              boxShadow: "inset 0 0 30px 20px black",
-            }}
-          />
         </div>
 
         {/* Zone labels with dynamic positioning and transformations */}

@@ -234,14 +234,6 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
               backgroundRepeat: "no-repeat",
             }}
           />
-          {/* Dark overlay for edges */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              boxShadow: "inset 0 0 30px 20px black",
-            }}
-          />
-
           {/* Draggable zone labels */}
           {labels.map((label) => {
             const isTV1 = label.zone === "TV1";

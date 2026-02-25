@@ -13,13 +13,14 @@ datasource db {
 
 // Equipos deportivos
 model Team {
-  id        String   @id @default(cuid())
-  name      String
-  shortName String
-  league    String   // La Liga, Premier League, Serie A, Bundesliga, Ligue 1
-  logo      String?  // URL del escudo
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id         String   @id @default(cuid())
+  externalId Int?     @unique // ID de football-data.org
+  name       String
+  shortName  String
+  league     String   // La Liga, Premier League, Serie A, Bundesliga, Ligue 1
+  logo       String?  // URL del escudo
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
 
   homeEvents Event[] @relation("HomeTeam")
   awayEvents Event[] @relation("AwayTeam")

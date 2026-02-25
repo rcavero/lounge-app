@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ArrowLeft, Loader2 } from "lucide-react";
@@ -11,6 +12,7 @@ import { useRouter } from "next/navigation";
 import { useReservationStore } from "@/shared/hooks";
 import { createReservation } from "@/modules/reservations/actions";
 import { SEAT_PRICE } from "@/modules/events/types";
+import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
 import type { EventWithTeams } from "@/modules/events/types";
 import type { SeatWithStatus } from "@/modules/seating/types";
 import type { ZoneLabelConfig } from "@/modules/seating/constants";
@@ -217,8 +219,8 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
     <div className="min-h-screen bg-black flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-black/95 backdrop-blur border-b border-white/10">
-        <div className="flex items-center justify-between px-4 py-3">
-          {/* Left: Back button and match info */}
+        <div className="flex items-center justify-between px-4 py-4">
+          {/* Left: Back button + team crests */}
           <div className="flex items-center gap-3">
             <Link
               href="/"
@@ -226,43 +228,85 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
             >
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div>
-              <h1 className="text-white font-semibold text-sm">{matchCode}</h1>
-              <p className="text-white/50 text-xs">{dateString}</p>
+            <div className="flex items-center gap-1">
+              {event.homeTeam.logo ? (
+                <Image
+                  src={event.homeTeam.logo}
+                  alt={event.homeTeam.shortName}
+                  width={36}
+                  height={36}
+                  className="object-contain"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[8px] font-bold text-[#D4AF37]">
+                  {event.homeTeam.shortName.substring(0, 3).toUpperCase()}
+                </div>
+              )}
+              <span className="text-white/50 text-xs font-bold">vs</span>
+              {event.awayTeam.logo ? (
+                <Image
+                  src={event.awayTeam.logo}
+                  alt={event.awayTeam.shortName}
+                  width={36}
+                  height={36}
+                  className="object-contain"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[8px] font-bold text-[#D4AF37]">
+                  {event.awayTeam.shortName.substring(0, 3).toUpperCase()}
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Right: Seat count, price, and reserve button */}
-          <div className="flex items-center gap-3">
-            {selectedSeats.length > 0 && (
-              <>
-                <div className="text-right">
-                  <p className="text-[10px] text-white/50 uppercase tracking-wide">
-                    {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
-                  </p>
-                  <p className="text-white font-bold">
-                    {totalPrice.toFixed(2).replace(".", ",")}€
-                  </p>
-                </div>
-              </>
+          {/* Center: Competition emblem + Date and time */}
+          <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
+            {event.competition && COMPETITION_EMBLEM[event.competition] && (
+              <div className="bg-white/90 rounded-full p-0.5 mb-1">
+                <Image
+                  src={COMPETITION_EMBLEM[event.competition]}
+                  alt={event.competition}
+                  width={20}
+                  height={20}
+                  className="object-contain"
+                  unoptimized
+                />
+              </div>
             )}
-            <Button
-              disabled={selectedSeats.length === 0 || isProcessing}
-              onClick={handleReserve}
-              className="bg-[#D4AF37] hover:bg-[#C5A028] text-black font-semibold px-5 py-1 text-base"
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Procesando...
-                </>
-              ) : (
-                "RESERVAR"
-              )}
-            </Button>
+            <p className="text-white text-xs font-normal">{dateString}</p>
           </div>
+
+          {/* Right: Reserve button */}
+          <Button
+            disabled={selectedSeats.length === 0 || isProcessing}
+            onClick={handleReserve}
+            className="bg-[#D4AF37] hover:bg-[#C5A028] text-black font-semibold px-5 py-1 text-base"
+          >
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Procesando...
+              </>
+            ) : (
+              "RESERVAR"
+            )}
+          </Button>
         </div>
       </header>
+
+      {/* Floating seat count & price */}
+      {selectedSeats.length > 0 && (
+        <div className="fixed top-[72px] right-4 z-[100] bg-[#1a1a1a] border border-white/10 rounded-lg px-3 py-2 text-right shadow-lg">
+          <p className="text-[10px] text-white/50 uppercase tracking-wide">
+            {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
+          </p>
+          <p className="text-white font-bold">
+            {totalPrice.toFixed(2).replace(".", ",")}€
+          </p>
+        </div>
+      )}
 
       {/* Error message */}
       {error && (

@@ -2,7 +2,7 @@
 
 ## Estado Actual del Proyecto
 
-**Última actualización:** 2 de Febrero de 2026
+**Última actualización:** 25 de Febrero de 2026
 
 El proyecto es una aplicación web para gestionar reservas de asientos en un bar deportivo (The Lounge Beerhouse) en Valencia. Permite a los clientes reservar asientos para ver eventos deportivos y a los administradores gestionar eventos, reservas y usuarios.
 
@@ -15,12 +15,14 @@ El proyecto es una aplicación web para gestionar reservas de asientos en un bar
 - Sesiones con iron-session (cookies seguras)
 - Roles de usuario: `ADMIN` y `WORKER`
 - Control de acceso basado en roles
+- Middleware de Next.js (`src/middleware.ts`)
 
 ### 2. Gestión de Eventos
 - CRUD completo de eventos deportivos
 - Selección de equipos (home/away) con logos
 - Configuración de pantallas (PROYECTOR, TV1, TV2)
 - Estados: UPCOMING, LIVE, FINISHED, CANCELLED
+- Campos adicionales: deporte, competición, descripción
 
 ### 3. Gestión de Reservas
 - Visualización de reservas por evento
@@ -28,8 +30,9 @@ El proyecto es una aplicación web para gestionar reservas de asientos en un bar
 - Mapa interactivo de asientos con drag & drop
 - Acordeón de "Reservas de eventos pasados" (últimos 35 días)
 - Acordeón de "Informes de reservas" (solo ADMIN) con generación de PDFs
+- Campos de pago preparados (paymentId, paymentStatus)
 
-### 4. Gestión de Usuarios (Nuevo)
+### 4. Gestión de Usuarios
 - Listado de usuarios con tarjetas (nombre, email, rol)
 - Crear usuario con validación de contraseña (mínimo 8 caracteres)
 - Editar usuario (email, contraseña opcional, nombre, rol)
@@ -39,11 +42,22 @@ El proyecto es una aplicación web para gestionar reservas de asientos en un bar
 ### 5. Gestión de Asientos
 - Editor visual de posiciones de asientos
 - Drag & drop para posicionar asientos
-- Configuración de etiquetas de zonas
+- Configuración de etiquetas de zonas (modelo ZoneLabel)
+- Componentes dedicados: FloorPlanMap, FloorPlanView, Seat, SeatMap
 
-### 6. Sistema de Limpieza Automática
+### 6. Componentes Compartidos
+- Header y Footer públicos (`src/shared/components/`)
+- Logo reutilizable
+- Store de reservas con Zustand (`use-reservation-store.ts`)
+
+### 7. Sistema de Limpieza Automática
 - Endpoint `/api/cron/cleanup` para eliminar eventos > 90 días
 - Configurado en `vercel.json` para ejecutar diariamente a las 3:00 AM
+
+### 8. Módulo de Pagos (Estructura Preparada)
+- Tipos definidos en `src/modules/payments/types/index.ts`
+- Enums PaymentStatus en schema de Prisma
+- Pendiente de integración con pasarela de pago
 
 ---
 
@@ -143,3 +157,5 @@ dev.db.backup.YYYYMMDD_HHMMSS
 4. Las sesiones se manejan con iron-session y el rol se obtiene de la BD si no está en la sesión
 5. Los Server Actions están en `src/modules/*/actions/index.ts`
 6. Los componentes de UI reutilizables están en `src/components/ui/`
+7. Componentes compartidos (header, footer, logo) en `src/shared/components/`
+8. El módulo de pagos tiene la estructura lista para implementar la integración con Redsys

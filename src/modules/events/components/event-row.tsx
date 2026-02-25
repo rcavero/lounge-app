@@ -1,10 +1,12 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
+import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
 
 interface EventRowProps {
   event: EventWithTeams;
@@ -39,7 +41,19 @@ export function EventRow({ event, href }: EventRowProps) {
 
   return (
     <Link href={href || `/eventos/${event.id}`} className="block">
-      <div className="bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors">
+      <div className="bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors relative">
+        {event.competition && COMPETITION_EMBLEM[event.competition] && (
+          <div className="absolute top-2 left-2 bg-white/90 rounded-full p-1">
+            <Image
+              src={COMPETITION_EMBLEM[event.competition]}
+              alt={event.competition}
+              width={20}
+              height={20}
+              className="object-contain"
+              unoptimized
+            />
+          </div>
+        )}
         {/* Home Team */}
         <div className="flex flex-col items-center w-20">
           <TeamLogo team={event.homeTeam} size="lg" />

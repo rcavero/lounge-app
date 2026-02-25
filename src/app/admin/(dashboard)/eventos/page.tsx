@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Calendar, Plus } from "lucide-react";
+import { ArrowLeft, Calendar, Plus, Download } from "lucide-react";
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Button } from "@/components/ui/button";
@@ -24,15 +24,27 @@ export default async function AdminEventsPage() {
               <p className="text-white/50 text-xs">Crea o modifica un evento</p>
             </div>
           </div>
-          <Link href="/admin/eventos/nuevo">
-            <Button
-              size="sm"
-              className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
-            >
-              <Plus className="w-4 h-4 mr-1" />
-              Añadir evento
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            <Link href="/admin/eventos/sugerencias">
+              <Button
+                size="sm"
+                variant="outline"
+                className="border-[#D4AF37]/50 text-[#D4AF37] hover:bg-[#D4AF37]/10"
+              >
+                <Download className="w-4 h-4 mr-1" />
+                API
+              </Button>
+            </Link>
+            <Link href="/admin/eventos/nuevo">
+              <Button
+                size="sm"
+                className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Añadir evento
+              </Button>
+            </Link>
+          </div>
         </div>
       </header>
 
