@@ -1,13 +1,12 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowLeft, ClipboardList } from "lucide-react";
+import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
 import { getEventWithReservations } from "@/modules/reservations/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
-import { SEAT_PRICE } from "@/modules/events/types";
-import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
+import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
+import { Button } from "@/components/ui/button";
 
 interface Props {
   params: Promise<{ id: string }>;
@@ -60,6 +59,12 @@ export default async function EventReservationsPage({ params }: Props) {
               <p className="text-white/50 text-xs">{event.reservations.length} reserva{event.reservations.length !== 1 ? "s" : ""}</p>
             </div>
           </div>
+          <Link href={`/admin/reservas/${id}/bloquear`}>
+            <Button size="sm" variant="outline" className="border-white/20 text-white/70 hover:text-white hover:bg-white/10">
+              <Lock className="w-4 h-4 mr-1.5" />
+              Bloquear asientos
+            </Button>
+          </Link>
         </div>
       </header>
 
@@ -67,18 +72,7 @@ export default async function EventReservationsPage({ params }: Props) {
         <div className="max-w-lg mx-auto space-y-4">
           {/* Event Info Card */}
           <div className="bg-[#1a1a1a] rounded-2xl p-4 relative">
-            {event.competition && COMPETITION_EMBLEM[event.competition] && (
-              <div className="absolute top-2 left-2 bg-white/90 rounded-full p-1">
-                <Image
-                  src={COMPETITION_EMBLEM[event.competition]}
-                  alt={event.competition}
-                  width={20}
-                  height={20}
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
-            )}
+            <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
             <div className="flex items-center justify-between">
               {/* Home Team */}
               <div className="flex flex-col items-center w-20">
@@ -136,7 +130,7 @@ export default async function EventReservationsPage({ params }: Props) {
                 const seatCodes = reservation.seatStatuses
                   .map((ss) => ss.seat.code)
                   .join(", ");
-                const totalPrice = reservation.numberOfSeats * SEAT_PRICE;
+                const totalPrice = Number(reservation.totalPrice);
 
                 return (
                   <Link

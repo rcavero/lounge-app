@@ -71,6 +71,7 @@ export async function createEvent(data: {
   eventDate: Date;
   screens: string[];
   competition?: string;
+  pricePerSeat?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
     const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId } });
@@ -89,6 +90,7 @@ export async function createEvent(data: {
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
         status: "UPCOMING",
+        pricePerSeat: data.pricePerSeat ?? 10,
       },
     });
 
@@ -118,6 +120,7 @@ export async function updateEvent(
     eventDate: Date;
     screens: string[];
     competition?: string;
+    pricePerSeat?: number;
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -137,6 +140,7 @@ export async function updateEvent(
         eventDate: data.eventDate,
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
+        pricePerSeat: data.pricePerSeat ?? 10,
       },
     });
 

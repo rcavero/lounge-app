@@ -78,8 +78,9 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
     }),
 
   getTotalPrice: () => {
-    const { selectedSeats } = get();
-    return selectedSeats.length * SEAT_PRICE;
+    const { selectedSeats, event } = get();
+    const price = event?.pricePerSeat ?? SEAT_PRICE;
+    return selectedSeats.length * price;
   },
 
   getSelectedSeatsData: () => {

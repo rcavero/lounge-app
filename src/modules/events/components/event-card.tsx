@@ -9,7 +9,6 @@ import { es } from "date-fns/locale";
 import Link from "next/link";
 import Image from "next/image";
 import type { EventWithTeams } from "../types";
-import { SEAT_PRICE } from "../types";
 import { TeamLogo } from "./team-logo";
 import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
 
@@ -115,7 +114,7 @@ export function EventCard({ event }: EventCardProps) {
         <div className="mt-4 p-3 bg-secondary/50 rounded-lg">
           <p className="text-xs text-muted-foreground mb-2">Precio por asiento</p>
           <p className="text-xl font-bold text-primary">
-            {SEAT_PRICE.toFixed(2)}€
+            {event.pricePerSeat.toFixed(2)}€
             <span className="text-sm font-normal text-muted-foreground"> /persona</span>
           </p>
         </div>

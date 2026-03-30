@@ -160,10 +160,14 @@ export async function getMatchSuggestions(
     }
   }
 
-  // Sort by date
-  suggestions.sort(
-    (a, b) => new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime()
-  );
+  // Sort by competition order first, then by date within each competition
+  const competitionOrder = new Map(COMPETITIONS.map((c, i) => [c.code, i]));
+  suggestions.sort((a, b) => {
+    const orderA = competitionOrder.get(a.competitionCode) ?? 999;
+    const orderB = competitionOrder.get(b.competitionCode) ?? 999;
+    if (orderA !== orderB) return orderA - orderB;
+    return new Date(a.utcDate).getTime() - new Date(b.utcDate).getTime();
+  });
 
   return suggestions;
 }

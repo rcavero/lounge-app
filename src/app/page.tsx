@@ -1,6 +1,7 @@
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Logo } from "@/shared/components/logo";
+import { InfoBanner } from "@/shared/components/info-banner";
 import { Calendar } from "lucide-react";
 
 export default async function HomePage() {
@@ -8,6 +9,11 @@ export default async function HomePage() {
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
+      <InfoBanner
+        message="Las reservas se desbloquean 48 h antes del evento"
+        messageEn="Reservations open 48 hours before the event"
+      />
+
       {/* Header with Logo */}
       <header className="py-6 flex justify-center">
         <Logo size="lg" />
@@ -33,11 +39,26 @@ export default async function HomePage() {
         ) : (
           <div className="max-w-md mx-auto space-y-3">
             {events.map((event) => (
-              <EventRow key={event.id} event={event} />
+              <EventRow key={event.id} event={event} checkAvailability />
             ))}
           </div>
         )}
       </main>
+
+      {/* WhatsApp contact — sticky above footer */}
+      <div className="sticky bottom-0 py-2 text-center bg-black/60 backdrop-blur-sm">
+        <p className="text-xs text-white/40">
+          Reservas para otros eventos y consultas por WhatsApp al{" "}
+          <a
+            href="https://wa.me/34640873444"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-bold hover:text-white/60 transition-colors"
+          >
+            +34 640 87 34 44
+          </a>
+        </p>
+      </div>
 
       {/* Footer */}
       <footer className="py-4 text-center">

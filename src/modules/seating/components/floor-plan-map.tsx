@@ -71,8 +71,7 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
         {seats.map((seat) => {
           const isSelected = selectedSeats.includes(seat.id);
           const isAvailable = seat.status === "AVAILABLE";
-          const isReserved = seat.status === "RESERVED";
-          const isOccupied = seat.status === "OCCUPIED";
+          const isUnavailable = seat.status === "RESERVED" || seat.status === "OCCUPIED" || seat.status === "BLOCKED";
 
           return (
             <button
@@ -87,7 +86,7 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
                 "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 transition-all z-20",
                 isAvailable && !isSelected && "bg-[#22c55e] border-[#16a34a] hover:scale-125 cursor-pointer",
                 isSelected && "bg-[#3b82f6] border-[#2563eb] scale-110",
-                (isReserved || isOccupied) && "bg-[#ef4444] border-[#dc2626] cursor-not-allowed"
+                isUnavailable && "bg-[#ef4444] border-[#dc2626] cursor-not-allowed"
               )}
               style={{
                 left: `${seat.posX}%`,

@@ -12,7 +12,7 @@ import { useRouter } from "next/navigation";
 import { useReservationStore } from "@/shared/hooks";
 import { createReservation } from "@/modules/reservations/actions";
 import { SEAT_PRICE } from "@/modules/events/types";
-import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
+import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import type { EventWithTeams } from "@/modules/events/types";
 import type { SeatWithStatus } from "@/modules/seating/types";
 import type { ZoneLabelConfig } from "@/modules/seating/constants";
@@ -36,6 +36,8 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showConditions, setShowConditions] = useState(true);
+  const [isSpanish, setIsSpanish] = useState(true);
 
   // Initialize store with event and seats data
   useEffect(() => {
@@ -46,6 +48,11 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       clearSelection();
     };
   }, [event, seats, setEvent, setSeatsData, clearSelection]);
+
+  // Detect browser language
+  useEffect(() => {
+    setIsSpanish(navigator.language.startsWith("es"));
+  }, []);
 
   const eventDate = new Date(event.eventDate);
   const totalPrice = getTotalPrice();
@@ -61,7 +68,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       const result = await createReservation({
         eventId: event.id,
         seatIds: selectedSeats,
-        pricePerSeat: SEAT_PRICE,
+        pricePerSeat: event.pricePerSeat ?? SEAT_PRICE,
       });
 
       if (!result.success || !result.reservation) {
@@ -72,8 +79,13 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
       const reservation = result.reservation;
 
-      // Dynamically import jspdf (client-side only)
+      // Dynamically import jspdf and qrcode (client-side only)
       const { jsPDF } = await import("jspdf");
+      const QRCode = await import("qrcode");
+
+      // Generate QR data URL pointing to the reservation detail in admin
+      const reservationUrl = `${window.location.origin}/admin/reservas/${reservation.eventId}/${reservation.id}`;
+      const qrDataUrl = await QRCode.toDataURL(reservationUrl, { width: 200, margin: 1 });
 
       // Generate PDF - ticket format (80mm wide, variable height)
       const ticketWidth = 80; // mm
@@ -81,9 +93,9 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       const contentWidth = ticketWidth - (margin * 2);
 
       // Calculate height based on content
-      const baseHeight = 120; // Base height for header, event info, totals
+      const qrSize = 35; // mm
       const seatsHeight = reservation.seats.length * 5; // 5mm per seat
-      const ticketHeight = baseHeight + seatsHeight;
+      const ticketHeight = 98 + seatsHeight + qrSize; // tight bottom margin (~8mm)
 
       const doc = new jsPDF({
         unit: "mm",
@@ -182,6 +194,17 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       doc.setFont("helvetica", "normal");
       doc.text("Gracias por tu reserva", ticketWidth / 2, yPos, { align: "center" });
 
+      // Dashed line before QR
+      yPos += 6;
+      doc.setLineDashPattern([1, 1], 0);
+      doc.line(margin, yPos, ticketWidth - margin, yPos);
+      doc.setLineDashPattern([], 0);
+
+      // QR code centered
+      yPos += 4;
+      const qrX = (ticketWidth - qrSize) / 2;
+      doc.addImage(qrDataUrl, "PNG", qrX, yPos, qrSize, qrSize);
+
       // Open PDF in new tab
       const pdfBlob = doc.output("blob");
       const pdfUrl = URL.createObjectURL(pdfBlob);
@@ -215,8 +238,67 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const time = format(eventDate, "HH:mm");
   const dateString = `${formattedDay} ${dayNumber} ${formattedMonth} • ${time}`;
 
+  const conditions = isSpanish
+    ? {
+        title: "CONDICIONES DE LA RESERVA",
+        items: [
+          { text: "No se admiten cancelaciones", bold: null },
+          { text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)", bold: null },
+          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: "" },
+          { text: "La reserva de los asientos es válida sólo durante la duración del evento", bold: null },
+        ],
+        accept: "Aceptar",
+      }
+    : {
+        title: "RESERVATION CONDITIONS",
+        items: [
+          { text: "No cancellations accepted", bold: null },
+          { text: "Seats will be released 10 minutes after the event start time (punctuality is required)", bold: null },
+          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: "" },
+          { text: "Seat reservation is only valid for the duration of the event", bold: null },
+        ],
+        accept: "Accept",
+      };
+
   return (
     <div className="min-h-screen bg-black flex flex-col">
+      {/* Conditions modal */}
+      {showConditions && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-5">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+            <h2 className="text-white font-bold text-sm tracking-widest text-center mb-5">
+              {conditions.title}
+            </h2>
+            <ul className="space-y-3 mb-6">
+              {conditions.items.map((item, i) => (
+                <li key={i} className="flex gap-2 text-white/70 text-sm leading-snug">
+                  <span className="text-[#D4AF37] mt-0.5 shrink-0">•</span>
+                  <span>
+                    {"text" in item && item.text ? (
+                      item.text
+                    ) : (
+                      <>
+                        {(item as { before: string; bold: string; after: string }).before}
+                        <strong className="text-white font-semibold">
+                          {(item as { before: string; bold: string; after: string }).bold}
+                        </strong>
+                        {(item as { before: string; bold: string; after: string }).after}
+                      </>
+                    )}
+                  </span>
+                </li>
+              ))}
+            </ul>
+            <Button
+              onClick={() => setShowConditions(false)}
+              className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
+            >
+              {conditions.accept}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-black/95 backdrop-blur border-b border-white/10">
         <div className="flex items-center justify-between px-4 py-4">
@@ -263,18 +345,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
           {/* Center: Competition emblem + Date and time */}
           <div className="absolute left-1/2 -translate-x-1/2 flex flex-col items-center">
-            {event.competition && COMPETITION_EMBLEM[event.competition] && (
-              <div className="bg-white/90 rounded-full p-0.5 mb-1">
-                <Image
-                  src={COMPETITION_EMBLEM[event.competition]}
-                  alt={event.competition}
-                  width={20}
-                  height={20}
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
-            )}
+            <CompetitionEmblem competition={event.competition} className="mb-1" />
             <p className="text-white text-xs font-normal">{dateString}</p>
           </div>
 

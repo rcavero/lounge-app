@@ -14,7 +14,8 @@
 | React | 19.2.3 | UI Library |
 | TypeScript | 5.x | Tipado estático |
 | Prisma | 6.19.2 | ORM para base de datos |
-| SQLite | - | Base de datos (desarrollo) |
+| SQLite | - | Base de datos (desarrollo) → PostgreSQL en producción |
+| qrcode | 1.5.x | Generación de QR codes en cliente |
 | Tailwind CSS | 4.x | Estilos |
 | iron-session | 8.x | Manejo de sesiones |
 | jsPDF | 2.5.2 | Generación de PDFs |
@@ -57,7 +58,10 @@ lounge-app/
 │   │   │   │   ├── reservas/       # Gestión de reservas
 │   │   │   │   │   ├── page.tsx, client.tsx
 │   │   │   │   │   └── [id]/       # Reservas por evento
-│   │   │   │   │       └── [reservationId]/ # Detalle reserva
+│   │   │   │   │       ├── page.tsx            # Listado de reservas + botón bloquear
+│   │   │   │   │       ├── bloquear/           # Bloqueo de asientos por evento
+│   │   │   │   │       │   ├── page.tsx, client.tsx
+│   │   │   │   │       └── [reservationId]/    # Detalle reserva
 │   │   │   │   ├── asientos/       # Editor de asientos
 │   │   │   │   │   ├── page.tsx, client.tsx
 │   │   │   │   └── usuarios/       # Gestión de usuarios
@@ -100,11 +104,12 @@ lounge-app/
 │   │   │
 │   │   ├── events/
 │   │   │   ├── actions/index.ts    # CRUD de eventos
-│   │   │   ├── components/         # EventCard, EventRow, EventRowWithBadge, TeamLogo
+│   │   │   ├── components/         # EventCard, EventRow, EventRowWithBadge, TeamLogo, CompetitionEmblem
 │   │   │   │   ├── event-card.tsx
-│   │   │   │   ├── event-row.tsx
+│   │   │   │   ├── event-row.tsx          # Con checkAvailability (ventana 48h–5h)
 │   │   │   │   ├── event-row-with-badge.tsx
 │   │   │   │   ├── team-logo.tsx
+│   │   │   │   ├── competition-emblem.tsx # Escudo de competición con manejo de error
 │   │   │   │   └── index.ts
 │   │   │   └── types/index.ts
 │   │   │
@@ -133,7 +138,8 @@ lounge-app/
 │   │   ├── components/
 │   │   │   ├── header.tsx          # Header público
 │   │   │   ├── footer.tsx          # Footer público
-│   │   │   └── logo.tsx            # Logo de la app
+│   │   │   ├── logo.tsx            # Logo de la app
+│   │   │   └── info-banner.tsx     # Banner informativo bilingüe (cierra con X)
 │   │   └── hooks/
 │   │       ├── index.ts
 │   │       └── use-reservation-store.ts  # Store de reservas (Zustand)
@@ -201,11 +207,12 @@ model Event {
   competition String?     // La Liga, Champions League, etc.
   homeTeamId  String
   awayTeamId  String
-  eventDate   DateTime
-  status      EventStatus @default(UPCOMING)
-  screens     String      @default("PROYECTOR") // Comma-separated
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
+  eventDate     DateTime
+  status        EventStatus @default(UPCOMING)
+  screens       String      @default("PROYECTOR") // Comma-separated: PROYECTOR,TV1,TV2
+  pricePerSeat  Int         @default(10)           // Precio por asiento en euros (10-30)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
 
   reservations Reservation[]
   seatStatuses SeatStatus[]

@@ -3,7 +3,6 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { updateEvent, deleteEvent } from "@/modules/events/actions";
@@ -12,8 +11,8 @@ import type { Team, EventWithTeams } from "@/modules/events/types";
 import {
   COMPETITION_NAMES,
   COMPETITION_LEAGUES,
-  COMPETITION_EMBLEM,
 } from "@/modules/football-data/config/competitions";
+import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 
 interface EditEventFormProps {
   event: EventWithTeams;
@@ -52,6 +51,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const [eventDate, setEventDate] = useState<string>(formatDateForInput(event.eventDate));
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
   const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
+  const [pricePerSeat, setPricePerSeat] = useState<number>(event.pricePerSeat ?? 10);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -120,6 +120,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         eventDate: dateTime,
         screens: selectedScreens,
         competition,
+        pricePerSeat,
       });
 
       if (result.success) {
@@ -170,18 +171,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         <div className="space-y-2">
           <label className="text-white/70 text-xs font-medium">Competición</label>
           <div className="flex items-center gap-2">
-            {COMPETITION_EMBLEM[competition] && (
-              <div className="bg-white/90 rounded-full p-1 shrink-0">
-                <Image
-                  src={COMPETITION_EMBLEM[competition]}
-                  alt={competition}
-                  width={20}
-                  height={20}
-                  className="object-contain"
-                  unoptimized
-                />
-              </div>
-            )}
+            <CompetitionEmblem competition={competition} className="shrink-0" />
             <select
               value={competition}
               onChange={(e) => handleCompetitionChange(e.target.value)}
@@ -279,6 +269,27 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               onChange={(e) => setEventTime(e.target.value)}
               className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
             />
+          </div>
+        </div>
+
+        {/* Price per seat */}
+        <div className="space-y-2">
+          <label className="text-white/70 text-xs font-medium">Precio por asiento</label>
+          <div className="flex gap-2">
+            {[10, 15, 20, 25, 30].map((price) => (
+              <button
+                key={price}
+                type="button"
+                onClick={() => setPricePerSeat(price)}
+                className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
+                  pricePerSeat === price
+                    ? "bg-[#92700c] border-[#D4AF37] text-white"
+                    : "bg-transparent border-white/20 text-white/50"
+                }`}
+              >
+                {price}€
+              </button>
+            ))}
           </div>
         </div>
 

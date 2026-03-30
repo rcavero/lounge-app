@@ -24,7 +24,16 @@ export default async function AdminEventsPage() {
               <p className="text-white/50 text-xs">Crea o modifica un evento</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-col items-end gap-1.5">
+            <Link href="/admin/eventos/nuevo">
+              <Button
+                size="sm"
+                className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
+              >
+                <Plus className="w-4 h-4 mr-1" />
+                Añadir evento
+              </Button>
+            </Link>
             <Link href="/admin/eventos/sugerencias">
               <Button
                 size="sm"
@@ -33,15 +42,6 @@ export default async function AdminEventsPage() {
               >
                 <Download className="w-4 h-4 mr-1" />
                 API
-              </Button>
-            </Link>
-            <Link href="/admin/eventos/nuevo">
-              <Button
-                size="sm"
-                className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
-              >
-                <Plus className="w-4 h-4 mr-1" />
-                Añadir evento
               </Button>
             </Link>
           </div>

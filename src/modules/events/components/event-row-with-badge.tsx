@@ -1,12 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { EventWithReservationCount } from "@/modules/reservations/actions";
 import { TeamLogo } from "./team-logo";
-import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
+import { CompetitionEmblem } from "./competition-emblem";
 
 interface EventRowWithBadgeProps {
   event: EventWithReservationCount;
@@ -44,18 +43,7 @@ export function EventRowWithBadge({ event, href }: EventRowWithBadgeProps) {
     <Link href={href || `/admin/reservas/${event.id}`} className="block">
       <div className="relative bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors">
         {/* Competition emblem */}
-        {event.competition && COMPETITION_EMBLEM[event.competition] && (
-          <div className="absolute top-2 left-2 bg-white/90 rounded-full p-1">
-            <Image
-              src={COMPETITION_EMBLEM[event.competition]}
-              alt={event.competition}
-              width={20}
-              height={20}
-              className="object-contain"
-              unoptimized
-            />
-          </div>
-        )}
+        <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
         {/* Reservation count badge */}
         {reservationCount > 0 && (
           <div className="absolute -top-2 -right-2 bg-[#D4AF37] text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center z-10">

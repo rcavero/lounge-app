@@ -11,17 +11,17 @@ export interface Competition {
 const EMBLEM_BASE = "https://crests.football-data.org";
 
 export const COMPETITIONS: Competition[] = [
+  { code: "CL", name: "Champions League", league: "Champions League", emblem: `${EMBLEM_BASE}/CL.png` },
   { code: "PD", name: "La Liga", league: "La Liga", emblem: `${EMBLEM_BASE}/PD.png` },
   { code: "PL", name: "Premier League", league: "Premier League", emblem: `${EMBLEM_BASE}/PL.png` },
   { code: "SA", name: "Serie A", league: "Serie A", emblem: `${EMBLEM_BASE}/SA.png` },
-  { code: "BL1", name: "Bundesliga", league: "Bundesliga", emblem: `${EMBLEM_BASE}/BL1.png` },
   { code: "FL1", name: "Ligue 1", league: "Ligue 1", emblem: `${EMBLEM_BASE}/FL1.png` },
-  { code: "CL", name: "Champions League", league: "Champions League", emblem: `${EMBLEM_BASE}/CL.png` },
-  { code: "EC", name: "European Championship", league: "European Championship", emblem: `${EMBLEM_BASE}/EC.png` },
-  { code: "WC", name: "World Cup", league: "World Cup", emblem: `${EMBLEM_BASE}/WC.png` },
-  { code: "ELC", name: "Championship", league: "Championship", emblem: `${EMBLEM_BASE}/ELC.png` },
-  { code: "DED", name: "Eredivisie", league: "Eredivisie", emblem: `${EMBLEM_BASE}/DED.png` },
+  { code: "BL1", name: "Bundesliga", league: "Bundesliga", emblem: `${EMBLEM_BASE}/BL1.png` },
   { code: "PPL", name: "Primeira Liga", league: "Primeira Liga", emblem: `${EMBLEM_BASE}/PPL.png` },
+  { code: "DED", name: "Eredivisie", league: "Eredivisie", emblem: `${EMBLEM_BASE}/DED.png` },
+  { code: "WC", name: "World Cup", league: "World Cup", emblem: `${EMBLEM_BASE}/WC.png` },
+  { code: "EC", name: "European Championship", league: "European Championship", emblem: `${EMBLEM_BASE}/EC.png` },
+  { code: "ELC", name: "Championship", league: "Championship", emblem: `${EMBLEM_BASE}/ELC.png` },
   { code: "BSA", name: "Brasileirão", league: "Brasileirão", emblem: `${EMBLEM_BASE}/BSA.png` },
 ];
 

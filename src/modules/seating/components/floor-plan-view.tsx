@@ -70,6 +70,7 @@ export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: Floo
           const isHighlighted = highlightedSeats.includes(seat.id);
           const isAvailable = seat.status === "AVAILABLE";
           const isOccupied = seat.status === "OCCUPIED" || seat.status === "RESERVED";
+          const isBlocked = seat.status === "BLOCKED";
 
           return (
             <div
@@ -78,13 +79,14 @@ export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: Floo
                 "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 z-20",
                 isHighlighted && "bg-[#D4AF37] border-[#b8972e]",
                 !isHighlighted && isAvailable && "bg-[#22c55e] border-[#16a34a]",
-                !isHighlighted && isOccupied && "bg-[#ef4444] border-[#dc2626]"
+                !isHighlighted && isOccupied && "bg-[#ef4444] border-[#dc2626]",
+                !isHighlighted && isBlocked && "bg-[#6b7280] border-[#4b5563]"
               )}
               style={{
                 left: `${seat.posX}%`,
                 top: `${seat.posY}%`,
               }}
-              title={`${seat.code} - ${isHighlighted ? "Esta reserva" : isAvailable ? "Disponible" : "Ocupado"}`}
+              title={`${seat.code} - ${isHighlighted ? "Esta reserva" : isAvailable ? "Disponible" : isBlocked ? "Bloqueado" : "Ocupado"}`}
             />
           );
         })}
@@ -103,6 +105,10 @@ export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: Floo
         <div className="flex items-center gap-2">
           <div className="w-3 h-3 rounded-full bg-[#ef4444] border-2 border-[#dc2626]" />
           <span className="text-white/70">Ocupado</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="w-3 h-3 rounded-full bg-[#6b7280] border-2 border-[#4b5563]" />
+          <span className="text-white/70">Bloqueado</span>
         </div>
       </div>
     </div>

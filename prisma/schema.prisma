@@ -39,9 +39,10 @@ model Event {
   awayTeamId  String
   awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
 
-  eventDate   DateTime
-  status      EventStatus @default(UPCOMING)
-  screens     String      @default("PROYECTOR") // Comma-separated: "TV1,TV2,PROYECTOR"
+  eventDate    DateTime
+  status       EventStatus @default(UPCOMING)
+  screens      String      @default("PROYECTOR") // Comma-separated: "TV1,TV2,PROYECTOR"
+  pricePerSeat Int         @default(10) // Precio por asiento en euros
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

@@ -106,6 +106,37 @@ export async function updateSeatPositions(
   );
 }
 
+// Block/unblock seats for a specific event
+export async function saveBlockedSeats(
+  eventId: string,
+  seatIdsToBlock: string[]
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // Release all currently blocked seats for this event
+    await prisma.seatStatus.updateMany({
+      where: { eventId, status: "BLOCKED" },
+      data: { status: "AVAILABLE" },
+    });
+
+    // Block the selected seats (only if AVAILABLE — never touch RESERVED/OCCUPIED)
+    if (seatIdsToBlock.length > 0) {
+      await prisma.seatStatus.updateMany({
+        where: {
+          eventId,
+          seatId: { in: seatIdsToBlock },
+          status: "AVAILABLE",
+        },
+        data: { status: "BLOCKED" },
+      });
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error("Error saving blocked seats:", error);
+    return { success: false, error: "Error al guardar los bloqueos" };
+  }
+}
+
 // Get zone labels configuration
 export async function getZoneLabels(): Promise<ZoneLabelConfig[]> {
   const labels = await prisma.zoneLabel.findMany();
