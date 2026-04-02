@@ -13,20 +13,46 @@ export async function GET(request: Request) {
   try {
     const now = new Date();
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+    const thirtyMinutesAgo = new Date(now.getTime() - 30 * 60 * 1000);
 
-    // Delete events older than 90 days
-    // Cascade delete will automatically remove related reservations and seatStatuses
-    const result = await prisma.event.deleteMany({
+    // Delete events older than 90 days (cascade removes reservations + seatStatuses)
+    const deletedEvents = await prisma.event.deleteMany({
+      where: { eventDate: { lt: ninetyDaysAgo } },
+    });
+
+    // Expire PENDING reservations older than 30 minutes and release their seats
+    const expiredReservations = await prisma.reservation.findMany({
       where: {
-        eventDate: {
-          lt: ninetyDaysAgo,
-        },
+        status: "PENDING",
+        createdAt: { lt: thirtyMinutesAgo },
+      },
+      select: {
+        id: true,
+        eventId: true,
+        seatStatuses: { select: { seatId: true } },
       },
     });
 
+    let expiredCount = 0;
+    for (const reservation of expiredReservations) {
+      const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
+      await prisma.$transaction(async (tx) => {
+        await tx.reservation.update({
+          where: { id: reservation.id },
+          data: { status: "EXPIRED" },
+        });
+        await tx.seatStatus.updateMany({
+          where: { seatId: { in: seatIds }, eventId: reservation.eventId },
+          data: { status: "AVAILABLE", reservationId: null },
+        });
+      });
+      expiredCount++;
+    }
+
     return NextResponse.json({
       success: true,
-      deletedEvents: result.count,
+      deletedEvents: deletedEvents.count,
+      expiredReservations: expiredCount,
       cutoffDate: ninetyDaysAgo.toISOString(),
     });
   } catch (error) {

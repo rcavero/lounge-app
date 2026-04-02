@@ -16,6 +16,7 @@
 | Prisma | 6.19.2 | ORM para base de datos |
 | SQLite | - | Base de datos (desarrollo) → PostgreSQL en producción |
 | qrcode | 1.5.x | Generación de QR codes en cliente |
+| redsys-easy | - | Integración pasarela de pago Redsys (firma HMAC-SHA256) |
 | Tailwind CSS | 4.x | Estilos |
 | iron-session | 8.x | Manejo de sesiones |
 | jsPDF | 2.5.2 | Generación de PDFs |
@@ -70,10 +71,18 @@ lounge-app/
 │   │   │   │       └── [id]/       # Editar usuario
 │   │   │   └── login/              # Página de login (pública)
 │   │   │       ├── page.tsx, client.tsx
-│   │   ├── eventos/[id]/           # Vista pública de evento
+│   │   ├── eventos/[id]/           # Vista pública de evento (selección de asientos + pago)
+│   │   ├── reserva/
+│   │   │   ├── confirmacion/[orderId]/ # Página de éxito post-pago
+│   │   │   │   ├── page.tsx, client.tsx
+│   │   │   └── error/              # Página de error post-pago (cancela reserva al cargar)
+│   │   │       └── page.tsx
 │   │   └── api/
+│   │       ├── payments/
+│   │       │   └── notify/         # Webhook POST de notificación Redsys
+│   │       │       └── route.ts
 │   │       └── cron/
-│   │           ├── cleanup/        # Endpoint de limpieza
+│   │           ├── cleanup/        # Limpieza de eventos + expiración de reservas PENDING
 │   │           │   └── route.ts
 │   │           └── sync-teams/     # Sync equipos desde football-data.org
 │   │               └── route.ts
@@ -128,8 +137,9 @@ lounge-app/
 │   │   │   ├── constants.ts        # Constantes del mapa
 │   │   │   └── types/index.ts
 │   │   │
-│   │   ├── payments/               # Módulo de pagos (estructura preparada)
-│   │   │   └── types/index.ts
+│   │   ├── payments/               # Módulo de pagos Redsys
+│   │   │   ├── actions/index.ts    # initializePayment, confirmReservationByOrderId, cancelReservationByOrderId, getReservationByOrderId
+│   │   │   └── types/index.ts      # InitializePaymentResult, ReservationTicketData
 │   │   │
 │   │   └── users/
 │   │       └── actions/index.ts    # CRUD de usuarios
@@ -149,6 +159,7 @@ lounge-app/
 │   │
 │   └── lib/
 │       ├── prisma.ts               # Instancia de Prisma
+│       ├── redsys.ts               # Config redsys-easy (sandbox/producción, generateOrderId)
 │       └── utils.ts                # Utilidades (cn para clases)
 │
 ├── backups/                        # Backups de base de datos
@@ -238,7 +249,7 @@ model Reservation {
   numberOfSeats   Int
   totalPrice      Decimal
   status          ReservationStatus @default(PENDING)
-  paymentId       String?           // ID de transacción Redsys
+  paymentId       String?           // orderId de Redsys (12 dígitos) para relacionar webhook con reserva
   paymentStatus   PaymentStatus     @default(PENDING)
   confirmedAt     DateTime?
   cancelledAt     DateTime?
@@ -380,11 +391,25 @@ if (!session.isLoggedIn) redirect("/admin/login");
 3. Se guarda sesión con iron-session (incluye role)
 4. Redirect a /admin
 
-### Crear Reserva
-1. Admin selecciona evento
-2. Selecciona asientos en el mapa
-3. `createReservation()` crea reserva y actualiza SeatStatus
-4. Transacción Prisma garantiza consistencia
+### Flujo de Reserva con Pago Redsys
+1. Cliente selecciona asientos → pulsa RESERVAR
+2. `initializePayment()` (payments/actions):
+   - Verifica disponibilidad de asientos
+   - Crea reserva `PENDING` con asientos `RESERVED` en transacción
+   - Genera orderId (12 dígitos de timestamp) → guardado en `Reservation.paymentId`
+   - Construye formulario Redsys firmado con HMAC-SHA256 (`redsys-easy`)
+   - Devuelve `{ redsysUrl, formBody }`
+3. Cliente hace auto-submit del formulario oculto → redirect al banco
+4. Cliente paga en la pasarela Redsys
+5. Redsys POST a `/api/payments/notify`:
+   - Verifica firma, extrae orderId y código de respuesta
+   - OK (código 0000-0099): reserva → `CONFIRMED`, asientos → `OCCUPIED`
+   - KO: reserva → `CANCELLED`, asientos → `AVAILABLE`
+6. Redsys redirige al cliente:
+   - OK → `/reserva/confirmacion/[orderId]`: confirma si el webhook no llegó (fallback local) + muestra ticket + descarga PDF
+   - KO → `/reserva/error`: cancela si el webhook no llegó (fallback local) + botón reintentar
+
+**Nota sobre el webhook en local**: Redsys no puede alcanzar `localhost`. El fallback en las páginas de OK/KO es idempotente: si el webhook ya actuó, las páginas detectan que la reserva no está en estado `PENDING` y no hacen nada.
 
 ### Generar Informe PDF
 1. Admin abre acordeón "Informes de reservas"

@@ -1,26 +1,22 @@
-export interface RedsysConfig {
-  merchantCode: string;
-  terminal: string;
-  secretKey: string;
-  environment: "test" | "production";
-}
-
-export interface PaymentRequest {
-  reservationId: string;
-  amount: number;
-  description: string;
-  customerEmail: string;
-}
-
-export interface PaymentResponse {
+export interface InitializePaymentResult {
   success: boolean;
-  transactionId?: string;
   error?: string;
-  redirectUrl?: string;
+  redsysUrl?: string;
+  formBody?: {
+    Ds_SignatureVersion: string;
+    Ds_MerchantParameters: string;
+    Ds_Signature: string;
+  };
 }
 
-export interface RedsysNotification {
-  Ds_SignatureVersion: string;
-  Ds_MerchantParameters: string;
-  Ds_Signature: string;
+export interface ReservationTicketData {
+  id: string;
+  eventId: string;
+  homeTeamName: string;
+  awayTeamName: string;
+  eventDate: string; // ISO string
+  seats: { id: string; code: string }[];
+  totalSeats: number;
+  totalPrice: number;
+  status: string;
 }

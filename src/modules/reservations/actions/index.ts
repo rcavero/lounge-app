@@ -179,7 +179,7 @@ export async function getEventsWithReservationCount(): Promise<EventWithReservat
       awayTeam: true,
       _count: {
         select: {
-          reservations: true,
+          reservations: { where: { status: "CONFIRMED" } },
         },
       },
     },
@@ -199,6 +199,7 @@ export async function getEventWithReservations(eventId: string) {
       homeTeam: true,
       awayTeam: true,
       reservations: {
+        where: { status: "CONFIRMED" },
         include: {
           seatStatuses: {
             include: {
@@ -255,7 +256,7 @@ export async function getPastEventsLast35Days(): Promise<EventWithReservationCou
       awayTeam: true,
       _count: {
         select: {
-          reservations: true,
+          reservations: { where: { status: "CONFIRMED" } },
         },
       },
     },

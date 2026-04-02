@@ -2,7 +2,7 @@
 
 ## Estado Actual del Proyecto
 
-**Última actualización:** 30 de Marzo de 2026
+**Última actualización:** 2 de Abril de 2026
 
 Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lounge Beerhouse) en Valencia. Los clientes reservan asientos para ver eventos deportivos; los administradores gestionan eventos, reservas, asientos y usuarios.
 
@@ -42,24 +42,52 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
 - **Modal de condiciones de reserva** al entrar en la vista de asientos (bilingüe)
 - Contacto por WhatsApp sticky en la parte inferior
 
-### 5. Reserva de Asientos (Público)
+### 5. Reserva de Asientos con Pasarela de Pago (Público)
+
+#### Flujo completo implementado con Redsys (modo redirección):
+```
+Cliente selecciona asientos → RESERVAR
+  → Reserva PENDING creada, asientos marcados RESERVED
+  → Auto-redirect a pasarela Redsys (sandbox o producción)
+  → Cliente introduce datos de tarjeta en página del banco
+  → Redsys notifica al webhook POST /api/payments/notify
+      → Pago OK: reserva → CONFIRMED, asientos → OCCUPIED
+      → Pago KO: reserva → CANCELLED, asientos → AVAILABLE
+  → Redsys redirige al cliente a:
+      → /reserva/confirmacion/[orderId] → resumen + descarga ticket PDF
+      → /reserva/error → mensaje de error + botón para reintentar
+```
+
+#### Detalles técnicos:
+- Librería `redsys-easy` para firma HMAC-SHA256 y construcción del formulario
+- Credenciales de sandbox en `.env` (públicas de Redsys); cambio a producción = 3 variables
+- `orderId` = últimos 12 dígitos de `Date.now()` (válido para Redsys: 4-12 chars, empieza por dígitos)
+- Almacenado en `Reservation.paymentId` para relacionar webhook y reserva
 - Mapa interactivo del bar con posiciones reales de los asientos
 - Asientos: verde=disponible, azul=seleccionado, rojo=ocupado/bloqueado
 - Precio total calculado en tiempo real según `event.pricePerSeat`
-- **Ticket PDF** generado al confirmar:
-  - Datos del evento, asientos, total
-  - **Código QR** que enlaza a `/admin/reservas/[eventId]/[reservationId]` para verificación por el personal
-- Sin recogida de datos personales del cliente (solo el ID de reserva identifica el ticket)
+- Sin recogida de datos personales del cliente (flujo anónimo)
+
+#### Robustez en desarrollo local (webhook no accesible):
+- La página de confirmación llama a `confirmReservationByOrderId()` al cargar
+- La página de error llama a `cancelReservationByOrderId()` al cargar
+- Ambas funciones son idempotentes: si el webhook ya actuó, son no-ops
+- En producción el webhook es la fuente autoritativa; las páginas actúan como fallback
+
+#### Ticket PDF (página de confirmación):
+- Datos del evento, asientos, precio total
+- **Código QR** que enlaza a `/admin/reservas/[eventId]/[reservationId]` para verificación por el personal
+- Generado client-side con jsPDF + qrcode (importación dinámica)
 
 ### 6. Panel de Administración
 
 #### Administrar Reservas (`/admin/reservas`)
-- Lista de eventos próximos y pasados (últimos 35 días) con contador de reservas
+- Lista de eventos próximos y pasados (últimos 35 días) con contador de reservas **CONFIRMED**
 - Acordeón de eventos pasados
 - Acordeón de Informes (solo ADMIN): generación de PDFs mensuales
 
 #### Detalle de Reservas por Evento (`/admin/reservas/[id]`)
-- Listado de todas las reservas confirmadas con código de asientos y precio
+- Listado de reservas **CONFIRMED** con código de asientos y precio
 - **Botón "Bloquear asientos"** → navega a la vista de bloqueo
 
 #### Bloqueo de Asientos (`/admin/reservas/[id]/bloquear`)
@@ -84,7 +112,9 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
 - Cambios persistidos en BD (modelo ZoneLabel)
 
 ### 9. Infraestructura
-- Cron job `/api/cron/cleanup`: elimina eventos > 90 días (3:00 AM diario)
+- Cron job `/api/cron/cleanup` (3:00 AM diario):
+  - Elimina eventos > 90 días
+  - **Expira reservas PENDING > 30 minutos** y libera sus asientos
 - Cron job `/api/cron/sync-teams`: sincroniza equipos desde la API (4:00 AM diario)
 - `vercel.json` configurado para ambos cron jobs
 
@@ -110,10 +140,15 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
 
 ### SeatStatus
 - `status`: AVAILABLE | RESERVED | OCCUPIED | **BLOCKED**
+- RESERVED: asiento en proceso de pago (reserva PENDING)
+- OCCUPIED: asiento de reserva confirmada
 - BLOCKED: bloqueado por admin, aparece como rojo al cliente, gris al admin
 
 ### Reservation
-- `customerName/Email` actualmente hardcodeados ("Cliente") — pendiente flujo real con Redsys
+- `status`: PENDING → CONFIRMED | CANCELLED | EXPIRED
+- `paymentStatus`: PENDING → COMPLETED | FAILED
+- `paymentId`: almacena el `orderId` de Redsys (12 dígitos) para relacionar webhook con reserva
+- `customerName/Email` hardcodeados ("Cliente") — flujo anónimo sin datos personales
 - `totalPrice` almacenado en BD al crear la reserva (usar `Number(reservation.totalPrice)` al mostrar)
 
 ---
@@ -122,8 +157,7 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
 
 ### Alta Prioridad (antes de producción)
 - [ ] **Migración a PostgreSQL** → ver `MIGRACION_SUPABASE.md`
-- [ ] **Integración Redsys** → ver `PASARELA_PAGO.md`
-- [ ] **Flujo de cliente real**: recoger datos mínimos o flujo anónimo completo
+- [ ] **Credenciales Redsys reales** del banco (sustituir 3 vars de entorno)
 - [ ] **Caducidad de sesión admin** (iron-session ttl + aviso de expiración)
 - [ ] **Despliegue en Vercel**
 
@@ -147,24 +181,49 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
 
 3. **Navegación post-action**: usar `window.location.href` para navegación fiable tras server actions en algunos flujos.
 
+4. **Webhook Redsys en local**: Redsys no puede llamar a `localhost`. El fallback está implementado: la página de confirmación/error confirma o cancela directamente al cargar. En producción (Vercel) el webhook funciona normalmente.
+
+5. **Errores CSS/JS en sandbox Redsys**: el sandbox intenta cargar recursos de personalización específicos del comercio (`999008881`) que no existen. Son errores cosméticos; el formulario de pago funciona igualmente.
+
 ---
 
 ## Variables de Entorno
 
 ```env
 # Base de datos
-DATABASE_URL="..."         # Pooler Supabase (producción) o file:./dev.db (desarrollo)
-DIRECT_URL="..."           # Solo para migraciones Prisma (producción)
+DATABASE_URL="..."              # Pooler Supabase (producción) o file:./dev.db (desarrollo)
+DIRECT_URL="..."                # Solo para migraciones Prisma (producción)
 
 # Autenticación
-AUTH_SECRET="..."          # Secreto para iron-session
+AUTH_SECRET="..."               # Secreto para iron-session
 
 # Cron jobs
-CRON_SECRET="..."          # Header de autorización para endpoints cron
+CRON_SECRET="..."               # Header de autorización para endpoints cron
 
 # Football-data.org
 FOOTBALL_DATA_API_KEY="..."
+
+# Redsys — sandbox (credenciales públicas de prueba)
+REDSYS_MERCHANT_CODE="999008881"
+REDSYS_TERMINAL="001"
+REDSYS_SECRET_KEY="sq7HjrUOBfKmC576ILgskD5srU870gJ7"
+NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+
+# Redsys — producción (sustituir al poner en producción)
+# REDSYS_MERCHANT_CODE="TU_CODIGO_REAL"
+# REDSYS_SECRET_KEY="TU_CLAVE_REAL"
+# NEXT_PUBLIC_BASE_URL="https://tu-dominio.com"
 ```
+
+---
+
+## Tarjeta de prueba Redsys (sandbox)
+
+| Campo | Valor |
+|---|---|
+| Número | `4548 8120 4940 0004` |
+| Caducidad | Cualquier fecha futura (ej: `12/26`) |
+| CVV | `123` |
 
 ---
 

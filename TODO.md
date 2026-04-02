@@ -20,21 +20,22 @@ Funcionalidades pendientes de implementación.
 
 ## Pasarela de Pagos
 
-- [ ] **Integración con Redsys**
-  - Configurar credenciales de comercio (sandbox y producción)
-  - Implementar firma HMAC SHA256
-  - Crear endpoint de notificación (callback)
-  - Manejar estados de pago (PENDING, COMPLETED, FAILED, REFUNDED)
+- [x] **Integración con Redsys** ✅
+  - Sandbox configurado con credenciales públicas de prueba
+  - Firma HMAC-SHA256 con `redsys-easy`
+  - Webhook POST `/api/payments/notify` verifica firma y confirma/cancela reserva
+  - Fallback en páginas OK/KO para desarrollo local (webhook no accesible desde localhost)
+  - Estados de pago: PENDING → COMPLETED | FAILED
 
-- [ ] **Pantalla de éxito de pago**
-  - Página `/reserva/confirmacion/[id]`
-  - Mostrar resumen de la reserva
-  - Botón para descargar ticket PDF
-  - Información de próximos pasos
+- [x] **Pantalla de éxito de pago** ✅
+  - `/reserva/confirmacion/[orderId]`: resumen + descarga ticket PDF con QR
 
-- [ ] **Pantalla de error de pago**
-  - Página `/reserva/error`
-  - Opciones para reintentar o contactar soporte
+- [x] **Pantalla de error de pago** ✅
+  - `/reserva/error`: cancela reserva y libera asientos + botón reintentar
+
+- [ ] **Credenciales Redsys de producción**
+  - Solicitar al banco alta de TPV Virtual
+  - Sustituir `REDSYS_MERCHANT_CODE`, `REDSYS_SECRET_KEY` y `NEXT_PUBLIC_BASE_URL` en producción
 
 ---
 
@@ -154,7 +155,7 @@ Funcionalidades pendientes de implementación.
 
 ### Alta (MVP Producción)
 1. Migración a PostgreSQL
-2. Integración Redsys + pantallas de pago
+2. Credenciales Redsys de producción (banco)
 3. Información descuento y advertencia ticket
 4. Caducidad de sesión
 5. Despliegue a producción
@@ -189,4 +190,4 @@ Funcionalidades pendientes de implementación.
 
 ---
 
-*Última actualización: 30 de Marzo de 2026*
+*Última actualización: 2 de Abril de 2026*

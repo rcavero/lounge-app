@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
@@ -8,9 +8,8 @@ import { es } from "date-fns/locale";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
-import { useRouter } from "next/navigation";
 import { useReservationStore } from "@/shared/hooks";
-import { createReservation } from "@/modules/reservations/actions";
+import { initializePayment } from "@/modules/payments/actions";
 import { SEAT_PRICE } from "@/modules/events/types";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import type { EventWithTeams } from "@/modules/events/types";
@@ -24,7 +23,6 @@ interface EventReservationClientProps {
 }
 
 export function EventReservationClient({ event, seats, zoneLabels }: EventReservationClientProps) {
-  const router = useRouter();
   const {
     selectedSeats,
     toggleSeat,
@@ -38,6 +36,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const [error, setError] = useState<string | null>(null);
   const [showConditions, setShowConditions] = useState(true);
   const [isSpanish, setIsSpanish] = useState(true);
+  const redsysFormRef = useRef<HTMLFormElement>(null);
 
   // Initialize store with event and seats data
   useEffect(() => {
@@ -57,7 +56,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const eventDate = new Date(event.eventDate);
   const totalPrice = getTotalPrice();
 
-  // Handle reservation and PDF generation
+  // Initialize payment: creates PENDING reservation and redirects to Redsys
   const handleReserve = async () => {
     if (selectedSeats.length === 0) return;
 
@@ -65,161 +64,36 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
     setError(null);
 
     try {
-      const result = await createReservation({
+      const result = await initializePayment({
         eventId: event.id,
         seatIds: selectedSeats,
         pricePerSeat: event.pricePerSeat ?? SEAT_PRICE,
       });
 
-      if (!result.success || !result.reservation) {
-        setError(result.error || "Error al crear la reserva");
+      if (!result.success || !result.redsysUrl || !result.formBody) {
+        setError(result.error || "Error al iniciar el pago");
         setIsProcessing(false);
         return;
       }
 
-      const reservation = result.reservation;
-
-      // Dynamically import jspdf and qrcode (client-side only)
-      const { jsPDF } = await import("jspdf");
-      const QRCode = await import("qrcode");
-
-      // Generate QR data URL pointing to the reservation detail in admin
-      const reservationUrl = `${window.location.origin}/admin/reservas/${reservation.eventId}/${reservation.id}`;
-      const qrDataUrl = await QRCode.toDataURL(reservationUrl, { width: 200, margin: 1 });
-
-      // Generate PDF - ticket format (80mm wide, variable height)
-      const ticketWidth = 80; // mm
-      const margin = 5;
-      const contentWidth = ticketWidth - (margin * 2);
-
-      // Calculate height based on content
-      const qrSize = 35; // mm
-      const seatsHeight = reservation.seats.length * 5; // 5mm per seat
-      const ticketHeight = 98 + seatsHeight + qrSize; // tight bottom margin (~8mm)
-
-      const doc = new jsPDF({
-        unit: "mm",
-        format: [ticketWidth, ticketHeight],
-      });
-
-      let yPos = 8;
-
-      // Header
-      doc.setFontSize(11);
-      doc.setFont("helvetica", "bold");
-      doc.text("THE LOUNGE", ticketWidth / 2, yPos, { align: "center" });
-      yPos += 4;
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-      doc.text("BEERHOUSE • VALENCIA", ticketWidth / 2, yPos, { align: "center" });
-
-      yPos += 5;
-      doc.setLineWidth(0.3);
-      doc.setLineDashPattern([1, 1], 0);
-      doc.line(margin, yPos, ticketWidth - margin, yPos);
-      doc.setLineDashPattern([], 0);
-
-      // Match info - centered and prominent
-      yPos += 6;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text(reservation.homeTeamName, ticketWidth / 2, yPos, { align: "center" });
-      yPos += 4;
-      doc.setFontSize(8);
-      doc.text("vs", ticketWidth / 2, yPos, { align: "center" });
-      yPos += 4;
-      doc.setFontSize(10);
-      doc.text(reservation.awayTeamName, ticketWidth / 2, yPos, { align: "center" });
-
-      // Date and time
-      const reservationDate = new Date(reservation.eventDate);
-      const formattedDate = format(reservationDate, "EEE d MMM yyyy", { locale: es });
-      const formattedTime = format(reservationDate, "HH:mm");
-
-      yPos += 6;
-      doc.setFontSize(9);
-      doc.setFont("helvetica", "normal");
-      doc.text(`${formattedDate} • ${formattedTime}h`, ticketWidth / 2, yPos, { align: "center" });
-
-      // Dashed line
-      yPos += 5;
-      doc.setLineDashPattern([1, 1], 0);
-      doc.line(margin, yPos, ticketWidth - margin, yPos);
-      doc.setLineDashPattern([], 0);
-
-      // Reservation ID
-      yPos += 5;
-      doc.setFontSize(7);
-      doc.setFont("helvetica", "normal");
-      doc.text(`Reserva: ${reservation.id}`, ticketWidth / 2, yPos, { align: "center" });
-
-      // Seats section
-      yPos += 6;
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "bold");
-      doc.text("ASIENTOS", ticketWidth / 2, yPos, { align: "center" });
-
-      yPos += 4;
-      doc.setFontSize(8);
-      doc.setFont("helvetica", "normal");
-
-      // Display seats in a compact way (multiple per line if possible)
-      const seatCodes = reservation.seats.map(s => s.code);
-      const seatsPerLine = 3;
-      for (let i = 0; i < seatCodes.length; i += seatsPerLine) {
-        const lineSeats = seatCodes.slice(i, i + seatsPerLine).join("  •  ");
-        doc.text(lineSeats, ticketWidth / 2, yPos, { align: "center" });
-        yPos += 5;
-      }
-
-      // Dashed line before totals
-      yPos += 2;
-      doc.setLineDashPattern([1, 1], 0);
-      doc.line(margin, yPos, ticketWidth - margin, yPos);
-      doc.setLineDashPattern([], 0);
-
-      // Totals - prominent
-      yPos += 6;
-      doc.setFontSize(10);
-      doc.setFont("helvetica", "bold");
-      doc.text(`${reservation.totalSeats} asiento${reservation.totalSeats !== 1 ? "s" : ""}`, ticketWidth / 2, yPos, { align: "center" });
-
-      yPos += 7;
-      doc.setFontSize(14);
-      doc.text(`TOTAL: ${reservation.totalPrice.toFixed(2).replace(".", ",")}€`, ticketWidth / 2, yPos, { align: "center" });
-
-      // Footer
-      yPos += 8;
-      doc.setFontSize(6);
-      doc.setFont("helvetica", "normal");
-      doc.text("Gracias por tu reserva", ticketWidth / 2, yPos, { align: "center" });
-
-      // Dashed line before QR
-      yPos += 6;
-      doc.setLineDashPattern([1, 1], 0);
-      doc.line(margin, yPos, ticketWidth - margin, yPos);
-      doc.setLineDashPattern([], 0);
-
-      // QR code centered
-      yPos += 4;
-      const qrX = (ticketWidth - qrSize) / 2;
-      doc.addImage(qrDataUrl, "PNG", qrX, yPos, qrSize, qrSize);
-
-      // Open PDF in new tab
-      const pdfBlob = doc.output("blob");
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, "_blank");
-
-      // Clear selection after successful reservation
       clearSelection();
 
-      // Redirect to home page
-      router.push("/");
+      // Auto-submit the Redsys form to redirect to the payment gateway
+      const form = redsysFormRef.current;
+      if (!form) return;
 
+      form.action = result.redsysUrl;
+      (form.elements.namedItem("Ds_SignatureVersion") as HTMLInputElement).value =
+        result.formBody.Ds_SignatureVersion;
+      (form.elements.namedItem("Ds_MerchantParameters") as HTMLInputElement).value =
+        result.formBody.Ds_MerchantParameters;
+      (form.elements.namedItem("Ds_Signature") as HTMLInputElement).value =
+        result.formBody.Ds_Signature;
+
+      form.submit();
     } catch (err) {
-      console.error("Error processing reservation:", err);
-      setError("Error al procesar la reserva");
-    } finally {
+      console.error("Error initiating payment:", err);
+      setError("Error al procesar el pago");
       setIsProcessing(false);
     }
   };
@@ -404,6 +278,13 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
           THE LOUNGE BEERHOUSE • VALENCIA
         </p>
       </footer>
+
+      {/* Hidden Redsys redirect form — auto-submitted on payment init */}
+      <form ref={redsysFormRef} method="POST" style={{ display: "none" }}>
+        <input type="hidden" name="Ds_SignatureVersion" />
+        <input type="hidden" name="Ds_MerchantParameters" />
+        <input type="hidden" name="Ds_Signature" />
+      </form>
     </div>
   );
 }

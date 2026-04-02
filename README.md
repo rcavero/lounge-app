@@ -11,6 +11,7 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo en Valen
 - **Autenticación**: iron-session + bcryptjs
 - **Estado**: Zustand
 - **PDFs y QR**: jsPDF + qrcode
+- **Pasarela de pago**: redsys-easy (Redsys, modo redirección, HMAC-SHA256)
 - **Fechas**: date-fns
 - **Integración externa**: football-data.org API
 
@@ -55,6 +56,17 @@ CRON_SECRET="tu-secreto-para-cron-jobs"
 
 # Football-data.org
 FOOTBALL_DATA_API_KEY="tu-api-key"
+
+# Redsys — sandbox (credenciales públicas para desarrollo)
+REDSYS_MERCHANT_CODE="999008881"
+REDSYS_TERMINAL="001"
+REDSYS_SECRET_KEY="sq7HjrUOBfKmC576ILgskD5srU870gJ7"
+NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+
+# Redsys — producción (sustituir al desplegar)
+# REDSYS_MERCHANT_CODE="TU_CODIGO_REAL"
+# REDSYS_SECRET_KEY="TU_CLAVE_REAL"
+# NEXT_PUBLIC_BASE_URL="https://tu-dominio.com"
 ```
 
 ## Desarrollo
@@ -66,6 +78,14 @@ npm run build        # Build de producción
 npm run start        # Servidor de producción
 ```
 
+## Tarjeta de prueba (sandbox Redsys)
+
+| Campo | Valor |
+|---|---|
+| Número | `4548 8120 4940 0004` |
+| Caducidad | Cualquier fecha futura |
+| CVV | `123` |
+
 ## Funcionalidades
 
 ### Vista Pública (Cliente)
@@ -74,13 +94,15 @@ npm run start        # Servidor de producción
 - **Banner informativo** bilingüe (español/inglés según navegador)
 - Reserva de asientos con mapa interactivo del bar
 - **Modal de condiciones** bilingüe al entrar al plano de asientos
-- **Ticket PDF** con datos del evento, asientos, precio total y QR de verificación
+- **Pasarela de pago Redsys**: redirect al banco, sin datos personales del cliente
+- **Página de confirmación** con resumen de la reserva y descarga de ticket PDF
+- **Ticket PDF** con datos del evento, asientos, precio total y QR de verificación del personal
 - Contacto por WhatsApp sticky en la parte inferior
 
 ### Panel de Administración
 - **Gestión de eventos**: CRUD completo con precio por asiento (10–30€), pantallas y equipos de la API
 - **Sugerencias de partidos**: crear eventos desde football-data.org
-- **Administrar reservas**: listado por evento con totales; detalle individual accesible por QR
+- **Administrar reservas**: listado de reservas CONFIRMED por evento; detalle individual accesible por QR
 - **Bloquear asientos**: plano interactivo por evento (verde=disponible, gris=bloqueado, rojo=ocupado)
 - **Editor de asientos**: drag & drop para posicionar asientos y etiquetas de zona
 - **Gestión de usuarios**: CRUD de administradores (ADMIN/WORKER)
@@ -102,11 +124,13 @@ npm run start        # Servidor de producción
 ```
 src/
 ├── app/          # Rutas (Next.js App Router)
+│   ├── reserva/  # Páginas post-pago (confirmacion, error)
+│   └── api/      # Webhook Redsys + cron jobs
 ├── components/   # Componentes UI reutilizables (Radix-based)
 ├── modules/      # Módulos de negocio (auth, events, reservations, seating, users, football-data, payments)
 ├── shared/       # Componentes y hooks compartidos
 ├── generated/    # Cliente Prisma generado
-└── lib/          # Utilidades
+└── lib/          # Utilidades (prisma, redsys, utils)
 ```
 
 Consultar [CLAUDE.md](./CLAUDE.md) para arquitectura detallada y [DEVELOPMENT.md](./DEVELOPMENT.md) para el estado del desarrollo.
