@@ -20,6 +20,13 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
 ### 2. Gestión de Eventos
 - CRUD completo de eventos deportivos
 - Selección de equipos (local/visitante) con logos y filtrado por competición
+- **Multi-deporte**: 11 deportes adicionales gestionados manualmente sin pasar por la API (Baloncesto 🏀, Rugby 🏉, Tenis 🎾, Moto GP 🏍️, Fórmula 1 🏎️, Billar 🎱, Dardos 🎯, Hockey 🏒, Ciclismo 🚴, Boxeo 🥊, Otros 🏅)
+  - Formulario de evento: selector con `<optgroup>` separando fútbol de otros deportes
+  - Deportes manuales: inputs de texto libres en lugar de selects de equipos de BD
+  - Motor sports (Moto GP, F1): un único campo "Gran Premio", sin equipo visitante
+  - Emoji como icono de competición (dentro del mismo círculo blanco que los escudos de fútbol)
+  - Emoji como logo de equipo en todas las vistas (tarjetas, filas, detalles de reserva)
+  - Layout estándar de 3 columnas para todos los deportes; columna derecha vacía en motor sports
 - Configuración de pantallas (PROYECTOR, TV1, TV2)
 - **Precio por asiento configurable** (10€, 15€, 20€, 25€, 30€) — por defecto 10€
 - Estados: UPCOMING, LIVE, FINISHED, CANCELLED
@@ -137,6 +144,9 @@ Cliente selecciona asientos → RESERVAR
 
 ### Event
 - `pricePerSeat Int @default(10)` — precio por asiento en euros, editable por evento
+- `homeTeamId String?` / `awayTeamId String?` — nullable; null para deportes manuales
+- `homeTeamName String?` / `awayTeamName String?` — nombre libre para deportes manuales; awayTeamName null en motor sports
+- Patrón de acceso: `event.homeTeam?.shortName ?? event.homeTeamName ?? ""`
 
 ### SeatStatus
 - `status`: AVAILABLE | RESERVED | OCCUPIED | **BLOCKED**

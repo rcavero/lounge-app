@@ -8,6 +8,7 @@ import { Clock, Lock } from "lucide-react";
 import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
 import { CompetitionEmblem } from "./competition-emblem";
+import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 
 interface EventRowProps {
   event: EventWithTeams;
@@ -72,6 +73,31 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
     tooltipTimer.current = setTimeout(() => setTooltip(null), 3000);
   };
 
+  // Manual sport helpers
+  const sportEmoji = getSportEmoji(event.competition);
+  const isMotor = isMotorSport(event.competition);
+  const homeName = event.homeTeam?.shortName ?? event.homeTeamName ?? "";
+  const awayName = event.awayTeam?.shortName ?? event.awayTeamName ?? "";
+
+  const centerSection = (
+    <div className="flex flex-col items-center flex-1 px-2">
+      <span className="text-white/80 text-xs font-medium">
+        {formattedDay} {dayNumber} {formattedMonth}
+      </span>
+      <span className="text-white text-2xl font-bold">{time}</span>
+      <div className="flex gap-1 mt-1 flex-wrap justify-center">
+        {activeScreens.map((screen) => (
+          <span
+            key={screen}
+            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${screenColors[screen]}`}
+          >
+            {screen}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
   const cardContent = (
     <div
       className={`bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between transition-colors relative
@@ -81,38 +107,26 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
       {isTooEarly && <Clock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
       {isTooLate && <Lock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
 
-      {/* Home Team */}
+      {/* Home Team / GP name */}
       <div className="flex flex-col items-center w-20">
-        <TeamLogo team={event.homeTeam} size="lg" />
+        <TeamLogo team={event.homeTeam} emoji={sportEmoji} size="lg" />
         <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
-          {event.homeTeam.shortName}
+          {homeName}
         </span>
       </div>
 
-      {/* Center - Date, Time & Screen */}
-      <div className="flex flex-col items-center flex-1 px-2">
-        <span className="text-white/80 text-xs font-medium">
-          {formattedDay} {dayNumber} {formattedMonth}
-        </span>
-        <span className="text-white text-2xl font-bold">{time}</span>
-        <div className="flex gap-1 mt-1 flex-wrap justify-center">
-          {activeScreens.map((screen) => (
-            <span
-              key={screen}
-              className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${screenColors[screen]}`}
-            >
-              {screen}
+      {centerSection}
+
+      {/* Away Team — empty for motor sports */}
+      <div className="flex flex-col items-center w-20">
+        {!isMotor && (
+          <>
+            <TeamLogo team={event.awayTeam} emoji={sportEmoji} size="lg" />
+            <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
+              {awayName}
             </span>
-          ))}
-        </div>
-      </div>
-
-      {/* Away Team */}
-      <div className="flex flex-col items-center w-20">
-        <TeamLogo team={event.awayTeam} size="lg" />
-        <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
-          {event.awayTeam.shortName}
-        </span>
+          </>
+        )}
       </div>
 
       {/* Tooltip */}

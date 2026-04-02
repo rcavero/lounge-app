@@ -34,10 +34,12 @@ model Event {
   sport       String      @default("football") // football, basketball, etc.
   competition String?     // La Liga, Champions League, etc.
 
-  homeTeamId  String
-  homeTeam    Team        @relation("HomeTeam", fields: [homeTeamId], references: [id])
-  awayTeamId  String
-  awayTeam    Team        @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeamId   String?
+  homeTeam     Team?       @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId   String?
+  awayTeam     Team?       @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeamName String?     // Nombre libre para deportes manuales (sin equipo en BD)
+  awayTeamName String?     // Null para motor sports (solo un participante)
 
   eventDate    DateTime
   status       EventStatus @default(UPCOMING)

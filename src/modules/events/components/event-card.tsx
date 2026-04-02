@@ -10,7 +10,7 @@ import Link from "next/link";
 import Image from "next/image";
 import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
-import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
+import { COMPETITION_EMBLEM, getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 
 interface EventCardProps {
   event: EventWithTeams;
@@ -33,6 +33,11 @@ export function EventCard({ event }: EventCardProps) {
   const isLive = event.status === "LIVE";
   const activeScreens = getActiveScreens(event);
 
+  const sportEmoji = getSportEmoji(event.competition);
+  const isMotor = isMotorSport(event.competition);
+  const homeName = event.homeTeam?.shortName ?? event.homeTeamName ?? "";
+  const awayName = event.awayTeam?.shortName ?? event.awayTeamName ?? "";
+
   return (
     <Card className="overflow-hidden bg-card border-border hover:border-primary/50 transition-colors group">
       {/* Competition Badge */}
@@ -40,7 +45,9 @@ export function EventCard({ event }: EventCardProps) {
         <div className="flex items-center gap-2">
           {event.competition && (
             <Badge variant="secondary" className="text-xs flex items-center gap-1.5">
-              {COMPETITION_EMBLEM[event.competition] && (
+              {sportEmoji ? (
+                <span>{sportEmoji}</span>
+              ) : COMPETITION_EMBLEM[event.competition] ? (
                 <Image
                   src={COMPETITION_EMBLEM[event.competition]}
                   alt={event.competition}
@@ -49,7 +56,7 @@ export function EventCard({ event }: EventCardProps) {
                   className="object-contain"
                   unoptimized
                 />
-              )}
+              ) : null}
               {event.competition}
             </Badge>
           )}
@@ -72,12 +79,10 @@ export function EventCard({ event }: EventCardProps) {
       <CardContent className="p-4">
         {/* Teams */}
         <div className="flex items-center justify-between gap-4 py-4">
-          {/* Home Team */}
+          {/* Home Team / GP name */}
           <div className="flex flex-col items-center gap-2 flex-1">
-            <TeamLogo team={event.homeTeam} size="lg" />
-            <span className="text-sm font-medium text-center line-clamp-2">
-              {event.homeTeam.shortName}
-            </span>
+            <TeamLogo team={event.homeTeam} emoji={sportEmoji} size="lg" />
+            <span className="text-sm font-medium text-center line-clamp-2">{homeName}</span>
           </div>
 
           {/* VS */}
@@ -85,12 +90,14 @@ export function EventCard({ event }: EventCardProps) {
             <span className="text-2xl font-bold text-muted-foreground">VS</span>
           </div>
 
-          {/* Away Team */}
+          {/* Away Team — empty for motor sports */}
           <div className="flex flex-col items-center gap-2 flex-1">
-            <TeamLogo team={event.awayTeam} size="lg" />
-            <span className="text-sm font-medium text-center line-clamp-2">
-              {event.awayTeam.shortName}
-            </span>
+            {!isMotor && (
+              <>
+                <TeamLogo team={event.awayTeam} emoji={sportEmoji} size="lg" />
+                <span className="text-sm font-medium text-center line-clamp-2">{awayName}</span>
+              </>
+            )}
           </div>
         </div>
 

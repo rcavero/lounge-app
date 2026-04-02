@@ -110,8 +110,16 @@ Funcionalidades pendientes de implementación.
 ---
 
 ## Modificar competiciones
-  - Archivo src\modules\football-data\config\competitions.ts, en COMPETITION_LEAGUES, habría que traer realmente de la API los equipos de la Champions League, Europa League, European Championship y World Cup
-  - Hay que añadir competiciones que no llamen a la API, si no que sea para crear manualmente un partido de Rugby o Baloncesto.
+
+- [x] **Deportes manuales sin API** ✅
+  - 11 deportes alternativos: Baloncesto 🏀, Rugby 🏉, Tenis 🎾, Moto GP 🏍️, Fórmula 1 🏎️, Billar 🎱, Dardos 🎯, Hockey 🏒, Ciclismo 🚴, Boxeo 🥊, Otros 🏅
+  - Formulario con inputs de texto (sin BD de equipos); motor sports con campo único "Gran Premio"
+  - Emoji como competición emblem y team logo en todas las vistas
+  - Helpers: `isManualSport()`, `isMotorSport()`, `getSportEmoji()` en `competitions.ts`
+  - Schema: `homeTeamName`/`awayTeamName` nullable en Event; FK de equipos nullable
+
+- [ ] **Sincronizar Champions, Europa League, Eurocopa y Mundial desde la API**
+  - En `COMPETITION_LEAGUES`, traer equipos reales desde football-data.org para estas competiciones
 
 ---
 

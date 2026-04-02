@@ -174,8 +174,8 @@ export async function getReservationByOrderId(
   return {
     id: reservation.id,
     eventId: reservation.eventId,
-    homeTeamName: reservation.event.homeTeam.name,
-    awayTeamName: reservation.event.awayTeam.name,
+    homeTeamName: reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
+    awayTeamName: reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
     eventDate: reservation.event.eventDate.toISOString(),
     seats: reservation.seatStatuses.map((ss) => ({
       id: ss.seat.id,

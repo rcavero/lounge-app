@@ -6,6 +6,7 @@ import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
 import { getEventWithReservations } from "@/modules/reservations/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
+import { getSportEmoji } from "@/modules/football-data/config/competitions";
 import { Button } from "@/components/ui/button";
 
 interface Props {
@@ -34,6 +35,7 @@ export default async function EventReservationsPage({ params }: Props) {
 
   const eventDate = new Date(event.eventDate);
   const activeScreens = getActiveScreens(event.screens);
+  const sportEmoji = getSportEmoji(event.competition);
 
   // Format date
   const dayName = format(eventDate, "EEEE", { locale: es });
@@ -76,9 +78,9 @@ export default async function EventReservationsPage({ params }: Props) {
             <div className="flex items-center justify-between">
               {/* Home Team */}
               <div className="flex flex-col items-center w-20">
-                <TeamLogo team={event.homeTeam} size="lg" />
+                <TeamLogo team={event.homeTeam} emoji={sportEmoji} size="lg" />
                 <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
-                  {event.homeTeam.shortName}
+                  {event.homeTeam?.shortName ?? event.homeTeamName ?? ""}
                 </span>
               </div>
 
@@ -104,9 +106,9 @@ export default async function EventReservationsPage({ params }: Props) {
 
               {/* Away Team */}
               <div className="flex flex-col items-center w-20">
-                <TeamLogo team={event.awayTeam} size="lg" />
+                <TeamLogo team={event.awayTeam} emoji={sportEmoji} size="lg" />
                 <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
-                  {event.awayTeam.shortName}
+                  {event.awayTeam?.shortName ?? event.awayTeamName ?? ""}
                 </span>
               </div>
             </div>

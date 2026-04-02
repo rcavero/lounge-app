@@ -5,7 +5,8 @@ import Image from "next/image";
 import type { Team } from "../types";
 
 interface TeamLogoProps {
-  team: Team;
+  team?: Team | null;
+  emoji?: string | null; // override para deportes manuales
   size?: "sm" | "md" | "lg";
   className?: string;
 }
@@ -22,10 +23,25 @@ const sizePx = {
   lg: 56,
 };
 
-export function TeamLogo({ team, size = "md", className }: TeamLogoProps) {
-  const logoUrl = team.logo;
+export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps) {
+  // Emoji override (deporte manual)
+  if (emoji) {
+    return (
+      <div className={cn("flex items-center justify-center", sizeClasses[size], className)}>
+        <span style={{ fontSize: `${Math.round(sizePx[size] * 0.65)}px`, lineHeight: 1 }}>
+          {emoji}
+        </span>
+      </div>
+    );
+  }
 
-  if (logoUrl) {
+  // Sin equipo → placeholder vacío (no lanza error)
+  if (!team) {
+    return <div className={cn(sizeClasses[size], className)} />;
+  }
+
+  // Logo URL
+  if (team.logo) {
     return (
       <div
         className={cn(
@@ -35,7 +51,7 @@ export function TeamLogo({ team, size = "md", className }: TeamLogoProps) {
         )}
       >
         <Image
-          src={logoUrl}
+          src={team.logo}
           alt={`Escudo de ${team.name}`}
           width={sizePx[size]}
           height={sizePx[size]}
@@ -46,7 +62,7 @@ export function TeamLogo({ team, size = "md", className }: TeamLogoProps) {
     );
   }
 
-  // Fallback: Display initials in a circle
+  // Fallback: iniciales
   const initials = team.shortName
     .split(" ")
     .map((word) => word[0])

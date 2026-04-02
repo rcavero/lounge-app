@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "../types";
+import { isManualSport, isMotorSport } from "@/modules/football-data/config/competitions";
 
 export async function getUpcomingEvents(): Promise<EventWithTeams[]> {
   const events = await prisma.event.findMany({
@@ -66,26 +67,56 @@ export async function getAllTeams() {
 
 // Create a new event
 export async function createEvent(data: {
-  homeTeamId: string;
-  awayTeamId: string;
+  homeTeamId?: string;
+  awayTeamId?: string;
+  homeTeamName?: string;
+  awayTeamName?: string;
   eventDate: Date;
   screens: string[];
   competition?: string;
   pricePerSeat?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
-    const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId } });
-    const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId } });
+    let title: string;
+    let homeTeamIdFinal: string | null = null;
+    let awayTeamIdFinal: string | null = null;
+    let homeTeamNameFinal: string | null = null;
+    let awayTeamNameFinal: string | null = null;
 
-    if (!homeTeam || !awayTeam) {
-      return { success: false, error: "Equipo no encontrado" };
+    if (isManualSport(data.competition)) {
+      // Deporte manual: sin equipos en BD
+      if (isMotorSport(data.competition)) {
+        const gpName = data.homeTeamName?.trim() || "";
+        title = gpName || data.competition || "Gran Premio";
+        homeTeamNameFinal = gpName || null;
+      } else {
+        const home = data.homeTeamName?.trim() || "";
+        const away = data.awayTeamName?.trim() || "";
+        title = `${home} vs ${away}`;
+        homeTeamNameFinal = home || null;
+        awayTeamNameFinal = away || null;
+      }
+    } else {
+      // Fútbol: buscar equipos en BD
+      const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId! } });
+      const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId! } });
+
+      if (!homeTeam || !awayTeam) {
+        return { success: false, error: "Equipo no encontrado" };
+      }
+
+      title = `${homeTeam.shortName} vs ${awayTeam.shortName}`;
+      homeTeamIdFinal = data.homeTeamId!;
+      awayTeamIdFinal = data.awayTeamId!;
     }
 
     const event = await prisma.event.create({
       data: {
-        title: `${homeTeam.shortName} vs ${awayTeam.shortName}`,
-        homeTeamId: data.homeTeamId,
-        awayTeamId: data.awayTeamId,
+        title,
+        homeTeamId: homeTeamIdFinal,
+        awayTeamId: awayTeamIdFinal,
+        homeTeamName: homeTeamNameFinal,
+        awayTeamName: awayTeamNameFinal,
         eventDate: data.eventDate,
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
@@ -115,8 +146,10 @@ export async function createEvent(data: {
 export async function updateEvent(
   id: string,
   data: {
-    homeTeamId: string;
-    awayTeamId: string;
+    homeTeamId?: string;
+    awayTeamId?: string;
+    homeTeamName?: string;
+    awayTeamName?: string;
     eventDate: Date;
     screens: string[];
     competition?: string;
@@ -124,19 +157,47 @@ export async function updateEvent(
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId } });
-    const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId } });
+    let title: string;
+    let homeTeamIdFinal: string | null = null;
+    let awayTeamIdFinal: string | null = null;
+    let homeTeamNameFinal: string | null = null;
+    let awayTeamNameFinal: string | null = null;
 
-    if (!homeTeam || !awayTeam) {
-      return { success: false, error: "Equipo no encontrado" };
+    if (isManualSport(data.competition)) {
+      // Deporte manual
+      if (isMotorSport(data.competition)) {
+        const gpName = data.homeTeamName?.trim() || "";
+        title = gpName || data.competition || "Gran Premio";
+        homeTeamNameFinal = gpName || null;
+      } else {
+        const home = data.homeTeamName?.trim() || "";
+        const away = data.awayTeamName?.trim() || "";
+        title = `${home} vs ${away}`;
+        homeTeamNameFinal = home || null;
+        awayTeamNameFinal = away || null;
+      }
+    } else {
+      // Fútbol
+      const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId! } });
+      const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId! } });
+
+      if (!homeTeam || !awayTeam) {
+        return { success: false, error: "Equipo no encontrado" };
+      }
+
+      title = `${homeTeam.shortName} vs ${awayTeam.shortName}`;
+      homeTeamIdFinal = data.homeTeamId!;
+      awayTeamIdFinal = data.awayTeamId!;
     }
 
     await prisma.event.update({
       where: { id },
       data: {
-        title: `${homeTeam.shortName} vs ${awayTeam.shortName}`,
-        homeTeamId: data.homeTeamId,
-        awayTeamId: data.awayTeamId,
+        title,
+        homeTeamId: homeTeamIdFinal,
+        awayTeamId: awayTeamIdFinal,
+        homeTeamName: homeTeamNameFinal,
+        awayTeamName: awayTeamNameFinal,
         eventDate: data.eventDate,
         competition: data.competition || "Liga",
         screens: data.screens.join(","),

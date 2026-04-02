@@ -66,7 +66,7 @@ export function ReservasClient({
       doc.setFontSize(11);
       doc.setFont("helvetica", "bold");
       doc.text(
-        `${event.homeTeam.shortName} vs ${event.awayTeam.shortName}`,
+        `${event.homeTeam?.shortName ?? event.homeTeamName ?? ""} vs ${event.awayTeam?.shortName ?? event.awayTeamName ?? ""}`,
         14,
         y
       );

@@ -6,6 +6,7 @@ import { es } from "date-fns/locale";
 import type { EventWithReservationCount } from "@/modules/reservations/actions";
 import { TeamLogo } from "./team-logo";
 import { CompetitionEmblem } from "./competition-emblem";
+import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 
 interface EventRowWithBadgeProps {
   event: EventWithReservationCount;
@@ -39,6 +40,31 @@ export function EventRowWithBadge({ event, href }: EventRowWithBadgeProps) {
   const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
   const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
+  // Manual sport helpers
+  const sportEmoji = getSportEmoji(event.competition);
+  const isMotor = isMotorSport(event.competition);
+  const homeName = event.homeTeam?.shortName ?? event.homeTeamName ?? "";
+  const awayName = event.awayTeam?.shortName ?? event.awayTeamName ?? "";
+
+  const centerSection = (
+    <div className="flex flex-col items-center flex-1 px-2">
+      <span className="text-white/80 text-xs font-medium">
+        {formattedDay} {dayNumber} {formattedMonth}
+      </span>
+      <span className="text-white text-2xl font-bold">{time}</span>
+      <div className="flex gap-1 mt-1 flex-wrap justify-center">
+        {activeScreens.map((screen) => (
+          <span
+            key={screen}
+            className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${screenColors[screen]}`}
+          >
+            {screen}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+
   return (
     <Link href={href || `/admin/reservas/${event.id}`} className="block">
       <div className="relative bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors">
@@ -51,40 +77,26 @@ export function EventRowWithBadge({ event, href }: EventRowWithBadgeProps) {
           </div>
         )}
 
-        {/* Home Team */}
+        {/* Home Team / GP name */}
         <div className="flex flex-col items-center w-20">
-          <TeamLogo team={event.homeTeam} size="lg" />
+          <TeamLogo team={event.homeTeam} emoji={sportEmoji} size="lg" />
           <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
-            {event.homeTeam.shortName}
+            {homeName}
           </span>
         </div>
 
-        {/* Center - Date, Time & Screen */}
-        <div className="flex flex-col items-center flex-1 px-2">
-          <span className="text-white/80 text-xs font-medium">
-            {formattedDay} {dayNumber} {formattedMonth}
-          </span>
-          <span className="text-white text-2xl font-bold">
-            {time}
-          </span>
-          <div className="flex gap-1 mt-1 flex-wrap justify-center">
-            {activeScreens.map((screen) => (
-              <span
-                key={screen}
-                className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${screenColors[screen]}`}
-              >
-                {screen}
+        {centerSection}
+
+        {/* Away Team — empty for motor sports */}
+        <div className="flex flex-col items-center w-20">
+          {!isMotor && (
+            <>
+              <TeamLogo team={event.awayTeam} emoji={sportEmoji} size="lg" />
+              <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
+                {awayName}
               </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Away Team */}
-        <div className="flex flex-col items-center w-20">
-          <TeamLogo team={event.awayTeam} size="lg" />
-          <span className="text-[10px] text-white/70 mt-1 text-center line-clamp-1">
-            {event.awayTeam.shortName}
-          </span>
+            </>
+          )}
         </div>
       </div>
     </Link>

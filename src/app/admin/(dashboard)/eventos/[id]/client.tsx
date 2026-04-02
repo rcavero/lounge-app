@@ -5,14 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { TeamLogo } from "@/modules/events/components/team-logo";
+import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import { updateEvent, deleteEvent } from "@/modules/events/actions";
 import { ArrowLeft, Save, Check, Trash2, X } from "lucide-react";
 import type { Team, EventWithTeams } from "@/modules/events/types";
 import {
   COMPETITION_NAMES,
   COMPETITION_LEAGUES,
+  MANUAL_SPORT_NAMES,
+  isManualSport,
+  isMotorSport,
+  getSportEmoji,
 } from "@/modules/football-data/config/competitions";
-import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 
 interface EditEventFormProps {
   event: EventWithTeams;
@@ -25,19 +29,19 @@ const SCREENS = [
   { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
-// Helper to get initial screens from event
+const INPUT_CLASS =
+  "w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] placeholder:text-white/30";
+
 function getInitialScreens(event: EventWithTeams): string[] {
   if (!event.screens) return ["PROYECTOR"];
   return event.screens.split(",").filter(Boolean);
 }
 
-// Helper to format date for input
 function formatDateForInput(date: Date | string): string {
   const d = new Date(date);
   return d.toISOString().split("T")[0];
 }
 
-// Helper to format time for input
 function formatTimeForInput(date: Date | string): string {
   const d = new Date(date);
   return d.toTimeString().slice(0, 5);
@@ -46,8 +50,13 @@ function formatTimeForInput(date: Date | string): string {
 export function EditEventForm({ event, teams }: EditEventFormProps) {
   const router = useRouter();
   const [competition, setCompetition] = useState<string>(event.competition || "La Liga");
-  const [homeTeamId, setHomeTeamId] = useState<string>(event.homeTeamId);
-  const [awayTeamId, setAwayTeamId] = useState<string>(event.awayTeamId);
+  // Football state
+  const [homeTeamId, setHomeTeamId] = useState<string>(event.homeTeamId ?? "");
+  const [awayTeamId, setAwayTeamId] = useState<string>(event.awayTeamId ?? "");
+  // Manual sport state
+  const [homeTeamName, setHomeTeamName] = useState<string>(event.homeTeamName ?? "");
+  const [awayTeamName, setAwayTeamName] = useState<string>(event.awayTeamName ?? "");
+  // Common state
   const [eventDate, setEventDate] = useState<string>(formatDateForInput(event.eventDate));
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
   const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
@@ -57,7 +66,11 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Filter teams based on selected competition
+  const isManual = isManualSport(competition);
+  const isMotor = isMotorSport(competition);
+  const sportEmoji = getSportEmoji(competition);
+
+  // Filter teams based on selected competition (football only)
   const filteredTeams = useMemo(() => {
     const leagues = COMPETITION_LEAGUES[competition] || [];
     return teams.filter((team) => leagues.includes(team.league));
@@ -68,19 +81,18 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
 
   const toggleScreen = (screenId: string) => {
     setSelectedScreens((prev) =>
-      prev.includes(screenId)
-        ? prev.filter((s) => s !== screenId)
-        : [...prev, screenId]
+      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId]
     );
   };
 
-  // Reset team selection when competition changes (only if teams don't belong to new competition)
   const handleCompetitionChange = (newCompetition: string) => {
     const newLeagues = COMPETITION_LEAGUES[newCompetition] || [];
     const currentHomeTeam = teams.find((t) => t.id === homeTeamId);
     const currentAwayTeam = teams.find((t) => t.id === awayTeamId);
 
     setCompetition(newCompetition);
+    setHomeTeamName("");
+    setAwayTeamName("");
 
     if (currentHomeTeam && !newLeagues.includes(currentHomeTeam.league)) {
       setHomeTeamId("");
@@ -94,13 +106,8 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
     e.preventDefault();
     setError(null);
 
-    if (!homeTeamId || !awayTeamId || !eventDate || !eventTime) {
-      setError("Por favor, completa todos los campos obligatorios");
-      return;
-    }
-
-    if (homeTeamId === awayTeamId) {
-      setError("El equipo local y visitante no pueden ser el mismo");
+    if (!eventDate || !eventTime) {
+      setError("Por favor, introduce la fecha y hora del evento");
       return;
     }
 
@@ -109,26 +116,59 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
       return;
     }
 
+    if (isMotor) {
+      if (!homeTeamName.trim()) {
+        setError("Introduce el nombre del Gran Premio");
+        return;
+      }
+    } else if (isManual) {
+      if (!homeTeamName.trim() || !awayTeamName.trim()) {
+        setError("Introduce los nombres de los dos participantes");
+        return;
+      }
+    } else {
+      if (!homeTeamId || !awayTeamId) {
+        setError("Selecciona el equipo local y visitante");
+        return;
+      }
+      if (homeTeamId === awayTeamId) {
+        setError("El equipo local y visitante no pueden ser el mismo");
+        return;
+      }
+    }
+
     setIsSaving(true);
 
     try {
       const dateTime = new Date(`${eventDate}T${eventTime}`);
 
-      const result = await updateEvent(event.id, {
-        homeTeamId,
-        awayTeamId,
-        eventDate: dateTime,
-        screens: selectedScreens,
-        competition,
-        pricePerSeat,
-      });
+      const result = await updateEvent(
+        event.id,
+        isManual
+          ? {
+              homeTeamName: homeTeamName.trim(),
+              awayTeamName: isMotor ? undefined : awayTeamName.trim(),
+              eventDate: dateTime,
+              screens: selectedScreens,
+              competition,
+              pricePerSeat,
+            }
+          : {
+              homeTeamId,
+              awayTeamId,
+              eventDate: dateTime,
+              screens: selectedScreens,
+              competition,
+              pricePerSeat,
+            }
+      );
 
       if (result.success) {
         router.push("/admin/eventos");
       } else {
         setError(result.error || "Error al actualizar el evento");
       }
-    } catch (err) {
+    } catch {
       setError("Error al actualizar el evento");
     } finally {
       setIsSaving(false);
@@ -137,17 +177,15 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
 
   const handleDelete = async () => {
     setIsDeleting(true);
-
     try {
       const result = await deleteEvent(event.id);
-
       if (result.success) {
         router.push("/admin/eventos");
       } else {
         setError(result.error || "Error al eliminar el evento");
         setShowDeleteModal(false);
       }
-    } catch (err) {
+    } catch {
       setError("Error al eliminar el evento");
       setShowDeleteModal(false);
     } finally {
@@ -175,79 +213,159 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             <select
               value={competition}
               onChange={(e) => handleCompetitionChange(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
+              className={INPUT_CLASS}
             >
-              {COMPETITION_NAMES.map((comp) => (
-                <option key={comp} value={comp}>
-                  {comp}
-                </option>
-              ))}
+              <optgroup label="Fútbol">
+                {COMPETITION_NAMES.map((comp) => (
+                  <option key={comp} value={comp}>
+                    {comp}
+                  </option>
+                ))}
+              </optgroup>
+              <optgroup label="Otros deportes">
+                {MANUAL_SPORT_NAMES.map((sport) => (
+                  <option key={sport} value={sport}>
+                    {sport}
+                  </option>
+                ))}
+              </optgroup>
             </select>
           </div>
         </div>
 
-        {/* Team Selection */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Home Team */}
+        {/* Team / Participant Section */}
+        {isMotor ? (
+          // Motor sports: single Gran Premio field
           <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium">Equipo Local</label>
-            <select
-              value={homeTeamId}
-              onChange={(e) => setHomeTeamId(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
-            >
-              <option value="">Seleccionar...</option>
-              {filteredTeams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-            {homeTeam && (
-              <div className="flex items-center gap-2 mt-2 p-2 bg-[#1a1a1a] rounded-lg">
-                <TeamLogo team={homeTeam} size="sm" />
-                <span className="text-white text-sm">{homeTeam.shortName}</span>
+            <label className="text-white/70 text-xs font-medium">Gran Premio</label>
+            <input
+              type="text"
+              value={homeTeamName}
+              onChange={(e) => setHomeTeamName(e.target.value)}
+              placeholder="Gran Premio de España"
+              className={INPUT_CLASS}
+            />
+            {homeTeamName.trim() && (
+              <div className="flex items-center justify-center gap-3 p-3 bg-[#1a1a1a] rounded-xl">
+                <span className="text-3xl">{sportEmoji}</span>
+                <span className="text-white text-sm font-medium">{homeTeamName.trim()}</span>
               </div>
             )}
           </div>
+        ) : isManual ? (
+          // Other manual sports: two text inputs
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-white/70 text-xs font-medium">Participante Local</label>
+              <input
+                type="text"
+                value={homeTeamName}
+                onChange={(e) => setHomeTeamName(e.target.value)}
+                placeholder="Nombre..."
+                className={INPUT_CLASS}
+              />
+              {homeTeamName.trim() && (
+                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                  <span className="text-lg">{sportEmoji}</span>
+                  <span className="text-white text-sm">{homeTeamName.trim()}</span>
+                </div>
+              )}
+            </div>
+            <div className="space-y-2">
+              <label className="text-white/70 text-xs font-medium">Participante Visitante</label>
+              <input
+                type="text"
+                value={awayTeamName}
+                onChange={(e) => setAwayTeamName(e.target.value)}
+                placeholder="Nombre..."
+                className={INPUT_CLASS}
+              />
+              {awayTeamName.trim() && (
+                <div className="flex items-center gap-2 p-2 bg-[#1a1a1a] rounded-lg">
+                  <span className="text-lg">{sportEmoji}</span>
+                  <span className="text-white text-sm">{awayTeamName.trim()}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          // Football: team selects
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <label className="text-white/70 text-xs font-medium">Equipo Local</label>
+              <select
+                value={homeTeamId}
+                onChange={(e) => setHomeTeamId(e.target.value)}
+                className={INPUT_CLASS}
+              >
+                <option value="">Seleccionar...</option>
+                {filteredTeams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              {homeTeam && (
+                <div className="flex items-center gap-2 mt-2 p-2 bg-[#1a1a1a] rounded-lg">
+                  <TeamLogo team={homeTeam} size="sm" />
+                  <span className="text-white text-sm">{homeTeam.shortName}</span>
+                </div>
+              )}
+            </div>
 
-          {/* Away Team */}
-          <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium">Equipo Visitante</label>
-            <select
-              value={awayTeamId}
-              onChange={(e) => setAwayTeamId(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
-            >
-              <option value="">Seleccionar...</option>
-              {filteredTeams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-            {awayTeam && (
-              <div className="flex items-center gap-2 mt-2 p-2 bg-[#1a1a1a] rounded-lg">
-                <TeamLogo team={awayTeam} size="sm" />
-                <span className="text-white text-sm">{awayTeam.shortName}</span>
-              </div>
-            )}
+            <div className="space-y-2">
+              <label className="text-white/70 text-xs font-medium">Equipo Visitante</label>
+              <select
+                value={awayTeamId}
+                onChange={(e) => setAwayTeamId(e.target.value)}
+                className={INPUT_CLASS}
+              >
+                <option value="">Seleccionar...</option>
+                {filteredTeams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+              {awayTeam && (
+                <div className="flex items-center gap-2 mt-2 p-2 bg-[#1a1a1a] rounded-lg">
+                  <TeamLogo team={awayTeam} size="sm" />
+                  <span className="text-white text-sm">{awayTeam.shortName}</span>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
         {/* Match Preview */}
-        {homeTeam && awayTeam && (
-          <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-            <div className="flex flex-col items-center">
-              <TeamLogo team={homeTeam} size="lg" />
-              <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
+        {isMotor ? null : isManual ? (
+          homeTeamName.trim() && awayTeamName.trim() && (
+            <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+              <div className="flex flex-col items-center">
+                <span className="text-3xl">{sportEmoji}</span>
+                <span className="text-white/70 text-xs mt-1">{homeTeamName.trim()}</span>
+              </div>
+              <span className="text-white/50 text-lg font-bold">vs</span>
+              <div className="flex flex-col items-center">
+                <span className="text-3xl">{sportEmoji}</span>
+                <span className="text-white/70 text-xs mt-1">{awayTeamName.trim()}</span>
+              </div>
             </div>
-            <span className="text-white/50 text-lg font-bold">vs</span>
-            <div className="flex flex-col items-center">
-              <TeamLogo team={awayTeam} size="lg" />
-              <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
+          )
+        ) : (
+          homeTeam && awayTeam && (
+            <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+              <div className="flex flex-col items-center">
+                <TeamLogo team={homeTeam} size="lg" />
+                <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
+              </div>
+              <span className="text-white/50 text-lg font-bold">vs</span>
+              <div className="flex flex-col items-center">
+                <TeamLogo team={awayTeam} size="lg" />
+                <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
+              </div>
             </div>
-          </div>
+          )
         )}
 
         {/* Date and Time */}
@@ -258,7 +376,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
+              className={INPUT_CLASS}
             />
           </div>
           <div className="space-y-2">
@@ -267,7 +385,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               type="time"
               value={eventTime}
               onChange={(e) => setEventTime(e.target.value)}
-              className="w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37]"
+              className={INPUT_CLASS}
             />
           </div>
         </div>
@@ -311,9 +429,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
                 }`}
               >
                 <div className="flex items-center justify-center gap-2">
-                  {selectedScreens.includes(screen.id) && (
-                    <Check className="w-4 h-4" />
-                  )}
+                  {selectedScreens.includes(screen.id) && <Check className="w-4 h-4" />}
                   {screen.label}
                 </div>
               </button>
@@ -366,7 +482,8 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             </div>
 
             <p className="text-white/70 text-sm mb-6">
-              ¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer y se eliminarán todas las reservas asociadas.
+              ¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer y
+              se eliminarán todas las reservas asociadas.
             </p>
 
             <div className="flex gap-3">

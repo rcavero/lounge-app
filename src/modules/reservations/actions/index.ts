@@ -49,8 +49,10 @@ export interface ReportMonth {
 export interface MonthlyReportEvent {
   id: string;
   eventDate: Date;
-  homeTeam: { name: string; shortName: string };
-  awayTeam: { name: string; shortName: string };
+  homeTeam: { name: string; shortName: string } | null;
+  awayTeam: { name: string; shortName: string } | null;
+  homeTeamName: string | null;
+  awayTeamName: string | null;
   reservations: {
     id: string;
     numberOfSeats: number;
@@ -152,8 +154,8 @@ export async function createReservation(data: {
         id: reservation.id,
         eventId: event.id,
         eventTitle: event.title,
-        homeTeamName: event.homeTeam.name,
-        awayTeamName: event.awayTeam.name,
+        homeTeamName: event.homeTeam?.name ?? event.homeTeamName ?? "",
+        awayTeamName: event.awayTeam?.name ?? event.awayTeamName ?? "",
         eventDate: event.eventDate.toISOString(),
         seats,
         totalSeats: seatIds.length,

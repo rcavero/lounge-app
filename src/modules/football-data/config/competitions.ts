@@ -45,6 +45,52 @@ export const COMPETITION_EMBLEM = Object.fromEntries(
 
 // Mapping from competition name to leagues whose teams participate
 // Used in event forms to filter the team dropdown
+// ─── Deportes manuales (sin API — se crean a mano en el formulario) ────────────
+
+export interface ManualSport {
+  name: string;
+  emoji: string;
+  isMotorSport?: boolean; // Moto GP y Fórmula 1: un único campo "Gran Premio"
+}
+
+export const MANUAL_SPORTS: ManualSport[] = [
+  { name: "Baloncesto", emoji: "🏀" },
+  { name: "Rugby",      emoji: "🏉" },
+  { name: "Tenis",      emoji: "🎾" },
+  { name: "Moto GP",    emoji: "🏍️", isMotorSport: true },
+  { name: "Fórmula 1",  emoji: "🏎️", isMotorSport: true },
+  { name: "Billar",     emoji: "🎱" },
+  { name: "Dardos",     emoji: "🎯" },
+  { name: "Hockey",     emoji: "🏒" },
+  { name: "Ciclismo",   emoji: "🚴" },
+  { name: "Boxeo",      emoji: "🥊" },
+  { name: "Otros",      emoji: "🏅" },
+];
+
+export const MANUAL_SPORT_NAMES = MANUAL_SPORTS.map((s) => s.name);
+
+export const MANUAL_SPORT_BY_NAME = Object.fromEntries(
+  MANUAL_SPORTS.map((s) => [s.name, s])
+) as Record<string, ManualSport>;
+
+/** Devuelve true si la competición es un deporte manual (no fútbol). */
+export function isManualSport(competition: string | null | undefined): boolean {
+  return !!competition && !!MANUAL_SPORT_BY_NAME[competition];
+}
+
+/** Devuelve true si es motor sport (Moto GP / Fórmula 1): un solo campo de Gran Premio. */
+export function isMotorSport(competition: string | null | undefined): boolean {
+  return !!competition && !!MANUAL_SPORT_BY_NAME[competition]?.isMotorSport;
+}
+
+/** Devuelve el emoji del deporte, o null si es fútbol u otro deporte desconocido. */
+export function getSportEmoji(competition: string | null | undefined): string | null {
+  if (!competition) return null;
+  return MANUAL_SPORT_BY_NAME[competition]?.emoji ?? null;
+}
+
+// ─── Ligas por competición de fútbol ────────────────────────────────────────
+
 export const COMPETITION_LEAGUES: Record<string, string[]> = {
   "La Liga": ["La Liga"],
   "Premier League": ["Premier League"],

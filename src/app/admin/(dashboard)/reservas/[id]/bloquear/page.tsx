@@ -24,7 +24,7 @@ export default async function BlockSeatsPage({ params }: Props) {
         <div className="px-4 py-3">
           <h1 className="text-white font-semibold text-sm">Bloquear asientos</h1>
           <p className="text-white/50 text-xs">
-            {event.homeTeam.shortName} vs {event.awayTeam.shortName}
+            {event.homeTeam?.shortName ?? event.homeTeamName ?? ""} vs {event.awayTeam?.shortName ?? event.awayTeamName ?? ""}
           </p>
         </div>
       </header>

@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
+import { getSportEmoji, COMPETITION_EMBLEM } from "@/modules/football-data/config/competitions";
 
 interface CompetitionEmblemProps {
   competition: string | null | undefined;
@@ -9,6 +9,17 @@ interface CompetitionEmblemProps {
 }
 
 export function CompetitionEmblem({ competition, className = "" }: CompetitionEmblemProps) {
+  // Manual sport → emoji dentro del mismo círculo blanco que los escudos de fútbol
+  const emoji = getSportEmoji(competition);
+  if (emoji) {
+    return (
+      <div className={`bg-white/90 rounded-full p-1 w-7 h-7 flex items-center justify-center ${className}`}>
+        <span className="text-sm leading-none">{emoji}</span>
+      </div>
+    );
+  }
+
+  // Football → render emblem image (existing behavior)
   if (!competition || !COMPETITION_EMBLEM[competition]) return null;
 
   return (

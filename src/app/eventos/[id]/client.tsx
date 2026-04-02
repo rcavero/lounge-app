@@ -12,6 +12,7 @@ import { useReservationStore } from "@/shared/hooks";
 import { initializePayment } from "@/modules/payments/actions";
 import { SEAT_PRICE } from "@/modules/events/types";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
+import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 import type { EventWithTeams } from "@/modules/events/types";
 import type { SeatWithStatus } from "@/modules/seating/types";
 import type { ZoneLabelConfig } from "@/modules/seating/constants";
@@ -98,10 +99,16 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
     }
   };
 
+  // Manual sport helpers
+  const sportEmoji = getSportEmoji(event.competition);
+  const isMotor = isMotorSport(event.competition);
+
   // Create short team code (e.g., "MCI vs LIV")
-  const homeCode = event.homeTeam.shortName.substring(0, 3).toUpperCase();
-  const awayCode = event.awayTeam.shortName.substring(0, 3).toUpperCase();
-  const matchCode = `${homeCode} vs ${awayCode}`;
+  const homeShort = event.homeTeam?.shortName ?? event.homeTeamName ?? "";
+  const awayShort = event.awayTeam?.shortName ?? event.awayTeamName ?? "";
+  const homeCode = homeShort.substring(0, 3).toUpperCase();
+  const awayCode = awayShort.substring(0, 3).toUpperCase();
+  const matchCode = awayCode ? `${homeCode} vs ${awayCode}` : homeCode;
 
   // Format date: "Mié 15 Ene • 20:00"
   const dayName = format(eventDate, "EEE", { locale: es });
@@ -185,10 +192,12 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-1">
-              {event.homeTeam.logo ? (
+              {sportEmoji ? (
+                <span className="text-2xl leading-none">{sportEmoji}</span>
+              ) : event.homeTeam?.logo ? (
                 <Image
                   src={event.homeTeam.logo}
-                  alt={event.homeTeam.shortName}
+                  alt={homeShort}
                   width={36}
                   height={36}
                   className="object-contain"
@@ -196,23 +205,29 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
                 />
               ) : (
                 <div className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[8px] font-bold text-[#D4AF37]">
-                  {event.homeTeam.shortName.substring(0, 3).toUpperCase()}
+                  {homeCode}
                 </div>
               )}
-              <span className="text-white/50 text-xs font-bold">vs</span>
-              {event.awayTeam.logo ? (
-                <Image
-                  src={event.awayTeam.logo}
-                  alt={event.awayTeam.shortName}
-                  width={36}
-                  height={36}
-                  className="object-contain"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[8px] font-bold text-[#D4AF37]">
-                  {event.awayTeam.shortName.substring(0, 3).toUpperCase()}
-                </div>
+              {!isMotor && (
+                <>
+                  <span className="text-white/50 text-xs font-bold">vs</span>
+                  {event.awayTeam?.logo ? (
+                    <Image
+                      src={event.awayTeam.logo}
+                      alt={awayShort}
+                      width={36}
+                      height={36}
+                      className="object-contain"
+                      unoptimized
+                    />
+                  ) : sportEmoji ? (
+                    <span className="text-2xl leading-none">{sportEmoji}</span>
+                  ) : (
+                    <div className="w-9 h-9 rounded-full bg-[#2a2a2a] flex items-center justify-center text-[8px] font-bold text-[#D4AF37]">
+                      {awayCode}
+                    </div>
+                  )}
+                </>
               )}
             </div>
           </div>

@@ -105,8 +105,9 @@ lounge-app/
 │   │   │   ├── lib/session.ts      # Configuración de sesión
 │   │   │   └── types/index.ts      # Tipos (SessionData, AdminRole)
 │   │   │
-│   │   ├── football-data/          # Integración con football-data.org API
-│   │   │   ├── config/competitions.ts  # 12 competiciones del free tier
+│   │   ├── football-data/          # Integración con football-data.org API + deportes manuales
+│   │   │   ├── config/competitions.ts  # 12 competiciones del free tier + 11 deportes manuales con emoji
+│   │   │   │                           # Exports: MANUAL_SPORTS, isManualSport(), isMotorSport(), getSportEmoji()
 │   │   │   ├── lib/api-client.ts       # Cliente HTTP con rate limiting
 │   │   │   ├── types/index.ts          # Tipos de respuesta de la API
 │   │   │   └── actions/index.ts        # syncTeams, getMatchSuggestions, createEventFromSuggestion
@@ -117,8 +118,8 @@ lounge-app/
 │   │   │   │   ├── event-card.tsx
 │   │   │   │   ├── event-row.tsx          # Con checkAvailability (ventana 48h–5h)
 │   │   │   │   ├── event-row-with-badge.tsx
-│   │   │   │   ├── team-logo.tsx
-│   │   │   │   ├── competition-emblem.tsx # Escudo de competición con manejo de error
+│   │   │   │   │   ├── team-logo.tsx          # Soporta emoji (deportes manuales), logo URL o iniciales
+│   │   │   │   ├── competition-emblem.tsx # Escudo de competición o emoji en círculo blanco
 │   │   │   │   └── index.ts
 │   │   │   └── types/index.ts
 │   │   │
@@ -211,13 +212,17 @@ model Team {
 ### Event
 ```prisma
 model Event {
-  id          String      @id @default(cuid())
-  title       String
-  description String?
-  sport       String      @default("football")
-  competition String?     // La Liga, Champions League, etc.
-  homeTeamId  String
-  awayTeamId  String
+  id           String      @id @default(cuid())
+  title        String
+  description  String?
+  sport        String      @default("football")
+  competition  String?     // La Liga, Champions League, Baloncesto, Moto GP, etc.
+  homeTeamId   String?     // Nullable: null para deportes manuales
+  homeTeam     Team?       @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeamId   String?     // Nullable: null para deportes manuales
+  awayTeam     Team?       @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  homeTeamName String?     // Nombre libre para deportes manuales (sin equipo en BD)
+  awayTeamName String?     // Null para motor sports (solo un participante)
   eventDate     DateTime
   status        EventStatus @default(UPCOMING)
   screens       String      @default("PROYECTOR") // Comma-separated: PROYECTOR,TV1,TV2
