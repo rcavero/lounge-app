@@ -28,6 +28,14 @@ const SCREENS = [
   { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
+const DURATION_OPTIONS = [
+  { value: 60, label: "1 h" },
+  { value: 90, label: "1 h 30" },
+  { value: 120, label: "2 h" },
+  { value: 180, label: "3 h" },
+  { value: 240, label: "4 h" },
+];
+
 const INPUT_CLASS =
   "w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] placeholder:text-white/30";
 
@@ -44,6 +52,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
   const [eventDate, setEventDate] = useState<string>("");
   const [eventTime, setEventTime] = useState<string>("");
   const [selectedScreens, setSelectedScreens] = useState<string[]>(["PROYECTOR"]);
+  const [durationMinutes, setDurationMinutes] = useState<number>(120);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -123,6 +132,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
               eventDate: dateTime,
               screens: selectedScreens,
               competition,
+              durationMinutes,
             }
           : {
               homeTeamId,
@@ -130,6 +140,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
               eventDate: dateTime,
               screens: selectedScreens,
               competition,
+              durationMinutes,
             }
       );
 
@@ -364,6 +375,27 @@ export function NewEventForm({ teams }: NewEventFormProps) {
                 {selectedScreens.includes(screen.id) && <Check className="w-4 h-4" />}
                 {screen.label}
               </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Duration Selection */}
+      <div className="space-y-2">
+        <label className="text-white/70 text-xs font-medium">Duración estimada</label>
+        <div className="flex gap-2">
+          {DURATION_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              type="button"
+              onClick={() => setDurationMinutes(opt.value)}
+              className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
+                durationMinutes === opt.value
+                  ? "bg-[#92700c] border-[#D4AF37] text-white"
+                  : "bg-transparent border-white/20 text-white/50"
+              }`}
+            >
+              {opt.label}
             </button>
           ))}
         </div>

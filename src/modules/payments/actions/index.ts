@@ -26,7 +26,7 @@ export async function initializePayment(data: {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { success: false, error: "Evento no encontrado" };
 
-  // Verify all selected seats are available
+  // Verify all selected seats are available in this event
   const seatStatuses = await prisma.seatStatus.findMany({
     where: { eventId, seatId: { in: seatIds } },
     include: { seat: true },
@@ -38,6 +38,45 @@ export async function initializePayment(data: {
       success: false,
       error: `Asientos no disponibles: ${unavailable.map((s) => s.seat.code).join(", ")}`,
     };
+  }
+
+  // Verify selected seats are not taken in overlapping events
+  const eventStart = event.eventDate.getTime();
+  const eventEnd = eventStart + event.durationMinutes * 60 * 1000;
+
+  const overlappingCandidates = await prisma.event.findMany({
+    where: {
+      id: { not: eventId },
+      status: { in: ["UPCOMING", "LIVE"] },
+    },
+    select: { id: true, eventDate: true, durationMinutes: true },
+  });
+
+  const overlappingIds = overlappingCandidates
+    .filter((e) => {
+      const start = e.eventDate.getTime();
+      const end = start + e.durationMinutes * 60 * 1000;
+      return eventStart < end && start < eventEnd;
+    })
+    .map((e) => e.id);
+
+  if (overlappingIds.length > 0) {
+    const takenInOverlap = await prisma.seatStatus.findMany({
+      where: {
+        eventId: { in: overlappingIds },
+        seatId: { in: seatIds },
+        status: { in: ["RESERVED", "OCCUPIED"] },
+      },
+      include: { seat: true },
+    });
+
+    if (takenInOverlap.length > 0) {
+      const codes = [...new Set(takenInOverlap.map((s) => s.seat.code))].join(", ");
+      return {
+        success: false,
+        error: `Algunos asientos no están disponibles porque están reservados en otro evento simultáneo: ${codes}`,
+      };
+    }
   }
 
   const totalPrice = seatIds.length * pricePerSeat;

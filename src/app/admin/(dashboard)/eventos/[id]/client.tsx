@@ -29,6 +29,14 @@ const SCREENS = [
   { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
+const DURATION_OPTIONS = [
+  { value: 60, label: "1 h" },
+  { value: 90, label: "1 h 30" },
+  { value: 120, label: "2 h" },
+  { value: 180, label: "3 h" },
+  { value: 240, label: "4 h" },
+];
+
 const INPUT_CLASS =
   "w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] placeholder:text-white/30";
 
@@ -61,6 +69,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
   const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
   const [pricePerSeat, setPricePerSeat] = useState<number>(event.pricePerSeat ?? 10);
+  const [durationMinutes, setDurationMinutes] = useState<number>(event.durationMinutes ?? 120);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -152,6 +161,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               screens: selectedScreens,
               competition,
               pricePerSeat,
+              durationMinutes,
             }
           : {
               homeTeamId,
@@ -160,6 +170,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               screens: selectedScreens,
               competition,
               pricePerSeat,
+              durationMinutes,
             }
       );
 
@@ -406,6 +417,27 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
                 }`}
               >
                 {price}€
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Duration Selection */}
+        <div className="space-y-2">
+          <label className="text-white/70 text-xs font-medium">Duración estimada</label>
+          <div className="flex gap-2">
+            {DURATION_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => setDurationMinutes(opt.value)}
+                className={`flex-1 py-2.5 rounded-lg border-2 text-sm font-semibold transition-all ${
+                  durationMinutes === opt.value
+                    ? "bg-[#92700c] border-[#D4AF37] text-white"
+                    : "bg-transparent border-white/20 text-white/50"
+                }`}
+              >
+                {opt.label}
               </button>
             ))}
           </div>

@@ -75,6 +75,7 @@ export async function createEvent(data: {
   screens: string[];
   competition?: string;
   pricePerSeat?: number;
+  durationMinutes?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   try {
     let title: string;
@@ -122,6 +123,7 @@ export async function createEvent(data: {
         screens: data.screens.join(","),
         status: "UPCOMING",
         pricePerSeat: data.pricePerSeat ?? 10,
+        durationMinutes: data.durationMinutes ?? 120,
       },
     });
 
@@ -154,6 +156,7 @@ export async function updateEvent(
     screens: string[];
     competition?: string;
     pricePerSeat?: number;
+    durationMinutes?: number;
   }
 ): Promise<{ success: boolean; error?: string }> {
   try {
@@ -202,6 +205,7 @@ export async function updateEvent(
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
         pricePerSeat: data.pricePerSeat ?? 10,
+        durationMinutes: data.durationMinutes ?? 120,
       },
     });
 

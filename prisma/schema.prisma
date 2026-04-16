@@ -44,7 +44,8 @@ model Event {
   eventDate    DateTime
   status       EventStatus @default(UPCOMING)
   screens      String      @default("PROYECTOR") // Comma-separated: "TV1,TV2,PROYECTOR"
-  pricePerSeat Int         @default(10) // Precio por asiento en euros
+  pricePerSeat    Int         @default(10) // Precio por asiento en euros
+  durationMinutes Int         @default(120) // Duración estimada en minutos
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt

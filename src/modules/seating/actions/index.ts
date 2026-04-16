@@ -5,6 +5,31 @@ import type { SeatWithStatus } from "../types";
 import type { SeatStatusType } from "@/generated/prisma";
 import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants";
 
+async function getOverlappingEventIds(
+  excludeEventId: string,
+  eventDate: Date,
+  durationMinutes: number
+): Promise<string[]> {
+  const eventStart = eventDate.getTime();
+  const eventEnd = eventStart + durationMinutes * 60 * 1000;
+
+  const candidates = await prisma.event.findMany({
+    where: {
+      id: { not: excludeEventId },
+      status: { in: ["UPCOMING", "LIVE"] },
+    },
+    select: { id: true, eventDate: true, durationMinutes: true },
+  });
+
+  return candidates
+    .filter((e) => {
+      const start = e.eventDate.getTime();
+      const end = start + e.durationMinutes * 60 * 1000;
+      return eventStart < end && start < eventEnd;
+    })
+    .map((e) => e.id);
+}
+
 export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[]> {
   // Get all seats
   const seats = await prisma.seat.findMany({
@@ -15,13 +40,41 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
     ],
   });
 
+  // Get the event to know its date and duration
+  const event = await prisma.event.findUnique({
+    where: { id: eventId },
+    select: { eventDate: true, durationMinutes: true },
+  });
+
   // Get seat statuses for this event
   const seatStatuses = await prisma.seatStatus.findMany({
     where: { eventId },
   });
 
-  // Map statuses to seats
   const statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
+
+  // If event exists, also check overlapping events
+  if (event) {
+    const overlappingIds = await getOverlappingEventIds(eventId, event.eventDate, event.durationMinutes);
+
+    if (overlappingIds.length > 0) {
+      const overlappingStatuses = await prisma.seatStatus.findMany({
+        where: {
+          eventId: { in: overlappingIds },
+          status: { in: ["RESERVED", "OCCUPIED"] },
+        },
+      });
+
+      // Mark as OCCUPIED any seat that is taken in an overlapping event
+      // but only if it's currently AVAILABLE in this event (don't override BLOCKED)
+      for (const os of overlappingStatuses) {
+        const currentStatus = statusMap.get(os.seatId) || "AVAILABLE";
+        if (currentStatus === "AVAILABLE") {
+          statusMap.set(os.seatId, "OCCUPIED");
+        }
+      }
+    }
+  }
 
   return seats.map((seat) => ({
     ...seat,
