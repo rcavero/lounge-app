@@ -4,7 +4,7 @@ const secretKey =
   process.env.REDSYS_SECRET_KEY ?? "sq7HjrUOBfKmC576ILgskD5srU870gJ7";
 
 const urls =
-  process.env.NODE_ENV === "production" ? PRODUCTION_URLS : SANDBOX_URLS;
+  process.env.REDSYS_ENV === "production" ? PRODUCTION_URLS : SANDBOX_URLS;
 
 export const { createRedirectForm, processRedirectNotification } =
   createRedsysAPI({ secretKey, urls });
