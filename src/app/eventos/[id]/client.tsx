@@ -10,7 +10,6 @@ import { Button } from "@/components/ui/button";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
 import { useReservationStore } from "@/shared/hooks";
 import { initializePayment } from "@/modules/payments/actions";
-import { SEAT_PRICE } from "@/modules/events/types";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 import type { EventWithTeams } from "@/modules/events/types";
@@ -68,7 +67,6 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       const result = await initializePayment({
         eventId: event.id,
         seatIds: selectedSeats,
-        pricePerSeat: event.pricePerSeat ?? SEAT_PRICE,
       });
 
       if (!result.success || !result.redsysUrl || !result.formBody) {
