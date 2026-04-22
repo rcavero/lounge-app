@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Logo } from "@/shared/components/logo";
