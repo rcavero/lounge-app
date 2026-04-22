@@ -15,9 +15,8 @@ const BASE_URL =
 export async function initializePayment(data: {
   eventId: string;
   seatIds: string[];
-  pricePerSeat: number;
 }): Promise<InitializePaymentResult> {
-  const { eventId, seatIds, pricePerSeat } = data;
+  const { eventId, seatIds } = data;
 
   if (seatIds.length === 0) {
     return { success: false, error: "No hay asientos seleccionados" };
@@ -25,6 +24,8 @@ export async function initializePayment(data: {
 
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { success: false, error: "Evento no encontrado" };
+
+  const pricePerSeat = event.pricePerSeat;
 
   // Verify all selected seats are available in this event
   const seatStatuses = await prisma.seatStatus.findMany({
