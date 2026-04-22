@@ -3,6 +3,7 @@
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "../types";
 import { isManualSport, isMotorSport } from "@/modules/football-data/config/competitions";
+import { requireAuth } from "@/lib/auth-guard";
 
 export async function getUpcomingEvents(): Promise<EventWithTeams[]> {
   const events = await prisma.event.findMany({
@@ -41,6 +42,7 @@ export async function getEventById(id: string): Promise<EventWithTeams | null> {
 }
 
 export async function getAllEvents(): Promise<EventWithTeams[]> {
+  await requireAuth();
   const events = await prisma.event.findMany({
     include: {
       homeTeam: true,
@@ -56,6 +58,7 @@ export async function getAllEvents(): Promise<EventWithTeams[]> {
 
 // Get all teams for selection
 export async function getAllTeams() {
+  await requireAuth();
   const teams = await prisma.team.findMany({
     orderBy: {
       name: "asc",
@@ -77,6 +80,7 @@ export async function createEvent(data: {
   pricePerSeat?: number;
   durationMinutes?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
+  await requireAuth();
   try {
     let title: string;
     let homeTeamIdFinal: string | null = null;
@@ -159,6 +163,7 @@ export async function updateEvent(
     durationMinutes?: number;
   }
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAuth();
   try {
     let title: string;
     let homeTeamIdFinal: string | null = null;
@@ -218,6 +223,7 @@ export async function updateEvent(
 
 // Delete an event
 export async function deleteEvent(id: string): Promise<{ success: boolean; error?: string }> {
+  await requireAuth();
   try {
     // First delete related seat statuses
     await prisma.seatStatus.deleteMany({
