@@ -12,14 +12,15 @@ interface Props {
 export default async function ConfirmationPage({ params }: Props) {
   const { orderId } = await params;
 
-  // Confirm the reservation when the user arrives here.
-  // Redsys only redirects to this URL on successful payment, so it is safe to trust it.
-  // In production the webhook will have already confirmed it, making this a no-op.
-  // In local development the webhook can't reach localhost, so this is the fallback.
-  await confirmReservationByOrderId(orderId);
+  // In local development the webhook can't reach localhost, so auto-confirm as fallback.
+  // In production/testing the webhook is the only source of truth — never trust this URL.
+  if (process.env.NODE_ENV === "development") {
+    await confirmReservationByOrderId(orderId);
+  }
 
   const reservation = await getReservationByOrderId(orderId);
-  if (!reservation) notFound();
+
+  if (!reservation || reservation.status !== "CONFIRMED") notFound();
 
   return <ConfirmationClient reservation={reservation} orderId={orderId} />;
 }
