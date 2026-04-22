@@ -10,7 +10,10 @@ import {
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
 const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000";
+  process.env.NEXT_PUBLIC_BASE_URL ||
+  (process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : null) ||
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
+  "http://localhost:3000";
 
 export async function initializePayment(data: {
   eventId: string;
