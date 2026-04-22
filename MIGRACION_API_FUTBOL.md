@@ -37,47 +37,74 @@ Tier 2 de football-data.org cuesta €12/mes y solo añadiría Europa League y C
 
 ---
 
-## 2. Solución elegida: API-Football (RapidAPI)
+## 2. Solución elegida: API-Football (api-sports.io)
 
 ### Por qué API-Football
 
-- **Gratuito** (plan Basic, 100 requests/día)
+- **Gratuito** (100 requests/día, sin tarjeta de crédito, para siempre)
 - **Cubre todas las competiciones** que necesitamos
 - Los IDs de equipos son enteros (`Int`) — compatible con el campo `externalId` actual en BD
 - Una sola API para mantener en lugar de mezclar dos fuentes
 - Logos de equipos y competiciones incluidos en las respuestas
+- Acceso directo sin intermediarios (sin RapidAPI)
+
+### Formas de acceso — se elige la directa
+
+Existen dos formas de usar esta API. Usaremos la **directa** (sin RapidAPI) por ser más sencilla:
+
+| | Vía api-sports.io (elegida) | Vía RapidAPI (descartada) |
+|---|---|---|
+| Registro | dashboard.api-sports.io | rapidapi.com |
+| Header auth | `x-apisports-key: TU_KEY` | `x-rapidapi-key` + `x-rapidapi-host` |
+| Base URL | `https://v3.football.api-sports.io` | `https://api-football-v1.p.rapidapi.com/v3` |
+| Límite free | 100 req/día | 100 req/día |
+| Tarjeta crédito | No requerida | No requerida |
 
 ### Límite de requests
 
 100 req/día es suficiente. El cron diario necesita:
-- ~18 requests para sincronizar equipos (1 por competición)
-- ~18 requests para partidos de sugerencias (1 por competición cuando se consultan)
+- ~17 requests para sincronizar equipos (1 por competición)
+- ~17 requests para partidos de sugerencias (1 por competición cuando se consultan)
 
-Total: ~36 requests/día en uso normal, sobra margen.
+Total: ~34 requests/día en uso normal, sobra margen.
 
 ### IDs de competición en API-Football
 
-| Competición | ID | Notas |
-|---|---|---|
-| Champions League | 2 | |
-| Europa League | 3 | |
-| Conference League | 848 | |
-| La Liga | 140 | |
-| La Liga 2 | 141 | |
-| Premier League | 39 | |
-| Serie A | 135 | |
-| Bundesliga | 78 | |
-| Ligue 1 | 61 | |
-| Primeira Liga | 94 | |
-| Eredivisie | 88 | |
-| Copa del Rey | 143 | |
-| Supercopa de España | 556 | |
-| Copa América | 9 | |
-| UEFA Nations League | 5 | |
-| World Cup | 1 | |
-| European Championship | 4 | |
+Los IDs marcados con ✅ han sido verificados por múltiples fuentes externas.
+Los marcados con ⚠️ deben confirmarse con el endpoint `/leagues` tras crear la cuenta.
 
-> Verificar estos IDs en https://rapidapi.com/api-sports/api/api-football antes de implementar — pueden variar por temporada.
+| Competición | ID | Estado |
+|---|---|---|
+| Champions League | 2 | ✅ Verificado |
+| Europa League | 3 | ✅ Verificado |
+| Conference League | 848 | ✅ Verificado |
+| La Liga | 140 | ✅ Verificado |
+| La Liga 2 | 141 | ✅ Verificado |
+| Premier League | 39 | ✅ Verificado |
+| Serie A | 135 | ✅ Verificado |
+| Bundesliga | 78 | ✅ Verificado |
+| Ligue 1 | 61 | ✅ Verificado |
+| Primeira Liga | 94 | ✅ Verificado |
+| Eredivisie | 88 | ✅ Verificado |
+| World Cup | 1 | ✅ Verificado |
+| European Championship | 4 | ✅ Verificado |
+| Copa del Rey | ❓ (143 o 300) | ⚠️ Verificar tras crear cuenta |
+| Supercopa de España | ❓ (556 o 383) | ⚠️ Verificar tras crear cuenta |
+| Copa América | ❓ (9) | ⚠️ Verificar tras crear cuenta |
+| UEFA Nations League | ❓ (5) | ⚠️ Verificar tras crear cuenta |
+
+### Cómo verificar los IDs tras crear la cuenta
+
+Llamar al endpoint de ligas filtrando por país o nombre:
+
+```
+GET https://v3.football.api-sports.io/leagues?name=Copa+del+Rey&country=Spain
+GET https://v3.football.api-sports.io/leagues?name=Super+Cup&country=Spain
+GET https://v3.football.api-sports.io/leagues?name=Copa+America
+GET https://v3.football.api-sports.io/leagues?name=UEFA+Nations+League
+```
+
+Cada respuesta incluye el `id` numérico correcto. Actualizar la tabla anterior con los valores reales antes de implementar.
 
 ---
 
@@ -171,30 +198,31 @@ Implementar y probar todo en la rama `testing` antes de tocar `main`.
 
 ### Paso 1 — Crear cuenta y obtener API key
 
-1. Ir a https://rapidapi.com y crear cuenta gratuita
-2. Buscar "API-Football" → seleccionar el de `api-sports`
-3. Suscribirse al plan **Basic** (gratuito, 100 req/día)
-4. Copiar la `X-RapidAPI-Key` del dashboard
+1. Ir a https://dashboard.api-sports.io/register y crear cuenta gratuita (no requiere tarjeta)
+2. Confirmar el email de verificación
+3. En el dashboard, ir a **My Account → API Key** y copiar la key
+4. Verificar los IDs de competiciones inciertos con las llamadas al endpoint `/leagues` descritas en la sección 2
+5. Actualizar la tabla de IDs del documento antes de continuar
 
 ### Paso 2 — Añadir la variable de entorno
 
 **En local (`.env.local`):**
 ```env
-RAPIDAPI_KEY="tu_key_aqui"
+APISPORTS_KEY="tu_key_aqui"
 ```
 
 **En Vercel (para testing):**
 - Vercel → Settings → Environment Variables
-- Añadir `RAPIDAPI_KEY` solo en entorno **Preview** (rama testing)
+- Añadir `APISPORTS_KEY` solo en entorno **Preview** (rama testing)
 - La variable `FOOTBALL_DATA_API_KEY` puede quedarse — no se usará pero no rompe nada hasta la limpieza final
 
 ### Paso 3 — Reescribir `api-client.ts`
 
 Nuevo cliente con:
-- Base URL: `https://api-football-v1.p.rapidapi.com/v3`
-- Headers: `X-RapidAPI-Key` y `X-RapidAPI-Host: api-football-v1.p.rapidapi.com`
+- Base URL: `https://v3.football.api-sports.io`
+- Header: `x-apisports-key: TU_KEY`
 - Sin rate limiting agresivo (100/día es más que suficiente, pero añadir un pequeño delay entre requests en el cron para no hacer burst)
-- Parámetro `season` calculado dinámicamente (año actual, o año anterior si el mes es junio-agosto — temporada de verano)
+- Parámetro `season` calculado dinámicamente (año actual, o año anterior si el mes es antes de agosto — temporada de verano)
 
 ### Paso 4 — Actualizar `types/index.ts`
 
@@ -339,7 +367,7 @@ Si algo falla durante la Fase 2 (main):
 ### Local (`.env.local`)
 ```env
 # Añadir:
-RAPIDAPI_KEY="tu_key_aqui"
+APISPORTS_KEY="tu_key_aqui"
 
 # Eliminar (tras confirmar que todo funciona):
 # FOOTBALL_DATA_API_KEY="..."
@@ -347,12 +375,12 @@ RAPIDAPI_KEY="tu_key_aqui"
 
 ### Vercel — Preview (rama testing)
 ```
-RAPIDAPI_KEY = tu_key_aqui
+APISPORTS_KEY = tu_key_aqui
 ```
 
 ### Vercel — Production (rama main)
 ```
-RAPIDAPI_KEY = tu_key_aqui  ← añadir en Fase 2
+APISPORTS_KEY = tu_key_aqui  ← añadir en Fase 2
 ```
 
 ---
