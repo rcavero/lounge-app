@@ -2,13 +2,23 @@
 
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import prisma from "@/lib/prisma";
 import { getSession } from "../lib/session";
+import { isLoginBlocked, recordFailedLogin, clearLoginAttempts } from "@/lib/rate-limit";
 
 export async function login(
   _prevState: { error: string } | null,
   formData: FormData
 ): Promise<{ error: string } | null> {
+  const headersList = await headers();
+  const ip =
+    headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
+
+  if (isLoginBlocked(ip)) {
+    return { error: "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos." };
+  }
+
   const email = formData.get("email") as string;
   const password = formData.get("password") as string;
 
@@ -21,14 +31,18 @@ export async function login(
   });
 
   if (!adminUser) {
+    recordFailedLogin(ip);
     return { error: "Credenciales incorrectas" };
   }
 
   const isValidPassword = await bcrypt.compare(password, adminUser.password);
 
   if (!isValidPassword) {
+    recordFailedLogin(ip);
     return { error: "Credenciales incorrectas" };
   }
+
+  clearLoginAttempts(ip);
 
   const session = await getSession();
   session.isLoggedIn = true;
