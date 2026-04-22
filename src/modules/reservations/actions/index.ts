@@ -2,6 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "@/modules/events/types";
+import { requireAuth } from "@/lib/auth-guard";
 
 export interface ReservationResult {
   success: boolean;
@@ -65,6 +66,7 @@ export async function createReservation(data: {
   seatIds: string[];
   pricePerSeat: number;
 }): Promise<ReservationResult> {
+  await requireAuth();
   try {
     const { eventId, seatIds, pricePerSeat } = data;
 
@@ -170,6 +172,7 @@ export async function createReservation(data: {
 
 // Get all events with reservation counts
 export async function getEventsWithReservationCount(): Promise<EventWithReservationCount[]> {
+  await requireAuth();
   const events = await prisma.event.findMany({
     where: {
       eventDate: {
@@ -195,6 +198,7 @@ export async function getEventsWithReservationCount(): Promise<EventWithReservat
 
 // Get event with all its reservations
 export async function getEventWithReservations(eventId: string) {
+  await requireAuth();
   const event = await prisma.event.findUnique({
     where: { id: eventId },
     include: {
@@ -221,6 +225,7 @@ export async function getEventWithReservations(eventId: string) {
 
 // Get a specific reservation with its seats
 export async function getReservationWithSeats(reservationId: string) {
+  await requireAuth();
   const reservation = await prisma.reservation.findUnique({
     where: { id: reservationId },
     include: {
@@ -243,6 +248,7 @@ export async function getReservationWithSeats(reservationId: string) {
 
 // Get past events from the last 35 days with reservation counts
 export async function getPastEventsLast35Days(): Promise<EventWithReservationCount[]> {
+  await requireAuth();
   const now = new Date();
   const thirtyFiveDaysAgo = new Date(now.getTime() - 35 * 24 * 60 * 60 * 1000);
 
@@ -272,6 +278,7 @@ export async function getPastEventsLast35Days(): Promise<EventWithReservationCou
 
 // Get available months for reports (last 90 days)
 export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
+  await requireAuth();
   const now = new Date();
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
@@ -325,6 +332,7 @@ export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
 
 // Get monthly report data for PDF generation
 export async function getMonthlyReportData(year: number, month: number): Promise<MonthlyReportEvent[]> {
+  await requireAuth();
   const startDate = new Date(year, month, 1);
   const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
 

@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import type { SeatWithStatus } from "../types";
 import type { SeatStatusType } from "@/generated/prisma";
 import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants";
+import { requireAuth } from "@/lib/auth-guard";
 
 async function getOverlappingEventIds(
   excludeEventId: string,
@@ -130,6 +131,7 @@ export async function getSeatsByZone(eventId: string, zone: string): Promise<Sea
 
 // Get all seats (for admin purposes)
 export async function getAllSeats() {
+  await requireAuth();
   const seats = await prisma.seat.findMany({
     orderBy: [
       { zone: "asc" },
@@ -145,6 +147,7 @@ export async function getAllSeats() {
 export async function updateSeatPositions(
   positions: { id: string; posX: number; posY: number }[]
 ): Promise<void> {
+  await requireAuth();
   // Update each seat position
   await Promise.all(
     positions.map((pos) =>
@@ -164,6 +167,7 @@ export async function saveBlockedSeats(
   eventId: string,
   seatIdsToBlock: string[]
 ): Promise<{ success: boolean; error?: string }> {
+  await requireAuth();
   try {
     // Release all currently blocked seats for this event
     await prisma.seatStatus.updateMany({
@@ -217,6 +221,7 @@ export async function getZoneLabels(): Promise<ZoneLabelConfig[]> {
 export async function updateZoneLabels(
   labels: ZoneLabelConfig[]
 ): Promise<void> {
+  await requireAuth();
   await Promise.all(
     labels.map((label) =>
       prisma.zoneLabel.upsert({

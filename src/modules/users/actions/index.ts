@@ -3,6 +3,7 @@
 import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import type { AdminRole } from "@/modules/auth/types";
+import { requireAdmin } from "@/lib/auth-guard";
 
 export interface AdminUserData {
   id: string;
@@ -13,6 +14,7 @@ export interface AdminUserData {
 }
 
 export async function getAllUsers(): Promise<AdminUserData[]> {
+  await requireAdmin();
   const users = await prisma.adminUser.findMany({
     select: {
       id: true,
@@ -33,6 +35,7 @@ export async function getAllUsers(): Promise<AdminUserData[]> {
 }
 
 export async function getUserById(id: string): Promise<AdminUserData | null> {
+  await requireAdmin();
   const user = await prisma.adminUser.findUnique({
     where: { id },
     select: {
@@ -64,6 +67,7 @@ export async function createUser(data: {
   name: string;
   role: AdminRole;
 }): Promise<CreateUserResult> {
+  await requireAdmin();
   try {
     const { email, password, name, role } = data;
 
@@ -121,6 +125,7 @@ export async function updateUser(
     role: AdminRole;
   }
 ): Promise<UpdateUserResult> {
+  await requireAdmin();
   try {
     const { email, password, name, role } = data;
 
@@ -180,6 +185,7 @@ export interface DeleteUserResult {
 }
 
 export async function deleteUser(id: string): Promise<DeleteUserResult> {
+  await requireAdmin();
   try {
     // Check if user exists
     const user = await prisma.adminUser.findUnique({
