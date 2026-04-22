@@ -75,11 +75,10 @@ Cliente selecciona asientos → RESERVAR
 - Precio total calculado en tiempo real según `event.pricePerSeat`
 - Sin recogida de datos personales del cliente (flujo anónimo)
 
-#### Robustez en desarrollo local (webhook no accesible):
-- La página de confirmación llama a `confirmReservationByOrderId()` al cargar
-- La página de error llama a `cancelReservationByOrderId()` al cargar
-- Ambas funciones son idempotentes: si el webhook ya actuó, son no-ops
-- En producción el webhook es la fuente autoritativa; las páginas actúan como fallback
+#### Comportamiento por entorno (webhook y auto-confirmación):
+- La auto-confirmación en la página de éxito se activa cuando `REDSYS_ENV` no es `"production"`
+- En producción real (`REDSYS_ENV=production`) solo el webhook confirma la reserva
+- Ver **`REDSYS.md`** para la guía completa de configuración por entorno y migración a credenciales reales
 
 #### Ticket PDF (página de confirmación):
 - Datos del evento, asientos, precio total
@@ -165,11 +164,9 @@ Cliente selecciona asientos → RESERVAR
 
 ## Pendiente de Implementar
 
-### Alta Prioridad (antes de producción)
-- [ ] **Migración a PostgreSQL** → ver `MIGRACION_SUPABASE.md`
-- [ ] **Credenciales Redsys reales** del banco (sustituir 3 vars de entorno)
+### Alta Prioridad
+- [ ] **Credenciales Redsys reales** del banco → ver `REDSYS.md` para la guía de migración
 - [ ] **Caducidad de sesión admin** (iron-session ttl + aviso de expiración)
-- [ ] **Despliegue en Vercel**
 
 ### Media Prioridad
 - [ ] Cierre automático de reservas 2h antes del evento
@@ -191,7 +188,7 @@ Cliente selecciona asientos → RESERVAR
 
 3. **Navegación post-action**: usar `window.location.href` para navegación fiable tras server actions en algunos flujos.
 
-4. **Webhook Redsys en local**: Redsys no puede llamar a `localhost`. El fallback está implementado: la página de confirmación/error confirma o cancela directamente al cargar. En producción (Vercel) el webhook funciona normalmente.
+4. **Webhook Redsys**: El sandbox de Redsys usa el puerto `25443`, que muchos routers bloquean. Usar datos móviles para probar el flujo completo. Ver `REDSYS.md` para el comportamiento por entorno.
 
 5. **Errores CSS/JS en sandbox Redsys**: el sandbox intenta cargar recursos de personalización específicos del comercio (`999008881`) que no existen. Son errores cosméticos; el formulario de pago funciona igualmente.
 
@@ -213,16 +210,15 @@ CRON_SECRET="..."               # Header de autorización para endpoints cron
 # Football-data.org
 FOOTBALL_DATA_API_KEY="..."
 
-# Redsys — sandbox (credenciales públicas de prueba)
+# Redsys — sandbox (credenciales públicas de prueba, para .env.local)
 REDSYS_MERCHANT_CODE="999008881"
 REDSYS_TERMINAL="001"
 REDSYS_SECRET_KEY="sq7HjrUOBfKmC576ILgskD5srU870gJ7"
 NEXT_PUBLIC_BASE_URL="http://localhost:3000"
+# REDSYS_ENV → no definir en local ni en testing (usa sandbox automáticamente)
+# REDSYS_ENV="production" → solo en Vercel Production cuando se tengan credenciales reales
 
-# Redsys — producción (sustituir al poner en producción)
-# REDSYS_MERCHANT_CODE="TU_CODIGO_REAL"
-# REDSYS_SECRET_KEY="TU_CLAVE_REAL"
-# NEXT_PUBLIC_BASE_URL="https://tu-dominio.com"
+# Ver REDSYS.md para la guía completa de configuración por entorno
 ```
 
 ---
