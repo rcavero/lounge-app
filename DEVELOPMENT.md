@@ -120,7 +120,7 @@ Cliente selecciona asientos → RESERVAR
 ### 9. Infraestructura
 - Cron job `/api/cron/cleanup` (3:00 AM diario):
   - Elimina eventos > 90 días
-  - **Expira reservas PENDING > 30 minutos** y libera sus asientos
+  - **Expira reservas PENDING > 5 minutos** y libera sus asientos (red de seguridad; la expiración lazy en `getSeatsForEvent` lo hace también en tiempo real)
 - Cron job `/api/cron/sync-teams`: sincroniza equipos desde la API (4:00 AM diario)
 - `vercel.json` configurado para ambos cron jobs
 

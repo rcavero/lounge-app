@@ -31,7 +31,30 @@ async function getOverlappingEventIds(
     .map((e) => e.id);
 }
 
+async function expireStaleReservations(eventId: string): Promise<void> {
+  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const stale = await prisma.reservation.findMany({
+    where: { eventId, status: "PENDING", createdAt: { lt: fiveMinutesAgo } },
+    select: { id: true, seatStatuses: { select: { seatId: true } } },
+  });
+  for (const reservation of stale) {
+    const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
+    await prisma.$transaction(async (tx) => {
+      await tx.reservation.update({
+        where: { id: reservation.id },
+        data: { status: "EXPIRED" },
+      });
+      await tx.seatStatus.updateMany({
+        where: { seatId: { in: seatIds }, eventId },
+        data: { status: "AVAILABLE", reservationId: null },
+      });
+    });
+  }
+}
+
 export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[]> {
+  await expireStaleReservations(eventId);
+
   // Get all seats
   const seats = await prisma.seat.findMany({
     orderBy: [
