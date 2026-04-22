@@ -12,9 +12,9 @@ interface Props {
 export default async function ConfirmationPage({ params }: Props) {
   const { orderId } = await params;
 
-  // In local development the webhook can't reach localhost, so auto-confirm as fallback.
-  // In production/testing the webhook is the only source of truth — never trust this URL.
-  if (process.env.NODE_ENV === "development") {
+  // Auto-confirm when not in real payment mode (sandbox or local dev).
+  // When REDSYS_ENV=production, the webhook is the sole source of truth.
+  if (process.env.REDSYS_ENV !== "production") {
     await confirmReservationByOrderId(orderId);
   }
 
