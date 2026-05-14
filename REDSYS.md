@@ -48,10 +48,12 @@ if (process.env.REDSYS_ENV !== "production") {
 
 ## Configuración actual por entorno
 
+> ⚠️ **SEGURIDAD**: Los valores reales de `REDSYS_SECRET_KEY` nunca se documentan aquí ni en ningún archivo commiteado a git. Se configuran exclusivamente en Vercel (entornos Production y Preview) y en `.env` local (gitignoreado). Commitear la clave de producción sería una vulnerabilidad crítica: permitiría forjar notificaciones de pago.
+
 ### Local (dev)
 
 ```env
-REDSYS_SECRET_KEY=sq7HjrUOBfKmC576ILgskD5srU870gJ7
+REDSYS_SECRET_KEY=<obtener del email del banco o del portal Canales>
 REDSYS_MERCHANT_CODE=352464580
 REDSYS_TERMINAL=001
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
@@ -67,7 +69,7 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 Configurado en Vercel → Settings → Environment Variables → entorno **Preview**:
 
 ```
-REDSYS_SECRET_KEY    = sq7HjrUOBfKmC576ILgskD5srU870gJ7
+REDSYS_SECRET_KEY    = <configurar en Vercel — no commitear>
 REDSYS_MERCHANT_CODE = 352464580
 REDSYS_TERMINAL      = 001
 NEXT_PUBLIC_BASE_URL = https://lounge-app-titanium.vercel.app
@@ -79,7 +81,7 @@ NEXT_PUBLIC_BASE_URL = https://lounge-app-titanium.vercel.app
 Configurado en Vercel → Settings → Environment Variables → entorno **Production**:
 
 ```
-REDSYS_SECRET_KEY    = sq7HjrUOBfKmC576ILgskD5srU870gJ7
+REDSYS_SECRET_KEY    = <configurar en Vercel — no commitear>
 REDSYS_MERCHANT_CODE = 352464580
 REDSYS_TERMINAL      = 001
 NEXT_PUBLIC_BASE_URL = https://lounge-app-neon.vercel.app
@@ -131,7 +133,7 @@ En Vercel → proyecto → Settings → Environment Variables, modificar **solo 
 |----------|--------------------------|--------------------------|
 | `REDSYS_MERCHANT_CODE` | `352464580` | El que dé el banco |
 | `REDSYS_TERMINAL` | `001` | El que dé el banco |
-| `REDSYS_SECRET_KEY` | `sq7HjrUOBfKmC576ILgskD5srU870gJ7` | La clave definitiva del banco |
+| `REDSYS_SECRET_KEY` | *(configurada en Vercel)* | La nueva clave definitiva del banco |
 
 ### Paso 3 — Añadir REDSYS_ENV en Production
 
@@ -176,5 +178,6 @@ Los entornos Preview (rama `testing`) **no requieren ningún cambio** — seguir
 |--------|-----------|
 | Precio manipulado desde el cliente | `pricePerSeat` se lee de la BD, nunca del cliente (`payments/actions/index.ts`) |
 | Confirmación de reserva sin pagar | Solo en sandbox/dev; en producción real solo el webhook confirma (`REDSYS_ENV=production`) |
+| Webhook forjado (firma falsa) | `REDSYS_SECRET_KEY` **nunca se commitea a git** — solo en Vercel y `.env` local (gitignoreado) |
 | Credenciales de test en producción real | `REDSYS_ENV=production` activa URLs reales; sin ella, se usa sandbox aunque las credenciales sean reales |
 | Credenciales expuestas en código | Las 3 variables de Redsys son obligatorias vía env vars; la app no arranca sin ellas |
