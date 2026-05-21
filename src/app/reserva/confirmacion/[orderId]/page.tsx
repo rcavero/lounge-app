@@ -4,6 +4,7 @@ import {
   getReservationByOrderId,
 } from "@/modules/payments/actions";
 import { ConfirmationClient } from "./client";
+import { ProcessingClient } from "./processing-client";
 
 interface Props {
   params: Promise<{ orderId: string }>;
@@ -20,7 +21,15 @@ export default async function ConfirmationPage({ params }: Props) {
 
   const reservation = await getReservationByOrderId(orderId);
 
-  if (!reservation || reservation.status !== "CONFIRMED") notFound();
+  // Unknown order — genuinely invalid URL.
+  if (!reservation) notFound();
 
-  return <ConfirmationClient reservation={reservation} orderId={orderId} />;
+  // Already confirmed (sandbox auto-confirm, or the webhook already arrived).
+  if (reservation.status === "CONFIRMED") {
+    return <ConfirmationClient reservation={reservation} orderId={orderId} />;
+  }
+
+  // In production the browser can reach this page before the Redsys webhook
+  // confirms the reservation. Poll for the webhook instead of showing a 404.
+  return <ProcessingClient orderId={orderId} />;
 }

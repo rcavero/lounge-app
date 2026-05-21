@@ -460,4 +460,4 @@ npm run build
 
 5. **Cascade Delete**: Al eliminar Event, se eliminan Reservations y SeatStatuses automáticamente.
 
-6. **Módulo de pagos**: Estructura preparada en `src/modules/payments/` pero sin implementación aún (pendiente integración con Redsys).
+6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `REDSYS.md` para la configuración por entorno.
