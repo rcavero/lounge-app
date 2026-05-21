@@ -1,10 +1,10 @@
-export const dynamic = "force-dynamic";
-
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Logo } from "@/shared/components/logo";
 import { InfoBanner } from "@/shared/components/info-banner";
 import { Calendar } from "lucide-react";
+
+export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
   const events = await getUpcomingEvents();

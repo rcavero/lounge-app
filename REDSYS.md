@@ -2,7 +2,12 @@
 
 ## Estado actual (Mayo 2026)
 
-Se están usando las **credenciales del TPV de pruebas de CaixaBank** asignadas específicamente al comercio (FUC `352464580`). El entorno sigue siendo sandbox (URLs `sis-t.redsys.es`) — no se cobran pagos reales. Las credenciales de producción las proporcionará CaixaBank una vez validen la web operativa.
+CaixaBank confirmó el **2026-05-17** que el entorno **real** del TPV está disponible (FUC `352464580`, terminal `1`). Configuración por entorno:
+
+- **Producción** (rama `main`, Vercel scope Production): entorno real de Redsys (`sis.redsys.es`), `REDSYS_ENV=production`. Cobra pagos reales.
+- **Testing** (rama `testing`, Vercel scope Preview) y **local**: entorno sandbox (`sis-t.redsys.es`), `REDSYS_ENV` sin definir. No se cobran pagos reales.
+
+La separación entre entornos se hace **exclusivamente con variables de entorno en Vercel**; las ramas `main` y `testing` son idénticas en código.
 
 ---
 
@@ -44,6 +49,8 @@ if (process.env.REDSYS_ENV !== "production") {
 | Preview / testing | no definida | Auto-confirma (webhook sandbox no siempre alcanza Vercel preview) |
 | **Producción real** | `production` | **Solo el webhook confirma** (fuente de verdad única) |
 
+En producción, el navegador del cliente puede llegar a la página de confirmación antes de que el webhook de Redsys haya confirmado la reserva. Para evitar un error 404 en esa carrera, si la reserva aún no está `CONFIRMED` se renderiza `ProcessingClient` (`processing-client.tsx`), que sondea el estado cada 2,5 s (hasta ~40 s) y muestra el ticket al confirmarse, o un mensaje de espera si el webhook tarda más.
+
 ---
 
 ## Configuración actual por entorno
@@ -53,9 +60,9 @@ if (process.env.REDSYS_ENV !== "production") {
 ### Local (dev)
 
 ```env
-REDSYS_SECRET_KEY=<obtener del email del banco o del portal Canales>
+REDSYS_SECRET_KEY=<clave SHA-256 de pruebas — portal Canales>
 REDSYS_MERCHANT_CODE=352464580
-REDSYS_TERMINAL=001
+REDSYS_TERMINAL=1
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 # REDSYS_ENV → no definida (usa sandbox)
 ```
@@ -69,23 +76,23 @@ NEXT_PUBLIC_BASE_URL=http://localhost:3000
 Configurado en Vercel → Settings → Environment Variables → entorno **Preview**:
 
 ```
-REDSYS_SECRET_KEY    = <configurar en Vercel — no commitear>
+REDSYS_SECRET_KEY    = <clave SHA-256 de pruebas — configurar en Vercel>
 REDSYS_MERCHANT_CODE = 352464580
-REDSYS_TERMINAL      = 001
+REDSYS_TERMINAL      = 1
 NEXT_PUBLIC_BASE_URL = https://lounge-app-titanium.vercel.app
 # REDSYS_ENV → no definida (usa sandbox)
 ```
 
-### Producción actual (Vercel — rama `main`, credenciales TPV pruebas CaixaBank)
+### Producción (Vercel — rama `main`, entorno REAL de Redsys)
 
 Configurado en Vercel → Settings → Environment Variables → entorno **Production**:
 
 ```
-REDSYS_SECRET_KEY    = <configurar en Vercel — no commitear>
+REDSYS_ENV           = production
+REDSYS_SECRET_KEY    = <clave SHA-256 real — portal Canales — configurar en Vercel>
 REDSYS_MERCHANT_CODE = 352464580
-REDSYS_TERMINAL      = 001
+REDSYS_TERMINAL      = 1
 NEXT_PUBLIC_BASE_URL = https://lounge-app-neon.vercel.app
-# REDSYS_ENV → no definida (usa sandbox)
 ```
 
 ---
@@ -117,13 +124,13 @@ NEXT_PUBLIC_BASE_URL = https://lounge-app-neon.vercel.app
 
 Cuando CaixaBank valide la web y proporcione las credenciales definitivas de producción, seguir estos pasos **exactamente en este orden**:
 
-### Paso 1 — Recibir del banco
+### Paso 1 — Datos del banco (recibidos el 2026-05-17)
 
-Tras superar la validación, CaixaBank proporcionará:
-- `REDSYS_MERCHANT_CODE` — puede ser el mismo `352464580` u otro
-- `REDSYS_TERMINAL` — número de terminal de producción
-- `REDSYS_SECRET_KEY` — **nueva clave secreta para producción** (distinta de la de sandbox)
-- Confirmación de activación del terminal en entorno real
+CaixaBank confirmó el entorno real con estos datos:
+- `REDSYS_MERCHANT_CODE` (FUC) = `352464580` (el mismo que en pruebas)
+- `REDSYS_TERMINAL` = `1`
+- `REDSYS_MERCHANT_CURRENCY` = `978` (EUR)
+- `REDSYS_SECRET_KEY` — **clave SHA-256 de producción**, distinta de la de pruebas. No se envía por correo: se obtiene del portal `https://canales.redsys.es/lacaixa` (Administración → Comercio → Detalles del terminal → Ver clave).
 
 ### Paso 2 — Actualizar variables en Vercel Production únicamente
 
@@ -131,9 +138,9 @@ En Vercel → proyecto → Settings → Environment Variables, modificar **solo 
 
 | Variable | Valor actual (TPV pruebas) | Nuevo valor (producción) |
 |----------|--------------------------|--------------------------|
-| `REDSYS_MERCHANT_CODE` | `352464580` | El que dé el banco |
-| `REDSYS_TERMINAL` | `001` | El que dé el banco |
-| `REDSYS_SECRET_KEY` | *(configurada en Vercel)* | La nueva clave definitiva del banco |
+| `REDSYS_MERCHANT_CODE` | `352464580` | `352464580` (sin cambios) |
+| `REDSYS_TERMINAL` | `1` | `1` (sin cambios) |
+| `REDSYS_SECRET_KEY` | *(clave sandbox en Vercel)* | Clave SHA-256 real del portal Canales |
 
 ### Paso 3 — Añadir REDSYS_ENV en Production
 

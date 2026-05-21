@@ -201,6 +201,10 @@ En **Vercel → Project → Settings → Environment Variables**, añade estas v
 | `CRON_SECRET` | El mismo que en el `.env` de producción |
 | `FOOTBALL_DATA_API_KEY` | Tu API key |
 | `NEXT_PUBLIC_BASE_URL` | `https://tu-dominio.vercel.app` |
+| `REDSYS_ENV` | *(dejar vacío por ahora — sandbox)* → `"production"` cuando haya contrato real |
+| `REDSYS_MERCHANT_CODE` | `999008881` (sandbox) → código real del comercio cuando haya contrato |
+| `REDSYS_TERMINAL` | `001` (sandbox) → terminal real cuando haya contrato |
+| `REDSYS_SECRET_KEY` | `sq7HjrUOBfKmC576ILgskD5srU870gJ7` (sandbox) → clave real cuando haya contrato |
 
 ### 4.3 Variables de entorno para testing
 
@@ -216,6 +220,28 @@ Para que Vercel use estas variables solo en la rama `testing` (no en todas las r
 | `CRON_SECRET` | El de testing |
 | `FOOTBALL_DATA_API_KEY` | La misma API key |
 | `NEXT_PUBLIC_BASE_URL` | `https://tu-proyecto-git-testing.vercel.app` |
+| `REDSYS_ENV` | *(dejar vacío — siempre sandbox en testing)* |
+| `REDSYS_MERCHANT_CODE` | `999008881` |
+| `REDSYS_TERMINAL` | `001` |
+| `REDSYS_SECRET_KEY` | `sq7HjrUOBfKmC576ILgskD5srU870gJ7` |
+
+---
+
+### Nota importante — Redsys en producción real
+
+Cuando el bar tenga contrato con su banco adquirente y credenciales reales de Redsys:
+
+1. El banco proporcionará tres datos: **número de comercio**, **terminal** y **clave secreta HMAC-SHA256**
+2. En **Vercel → Production**, actualizar:
+   - `REDSYS_ENV` → `production`
+   - `REDSYS_MERCHANT_CODE` → el número de comercio real
+   - `REDSYS_TERMINAL` → el terminal asignado
+   - `REDSYS_SECRET_KEY` → la clave secreta real
+3. En el **portal de Redsys** (o a través del banco), configurar la URL de notificación webhook:
+   `https://tu-dominio.vercel.app/api/payments/notify`
+4. Verificar que `NEXT_PUBLIC_BASE_URL` apunta al dominio de producción real (no a `.vercel.app` si se usa dominio propio)
+
+> Las variables de testing **no se tocan** — siempre usan sandbox para poder probar el flujo de pago sin cargos reales.
 
 ### 4.4 Configurar los deployments por rama
 
