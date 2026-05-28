@@ -30,11 +30,11 @@ const screenColors: Record<string, string> = {
 const MESSAGES = {
   es: {
     tooEarly: "Las reservas se desbloquearán 48 horas antes del evento",
-    tooLate: "Se han cerrado las reservas para este evento porque faltan menos de 5 horas para su inicio",
+    tooLate: "Se han cerrado las reservas para este evento porque faltan menos de 4 horas para su inicio",
   },
   en: {
     tooEarly: "Reservations will open 48 hours before the event",
-    tooLate: "Reservations for this event are closed because it starts in less than 5 hours",
+    tooLate: "Reservations for this event are closed because it starts in less than 4 hours",
   },
 };
 
@@ -63,7 +63,7 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
   // Availability check
   const hoursUntilEvent = (eventDate.getTime() - Date.now()) / (1000 * 60 * 60);
   const isTooEarly = checkAvailability && hoursUntilEvent > 48;
-  const isTooLate = checkAvailability && hoursUntilEvent >= 0 && hoursUntilEvent < 5;
+  const isTooLate = checkAvailability && hoursUntilEvent >= 0 && hoursUntilEvent < 4;
   const isLocked = isTooEarly || isTooLate;
 
   const handleLockedClick = () => {
