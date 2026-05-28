@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -15,13 +15,16 @@ interface Props {
 
 export function ConfirmationClient({ reservation, orderId }: Props) {
   const [isGenerating, setIsGenerating] = useState(false);
+  const hasAutoDownloaded = useRef(false);
 
   const eventDate = new Date(reservation.eventDate);
   const formattedDate = format(eventDate, "EEE d MMM yyyy • HH:mm", {
     locale: es,
   });
 
-  const handleDownloadTicket = async () => {
+  const handleDownloadTicket = async ({
+    openInNewTab = false,
+  }: { openInNewTab?: boolean } = {}) => {
     setIsGenerating(true);
     try {
       const { jsPDF } = await import("jspdf");
@@ -165,15 +168,27 @@ export function ConfirmationClient({ reservation, orderId }: Props) {
       const qrX = (ticketWidth - qrSize) / 2;
       doc.addImage(qrDataUrl, "PNG", qrX, yPos, qrSize, qrSize);
 
-      const pdfBlob = doc.output("blob");
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      window.open(pdfUrl, "_blank");
+      const filename = `ticket-${reservation.id}.pdf`;
+      doc.save(filename);
+
+      if (openInNewTab) {
+        const pdfBlob = doc.output("blob");
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl, "_blank");
+      }
     } catch (err) {
       console.error("Error generating ticket:", err);
     } finally {
       setIsGenerating(false);
     }
   };
+
+  useEffect(() => {
+    if (hasAutoDownloaded.current) return;
+    hasAutoDownloaded.current = true;
+    handleDownloadTicket();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
@@ -229,7 +244,7 @@ export function ConfirmationClient({ reservation, orderId }: Props) {
         {/* Actions */}
         <div className="space-y-3">
           <Button
-            onClick={handleDownloadTicket}
+            onClick={() => handleDownloadTicket({ openInNewTab: true })}
             disabled={isGenerating}
             className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
           >
