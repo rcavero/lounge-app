@@ -357,6 +357,7 @@ export async function getMonthlyReportData(year: number, month: number): Promise
         },
       },
       reservations: {
+        where: { status: "CONFIRMED" },
         select: {
           id: true,
           numberOfSeats: true,
