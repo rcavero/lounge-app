@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
 import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
+import { formatEventDateMadrid } from "@/lib/utils";
 import { getEventWithReservations } from "@/modules/reservations/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
@@ -37,12 +36,9 @@ export default async function EventReservationsPage({ params }: Props) {
   const activeScreens = getActiveScreens(event.screens);
   const sportEmoji = getSportEmoji(event.competition);
 
-  // Format date
-  const dayName = format(eventDate, "EEEE", { locale: es });
-  const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
-  const dayNumber = format(eventDate, "d");
-  const monthName = format(eventDate, "MMMM", { locale: es });
-  const time = format(eventDate, "HH:mm");
+  // Format date in Europe/Madrid (server runs in UTC in production)
+  const { formattedDay, dayNumber, monthName, time } =
+    formatEventDateMadrid(eventDate);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
