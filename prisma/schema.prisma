@@ -15,7 +15,7 @@ datasource db {
 // Equipos deportivos
 model Team {
   id         String   @id @default(cuid())
-  externalId Int?     @unique // ID de football-data.org
+  externalId Int?     @unique // ID del proveedor externo (ESPN)
   name       String
   shortName  String
   league     String   // La Liga, Premier League, Serie A, Bundesliga, Ligue 1
@@ -34,6 +34,7 @@ model Event {
   description String?
   sport       String      @default("football") // football, basketball, etc.
   competition String?     // La Liga, Champions League, etc.
+  externalMatchId Int?    @unique // ID del partido en el proveedor externo; evita eventos duplicados
 
   homeTeamId   String?
   homeTeam     Team?       @relation("HomeTeam", fields: [homeTeamId], references: [id])

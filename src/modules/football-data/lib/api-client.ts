@@ -1,82 +1,128 @@
 import type {
-  ApiCompetitionTeamsResponse,
-  ApiMatchesResponse,
+  EspnScoreboardResponse,
+  EspnTeamsResponse,
+  EspnTeam,
 } from "../types";
 
-const BASE_URL = "https://api.football-data.org/v4";
+const BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer";
 
-// Rate limiting: max 10 requests per minute on free tier → 6.1s between requests
-const MIN_REQUEST_INTERVAL_MS = 6100;
-let lastRequestTime = 0;
+// La API de ESPN no exige clave ni impone cuota diaria. Medido el 14/08/2026:
+// 12 peticiones consecutivas en 5 s sin un solo fallo. Por eso no hay espera
+// previa entre peticiones, a diferencia del cliente anterior de football-data
+// (que dormía 6,1 s por petición para respetar su límite de 10/min).
+const REQUEST_TIMEOUT_MS = 15000;
+const MAX_RETRIES = 2;
 
-async function waitForRateLimit() {
-  const now = Date.now();
-  const elapsed = now - lastRequestTime;
-  if (elapsed < MIN_REQUEST_INTERVAL_MS) {
-    const waitTime = MIN_REQUEST_INTERVAL_MS - elapsed;
-    console.log(`[football-data] Rate limit: waiting ${waitTime}ms`);
-    await new Promise((resolve) => setTimeout(resolve, waitTime));
+class EspnApiError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EspnApiError";
   }
-}
-
-async function fetchApi<T>(endpoint: string): Promise<T> {
-  const apiKey = process.env.FOOTBALL_DATA_API_KEY;
-  if (!apiKey) {
-    throw new Error("FOOTBALL_DATA_API_KEY is not set");
-  }
-
-  await waitForRateLimit();
-
-  const url = `${BASE_URL}${endpoint}`;
-  console.log(`[football-data] GET ${url}`);
-
-  lastRequestTime = Date.now();
-  const response = await fetch(url, {
-    headers: {
-      "X-Auth-Token": apiKey,
-    },
-    // No cache for server actions
-    cache: "no-store",
-  });
-
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(
-      `football-data API error ${response.status}: ${text.substring(0, 200)}`
-    );
-  }
-
-  return response.json() as Promise<T>;
 }
 
 /**
- * Get all teams for a competition.
- * @param code Competition code (e.g., "PD" for La Liga)
+ * GET contra la API de ESPN con timeout y reintentos.
+ *
+ * Devuelve null cuando el recurso no existe (slug inválido → ESPN responde
+ * `{ "code": 404 }` con HTTP 200), para que quien llama pueda saltárselo sin
+ * abortar el resto de competiciones.
  */
-export async function getCompetitionTeams(
-  code: string
-): Promise<ApiCompetitionTeamsResponse> {
-  return fetchApi<ApiCompetitionTeamsResponse>(
-    `/competitions/${code}/teams`
+async function fetchApi<T extends { code?: number }>(
+  path: string
+): Promise<T | null> {
+  const url = `${BASE_URL}${path}`;
+  let lastError: unknown;
+
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+    try {
+      const response = await fetch(url, {
+        headers: { accept: "application/json" },
+        cache: "no-store",
+        signal: controller.signal,
+      });
+
+      if (response.status === 404) return null;
+
+      if (response.status === 429 || response.status >= 500) {
+        // Transitorio: merece reintento con backoff.
+        throw new EspnApiError(`ESPN respondió ${response.status}`);
+      }
+
+      if (!response.ok) {
+        throw new EspnApiError(
+          `ESPN respondió ${response.status} para ${path}`
+        );
+      }
+
+      const body = (await response.json()) as T;
+
+      // ESPN señala "no existe" con un 200 y `{ "code": 404 }` en el cuerpo.
+      if (body?.code === 404) return null;
+
+      return body;
+    } catch (error) {
+      lastError = error;
+      const isLastAttempt = attempt === MAX_RETRIES;
+      if (isLastAttempt) break;
+      // Backoff: 500 ms, 1500 ms
+      await new Promise((r) => setTimeout(r, 500 * (attempt * 2 + 1)));
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  throw new EspnApiError(
+    `Fallo al pedir ${path}: ${
+      lastError instanceof Error ? lastError.message : String(lastError)
+    }`
   );
 }
 
+/** Devuelve YYYYMMDD, el formato que espera el parámetro `dates` de ESPN. */
+function toEspnDate(date: Date): string {
+  return date.toISOString().slice(0, 10).replace(/-/g, "");
+}
+
 /**
- * Get scheduled matches for a competition within the next N days.
- * @param code Competition code (e.g., "PD" for La Liga)
- * @param days Number of days ahead to fetch (default 7)
+ * Partidos de una competición dentro de los próximos N días.
+ *
+ * @param code Slug de ESPN (p.ej. "esp.1" para La Liga)
+ * @param days Días hacia delante (por defecto 7, igual que el cliente anterior)
+ *
+ * Nota: rangos de fechas muy amplios (más de unos meses) hacen que ESPN
+ * devuelva 0 eventos aunque los haya. La ventana de 7 días está muy por
+ * debajo de ese umbral.
  */
 export async function getScheduledMatches(
   code: string,
   days: number = 7
-): Promise<ApiMatchesResponse> {
+): Promise<EspnScoreboardResponse | null> {
   const today = new Date();
-  const dateFrom = today.toISOString().split("T")[0];
-  const dateTo = new Date(today.getTime() + days * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .split("T")[0];
+  const from = toEspnDate(today);
+  const to = toEspnDate(new Date(today.getTime() + days * 24 * 60 * 60 * 1000));
 
-  return fetchApi<ApiMatchesResponse>(
-    `/competitions/${code}/matches?status=SCHEDULED,TIMED&dateFrom=${dateFrom}&dateTo=${dateTo}`
+  return fetchApi<EspnScoreboardResponse>(
+    `/${code}/scoreboard?dates=${from}-${to}`
   );
+}
+
+/**
+ * Plantilla completa de una competición.
+ * Solo devuelve datos útiles en ligas domésticas; en copas ESPN suele
+ * responder con una lista vacía.
+ */
+export async function getCompetitionTeams(code: string): Promise<EspnTeam[]> {
+  const response = await fetchApi<EspnTeamsResponse>(`/${code}/teams`);
+  if (!response) return [];
+
+  const teams = response.sports?.[0]?.leagues?.[0]?.teams ?? [];
+  return teams.map((entry) => entry.team).filter(Boolean);
+}
+
+/** Normaliza el escudo de un equipo: ESPN lo expone en `logo` o en `logos[0].href`. */
+export function getTeamLogo(team: EspnTeam): string | null {
+  return team.logo ?? team.logos?.[0]?.href ?? null;
 }

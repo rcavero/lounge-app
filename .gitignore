@@ -53,3 +53,6 @@ prisma/*.db.backup*
 
 # windows temp
 nul
+
+# snapshot de trabajo de scripts/sync-verify.ts
+scripts/.sync-snapshot.json

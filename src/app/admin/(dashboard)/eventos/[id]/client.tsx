@@ -79,6 +79,15 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const isMotor = isMotorSport(competition);
   const sportEmoji = getSportEmoji(competition);
 
+  // Eventos históricos pueden tener una competición ya retirada del sync (p.ej.
+  // Championship o Brasileirão). Sin esta opción, el <select> controlado no
+  // encontraría su valor y mostraría la primera de la lista, dando a entender
+  // que el evento es de otra competición.
+  const isRetiredCompetition =
+    !!competition &&
+    !COMPETITION_NAMES.includes(competition) &&
+    !MANUAL_SPORT_NAMES.includes(competition);
+
   // Filter teams based on selected competition (football only)
   const filteredTeams = useMemo(() => {
     const leagues = COMPETITION_LEAGUES[competition] || [];
@@ -226,6 +235,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               onChange={(e) => handleCompetitionChange(e.target.value)}
               className={INPUT_CLASS}
             >
+              {isRetiredCompetition && (
+                <option value={competition}>{competition} (retirada)</option>
+              )}
               <optgroup label="Fútbol">
                 {COMPETITION_NAMES.map((comp) => (
                   <option key={comp} value={comp}>

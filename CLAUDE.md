@@ -84,7 +84,7 @@ lounge-app/
 │   │       └── cron/
 │   │           ├── cleanup/        # Limpieza de eventos + expiración de reservas PENDING
 │   │           │   └── route.ts
-│   │           └── sync-teams/     # Sync equipos desde football-data.org
+│   │           └── sync-teams/     # Sync equipos desde la API de ESPN
 │   │               └── route.ts
 │   │
 │   ├── middleware.ts               # Middleware de Next.js
@@ -105,10 +105,12 @@ lounge-app/
 │   │   │   ├── lib/session.ts      # Configuración de sesión
 │   │   │   └── types/index.ts      # Tipos (SessionData, AdminRole)
 │   │   │
-│   │   ├── football-data/          # Integración con football-data.org API + deportes manuales
-│   │   │   ├── config/competitions.ts  # 12 competiciones del free tier + 11 deportes manuales con emoji
+│   │   ├── football-data/          # Integración con la API de ESPN + deportes manuales
+│   │   │   ├── config/competitions.ts  # 17 competiciones (slugs de ESPN) + 11 deportes manuales con emoji
 │   │   │   │                           # Exports: MANUAL_SPORTS, isManualSport(), isMotorSport(), getSportEmoji()
-│   │   │   ├── lib/api-client.ts       # Cliente HTTP con rate limiting
+│   │   │   ├── lib/api-client.ts       # Cliente HTTP (sin clave, con timeout y reintentos)
+│   │   │   ├── lib/team-sync.ts        # Núcleo del sync SIN requireAuth — lo llama el cron
+│   │   │   ├── lib/suggestions.ts      # Mapeo ESPN → MatchSuggestion (aislado para poder testearlo)
 │   │   │   ├── types/index.ts          # Tipos de respuesta de la API
 │   │   │   └── actions/index.ts        # syncTeams, getMatchSuggestions, createEventFromSuggestion
 │   │   │
@@ -196,11 +198,11 @@ enum AdminRole {
 ```prisma
 model Team {
   id         String   @id @default(cuid())
-  externalId Int?     @unique  // ID de football-data.org
+  externalId Int?     @unique  // ID del proveedor externo (ESPN)
   name       String
   shortName  String
   league     String   // La Liga, Premier League, Serie A, Bundesliga, Ligue 1
-  logo       String?  // URL del escudo (auto-synced from football-data.org)
+  logo       String?  // URL del escudo (sincronizado desde ESPN)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 

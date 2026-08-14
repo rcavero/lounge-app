@@ -13,7 +13,7 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo en Valen
 - **PDFs y QR**: jsPDF + qrcode
 - **Pasarela de pago**: redsys-easy (Redsys, modo redirección, HMAC-SHA256)
 - **Fechas**: date-fns
-- **Integración externa**: football-data.org API
+- **Integración externa**: API pública de ESPN (sin clave)
 
 ## Requisitos
 
@@ -54,8 +54,7 @@ AUTH_SECRET="tu-secreto-para-sesiones"
 # Cron jobs
 CRON_SECRET="tu-secreto-para-cron-jobs"
 
-# Football-data.org
-FOOTBALL_DATA_API_KEY="tu-api-key"
+# Datos de fútbol: la API de ESPN no requiere clave — no hay nada que configurar
 
 # Redsys — sandbox (credenciales públicas para desarrollo)
 REDSYS_MERCHANT_CODE="999008881"
@@ -102,7 +101,7 @@ npm run start        # Servidor de producción
 ### Panel de Administración
 - **Gestión de eventos**: CRUD completo con precio por asiento (10–30€), pantallas y equipos de la API
 - **Multi-deporte**: 11 deportes alternativos (Baloncesto, Rugby, Tenis, Moto GP, F1, Billar, Dardos, Hockey, Ciclismo, Boxeo, Otros) gestionados con inputs libres y emoji como icono; motor sports con campo único "Gran Premio"
-- **Sugerencias de partidos**: crear eventos desde football-data.org
+- **Sugerencias de partidos**: crear eventos desde la API de ESPN (17 competiciones)
 - **Administrar reservas**: listado de reservas CONFIRMED por evento; detalle individual accesible por QR
 - **Bloquear asientos**: plano interactivo por evento (verde=disponible, gris=bloqueado, rojo=ocupado)
 - **Editor de asientos**: drag & drop para posicionar asientos y etiquetas de zona

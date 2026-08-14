@@ -94,7 +94,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       const result = await syncTeamsFromAPI();
       setSyncResult(result);
     } catch (err) {
-      setError("Error al sincronizar equipos. Verifica la API key.");
+      setError("Error al sincronizar equipos. Inténtalo de nuevo en unos minutos.");
     } finally {
       setIsSyncing(false);
     }
@@ -109,7 +109,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       const results = await getMatchSuggestions(code);
       setSuggestions(results);
     } catch (err) {
-      setError("Error al obtener partidos. Verifica la API key.");
+      setError("Error al obtener partidos. Inténtalo de nuevo en unos minutos.");
     } finally {
       setIsLoadingMatches(false);
     }
@@ -248,7 +248,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
           <div className="text-center py-12">
             <Loader2 className="w-8 h-8 text-[#D4AF37] mx-auto mb-3 animate-spin" />
             <p className="text-white/50 text-sm">
-              Obteniendo partidos... (puede tardar por rate limiting)
+              Obteniendo partidos...
             </p>
           </div>
         )}
