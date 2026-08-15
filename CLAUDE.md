@@ -120,7 +120,7 @@ lounge-app/
 │   │   │   │   ├── event-card.tsx
 │   │   │   │   ├── event-row.tsx          # Con checkAvailability (ventana 48h–5h)
 │   │   │   │   ├── event-row-with-badge.tsx
-│   │   │   │   │   ├── team-logo.tsx          # Soporta emoji (deportes manuales), logo URL o iniciales
+│   │   │   │   │   ├── team-logo.tsx          # Emoji (deportes manuales), escudo (ruta local o URL) o iniciales; cae a iniciales si la imagen falla
 │   │   │   │   ├── competition-emblem.tsx # Escudo de competición o emoji en círculo blanco
 │   │   │   │   └── index.ts
 │   │   │   └── types/index.ts
@@ -202,7 +202,8 @@ model Team {
   name       String
   shortName  String
   league     String   // La Liga, Premier League, Serie A, Bundesliga, Ligue 1
-  logo       String?  // URL del escudo (sincronizado desde ESPN)
+  logo       String?  // Lo que pinta la UI: ruta local /escudos/{id}.png (o URL remota si aún no se ha descargado)
+  logoSource String?  // URL remota de origen en ESPN, para poder re-descargar
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -463,3 +464,9 @@ npm run build
 5. **Cascade Delete**: Al eliminar Event, se eliminan Reservations y SeatStatuses automáticamente.
 
 6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `REDSYS.md` para la configuración por entorno.
+
+7. **Escudos y emblemas servidos en local**: las imágenes viven en `public/escudos/{Team.id}.png` y `public/competiciones/{slug}.png`, versionadas en git. La web pública **no hace ninguna petición a `a.espncdn.com`**: ESPN es solo la fuente en el momento del sync. Consecuencias al tocar este código:
+   - `Team.logo` es lo que se renderiza; `Team.logoSource` guarda la URL remota de origen.
+   - **El sync nunca sobrescribe un `logo` que empiece por `/escudos/`** (`LOCAL_LOGO_PREFIX` en `lib/team-sync.ts`). Si se quita ese guardarraíl, el primer cron deshace toda la descarga.
+   - Los equipos que crea el cron sobre la marcha apuntan a ESPN hasta que se ejecuta `npx tsx scripts/download-crests.ts` en local y se hace commit: Vercel tiene el sistema de ficheros en solo lectura y la función serverless no puede escribir en `public/`.
+   - `scripts/sync-verify.ts report` incluye el recuento de escudos locales vs remotos.

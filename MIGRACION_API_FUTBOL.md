@@ -66,6 +66,30 @@ ESPN. No hay contrato ni SLA y podría cambiar sin aviso. La mitigación es que 
 aislado tras `MatchSuggestion`, así que saltar a TheSportsDB Premium sería cuestión de un día.
 El `scripts/espn-smoke-test.ts` existe justamente para detectar pronto un cambio de forma.
 
+### Copia local de escudos y emblemas (15/08/2026)
+
+Quedaba un punto en el que ESPN **sí** daba la cara al cliente final: los escudos se enlazaban
+directamente contra `a.espncdn.com` (y `<Image unoptimized>` desactiva el proxy de Next, así que la
+petición salía del navegador del cliente). Un bloqueo de hotlinking rompía todos los escudos de la
+web pública, y la base de datos solo guardaba punteros con los que no se podía recuperar nada.
+
+Ahora las imágenes se descargan a `public/escudos/{Team.id}.png` y `public/competiciones/{slug}.png`,
+versionadas en git y servidas desde el propio dominio. **ESPN pasa a ser solo la fuente en el momento
+del sync**, no una dependencia en tiempo de ejecución.
+
+- `Team.logo` = lo que se renderiza · `Team.logoSource` = URL remota de origen.
+- El sync **nunca** sobrescribe un `logo` que empiece por `/escudos/` (`LOCAL_LOGO_PREFIX`). Sin ese
+  guardarraíl, el primer cron deshacía la descarga entera.
+- Vercel no puede escribir en `public/`: los equipos que crea el cron apuntan a ESPN hasta que se
+  ejecuta `scripts/download-crests.ts` en local y se hace commit. Degrada bien — la UI pinta
+  indistintamente ruta local o URL remota.
+- Descubierto al descargar: el emblema del Brasileirão en `crests.football-data.org` ya devolvía
+  **404**. Llevaba roto en producción desde antes. Ambos emblemas retirados se toman ahora de ESPN.
+- Coste: **18,5 MB** en el repositorio (389 escudos + 19 emblemas). ESPN solo publica el tamaño de
+  500px; no hay variante menor.
+- 75 de 464 equipos no tienen escudo en origen — todos de categorías bajas de Copa del Rey. Se
+  pintan con el círculo de iniciales.
+
 ---
 
 ## 3. Competiciones y slugs
@@ -364,6 +388,7 @@ set -a && . ./.env.testing && set +a
 | `scripts/sync-verify.ts` | `snapshot` guarda el estado previo; `report` busca huérfanos, duplicados, desplegables vacíos y comprueba que las sugerencias resuelven |
 | `scripts/sync-reset.ts` | ⚠️ Destructivo. Deja la tabla Team como el snapshot para repetir el ensayo de la primera sincronización. Exige `--confirm <project-ref>` del proyecto conectado |
 | `scripts/espn-smoke-test.ts` | Ejercita el código real contra ESPN en vivo y valida las invariantes, sin necesidad de BD. **Vale la pena repetirlo cada cierto tiempo**: al ser una API no documentada, un cambio de forma se detecta aquí primero |
+| `scripts/download-crests.ts` | Descarga escudos y emblemas a `public/` y re-enlaza `Team.logo` a la copia local. Idempotente; `--dry-run` y `--force`. **Ejecutarlo cada cierto tiempo** para recoger los equipos que el cron crea sobre la marcha |
 | `scripts/espn-discover.mjs` | Regenera el bloque `COMPETITIONS` de la config. Útil al añadir competiciones |
 | `scripts/spike-api-football.mjs` | El gate que descartó API-Football. Re-ejecutable si algún día amplían su free tier |
 

@@ -31,6 +31,7 @@ interface SnapshotTeam {
   shortName: string;
   league: string;
   externalId: number | null;
+  logo: string | null;
   events: number;
 }
 
@@ -42,6 +43,7 @@ async function loadTeams(): Promise<SnapshotTeam[]> {
       shortName: true,
       league: true,
       externalId: true,
+      logo: true,
       _count: { select: { homeEvents: true, awayEvents: true } },
     },
     orderBy: { name: "asc" },
@@ -52,6 +54,7 @@ async function loadTeams(): Promise<SnapshotTeam[]> {
     shortName: t.shortName,
     league: t.league,
     externalId: t.externalId,
+    logo: t.logo,
     events: t._count.homeEvents + t._count.awayEvents,
   }));
 }
@@ -165,6 +168,22 @@ async function report() {
   if (sinResolver.size) {
     console.log(`        ${[...sinResolver].join(", ")}`);
     console.log(`        (no es un fallo: se crean al vuelo al crear el evento)`);
+  }
+
+  // ── 6. Copia local de escudos ───────────────────────────────────────────
+  //     Un escudo "remoto" es una dependencia viva de a.espncdn.com en la web
+  //     pública. Este recuento es el que dice si la red de seguridad está
+  //     puesta, y si el sync ha vuelto a pisar alguna ruta local.
+  const locales = after.filter((t) => t.logo?.startsWith("/escudos/")).length;
+  const remotos = after.filter((t) => t.logo?.startsWith("http")).length;
+  const sinEscudo = after.filter((t) => !t.logo).length;
+
+  console.log(`\n  6) Origen de los escudos:`);
+  console.log(`     Copia local (/escudos/) : ${locales}`);
+  console.log(`     URL remota              : ${remotos}`);
+  console.log(`     Sin escudo (iniciales)  : ${sinEscudo}`);
+  if (remotos > 0) {
+    console.log(`        Ejecuta: npx tsx scripts/download-crests.ts`);
   }
 
   // ── Veredicto ───────────────────────────────────────────────────────────

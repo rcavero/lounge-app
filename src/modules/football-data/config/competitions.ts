@@ -14,7 +14,15 @@ export interface Competition {
   code: string; // Slug de ESPN, p.ej. "esp.1"
   name: string; // Nombre visible
   league: string; // Se corresponde con Team.league
-  emblem: string; // URL del emblema de competición
+  /**
+   * Ruta LOCAL del emblema, servida desde public/. Es lo que renderiza la UI.
+   * Vale también como nombre de fichero para scripts/download-crests.ts, que
+   * escribe en `public${emblem}` — así la ruta que pinta el navegador y la que
+   * genera el script no pueden desincronizarse.
+   */
+  emblem: string;
+  /** URL remota de origen. Solo la lee el script de descarga. */
+  emblemSource: string;
   /** Slug adicional para la fase previa (competiciones UEFA). */
   qualifyingCode?: string;
   /** Las ligas domésticas se sincronizan primero para que sus equipos reciban la liga correcta. */
@@ -22,23 +30,23 @@ export interface Competition {
 }
 
 export const COMPETITIONS: Competition[] = [
-  { code: "uefa.champions", name: "Champions League", league: "Champions League", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/2.png", qualifyingCode: "uefa.champions_qual", isDomestic: false },
-  { code: "uefa.europa", name: "Europa League", league: "Europa League", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/2310.png", qualifyingCode: "uefa.europa_qual", isDomestic: false },
-  { code: "uefa.europa.conf", name: "Conference League", league: "Conference League", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/20296.png", qualifyingCode: "uefa.europa.conf_qual", isDomestic: false },
-  { code: "esp.1", name: "La Liga", league: "La Liga", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/15.png", isDomestic: true },
-  { code: "esp.2", name: "La Liga 2", league: "La Liga 2", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/107.png", isDomestic: true },
-  { code: "eng.1", name: "Premier League", league: "Premier League", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/23.png", isDomestic: true },
-  { code: "ita.1", name: "Serie A", league: "Serie A", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/12.png", isDomestic: true },
-  { code: "ger.1", name: "Bundesliga", league: "Bundesliga", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/10.png", isDomestic: true },
-  { code: "fra.1", name: "Ligue 1", league: "Ligue 1", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/9.png", isDomestic: true },
-  { code: "por.1", name: "Primeira Liga", league: "Primeira Liga", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/14.png", isDomestic: true },
-  { code: "ned.1", name: "Eredivisie", league: "Eredivisie", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/11.png", isDomestic: true },
-  { code: "esp.copa_del_rey", name: "Copa del Rey", league: "Copa del Rey", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/80.png", isDomestic: false },
-  { code: "esp.super_cup", name: "Supercopa de España", league: "Supercopa de España", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/431.png", isDomestic: false },
-  { code: "conmebol.america", name: "Copa América", league: "Copa América", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/83.png", isDomestic: false },
-  { code: "uefa.nations", name: "Nations League", league: "Nations League", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/2395.png", isDomestic: false },
-  { code: "fifa.world", name: "World Cup", league: "World Cup", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/4.png", isDomestic: false },
-  { code: "uefa.euro", name: "European Championship", league: "European Championship", emblem: "https://a.espncdn.com/i/leaguelogos/soccer/500/74.png", isDomestic: false },
+  { code: "uefa.champions", name: "Champions League", league: "Champions League", emblem: "/competiciones/champions-league.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/2.png", qualifyingCode: "uefa.champions_qual", isDomestic: false },
+  { code: "uefa.europa", name: "Europa League", league: "Europa League", emblem: "/competiciones/europa-league.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/2310.png", qualifyingCode: "uefa.europa_qual", isDomestic: false },
+  { code: "uefa.europa.conf", name: "Conference League", league: "Conference League", emblem: "/competiciones/conference-league.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/20296.png", qualifyingCode: "uefa.europa.conf_qual", isDomestic: false },
+  { code: "esp.1", name: "La Liga", league: "La Liga", emblem: "/competiciones/la-liga.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/15.png", isDomestic: true },
+  { code: "esp.2", name: "La Liga 2", league: "La Liga 2", emblem: "/competiciones/la-liga-2.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/107.png", isDomestic: true },
+  { code: "eng.1", name: "Premier League", league: "Premier League", emblem: "/competiciones/premier-league.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/23.png", isDomestic: true },
+  { code: "ita.1", name: "Serie A", league: "Serie A", emblem: "/competiciones/serie-a.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/12.png", isDomestic: true },
+  { code: "ger.1", name: "Bundesliga", league: "Bundesliga", emblem: "/competiciones/bundesliga.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/10.png", isDomestic: true },
+  { code: "fra.1", name: "Ligue 1", league: "Ligue 1", emblem: "/competiciones/ligue-1.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/9.png", isDomestic: true },
+  { code: "por.1", name: "Primeira Liga", league: "Primeira Liga", emblem: "/competiciones/primeira-liga.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/14.png", isDomestic: true },
+  { code: "ned.1", name: "Eredivisie", league: "Eredivisie", emblem: "/competiciones/eredivisie.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/11.png", isDomestic: true },
+  { code: "esp.copa_del_rey", name: "Copa del Rey", league: "Copa del Rey", emblem: "/competiciones/copa-del-rey.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/80.png", isDomestic: false },
+  { code: "esp.super_cup", name: "Supercopa de España", league: "Supercopa de España", emblem: "/competiciones/supercopa-de-espana.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/431.png", isDomestic: false },
+  { code: "conmebol.america", name: "Copa América", league: "Copa América", emblem: "/competiciones/copa-america.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/83.png", isDomestic: false },
+  { code: "uefa.nations", name: "Nations League", league: "Nations League", emblem: "/competiciones/nations-league.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/2395.png", isDomestic: false },
+  { code: "fifa.world", name: "World Cup", league: "World Cup", emblem: "/competiciones/world-cup.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/4.png", isDomestic: false },
+  { code: "uefa.euro", name: "European Championship", league: "European Championship", emblem: "/competiciones/european-championship.png", emblemSource: "https://a.espncdn.com/i/leaguelogos/soccer/500/74.png", isDomestic: false },
 ];
 
 // Nombres de competición para el desplegable
@@ -78,15 +86,38 @@ export const TEAM_NAME_ALIASES: Record<string, string> = {
 // Competiciones retiradas del sync que siguen apareciendo en eventos históricos.
 // Sin estas entradas, esos eventos dejarían de mostrar su escudo.
 export const LEGACY_COMPETITION_EMBLEM: Record<string, string> = {
-  Championship: "https://crests.football-data.org/ELC.png",
-  Brasileirão: "https://crests.football-data.org/BSA.png",
+  Championship: "/competiciones/championship.png",
+  Brasileirão: "/competiciones/brasileirao.png",
 };
 
-// Mapa de nombre visible a URL del emblema (incluye las retiradas)
+// URLs remotas de origen de los emblemas retirados. Solo las lee
+// scripts/download-crests.ts.
+//
+// Apuntaban al proveedor anterior (crests.football-data.org), pero al descargar
+// se comprobó que la de Brasileirão ya devuelve 404: ese emblema llevaba roto en
+// producción desde antes de esta migración. Se toman de ESPN, que sí sirve ambas
+// competiciones aunque no estén en el sync (bra.1 → 85, eng.2 → 24).
+export const LEGACY_COMPETITION_EMBLEM_SOURCE: Record<string, string> = {
+  Championship: "https://a.espncdn.com/i/leaguelogos/soccer/500/24.png",
+  Brasileirão: "https://a.espncdn.com/i/leaguelogos/soccer/500/85.png",
+};
+
+// Mapa de nombre visible a ruta del emblema (incluye las retiradas)
 export const COMPETITION_EMBLEM = {
   ...LEGACY_COMPETITION_EMBLEM,
   ...Object.fromEntries(COMPETITIONS.map((c) => [c.name, c.emblem])),
 } as Record<string, string>;
+
+// Mapa de ruta local → URL remota de origen, para el script de descarga.
+export const EMBLEM_SOURCES: Record<string, string> = {
+  ...Object.fromEntries(
+    Object.entries(LEGACY_COMPETITION_EMBLEM).map(([name, path]) => [
+      path,
+      LEGACY_COMPETITION_EMBLEM_SOURCE[name],
+    ])
+  ),
+  ...Object.fromEntries(COMPETITIONS.map((c) => [c.emblem, c.emblemSource])),
+};
 
 // ─── Deportes manuales (sin API — se crean a mano en el formulario) ────────────
 

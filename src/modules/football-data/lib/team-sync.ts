@@ -66,12 +66,31 @@ export function teamShortName(team: EspnTeam): string {
   return team.shortDisplayName?.trim() || team.displayName.trim();
 }
 
+/**
+ * Prefijo de las rutas de escudo servidas desde public/. Es el marcador que
+ * distingue "ya tengo copia local" de "sigo dependiendo de ESPN".
+ * Lo comparte scripts/download-crests.ts.
+ */
+export const LOCAL_LOGO_PREFIX = "/escudos/";
+
+/**
+ * Ruta local que le corresponde al escudo de un equipo.
+ *
+ * La extensión NO se asume: ESPN sirve algunos escudos en SVG o GIF bajo una
+ * URL acabada en `.png`, y un SVG servido como `image/png` no renderiza. Quien
+ * llama pasa la extensión que ha detectado del contenido real.
+ */
+export function localLogoPath(teamId: string, extension: string): string {
+  return `${LOCAL_LOGO_PREFIX}${teamId}.${extension}`;
+}
+
 interface TeamRow {
   id: string;
   externalId: number | null;
   name: string;
   shortName: string;
   logo: string | null;
+  logoSource: string | null;
 }
 
 /**
@@ -92,7 +111,14 @@ interface TeamIndex {
 
 async function loadTeamIndex(): Promise<TeamIndex> {
   const rows = await prisma.team.findMany({
-    select: { id: true, externalId: true, name: true, shortName: true, logo: true },
+    select: {
+      id: true,
+      externalId: true,
+      name: true,
+      shortName: true,
+      logo: true,
+      logoSource: true,
+    },
   });
 
   const index: TeamIndex = {
@@ -132,6 +158,7 @@ interface PlannedUpdate {
   name: string;
   shortName: string;
   logo: string | null;
+  logoSource: string | null;
 }
 
 interface PlannedCreate extends PlannedUpdate {
@@ -171,18 +198,34 @@ function planTeam(
    * datos: el índice quedaría enlazado y la fila real no.
    */
   const queueUpdate = (row: TeamRow, previousExternalId: number | null): void => {
-    const nextLogo = logo ?? row.logo;
+    // Invariante de la copia local: si `logo` ya apunta a public/, el sync NO
+    // lo toca. Sin esto, el primer cron posterior a la descarga reescribiría
+    // los ~430 escudos con la URL de ESPN y deshacía toda la red de seguridad.
+    // La URL remota sigue guardándose, pero en logoSource.
+    const isLocal = row.logo?.startsWith(LOCAL_LOGO_PREFIX) ?? false;
+    const nextLogo = isLocal ? row.logo : logo ?? row.logo;
+    const nextLogoSource = logo ?? row.logoSource;
+
     const unchanged =
       previousExternalId === externalId &&
       row.name === name &&
       row.shortName === shortName &&
-      row.logo === nextLogo;
+      row.logo === nextLogo &&
+      row.logoSource === nextLogoSource;
     if (unchanged) return;
 
-    updates.push({ id: row.id, externalId, name, shortName, logo: nextLogo });
+    updates.push({
+      id: row.id,
+      externalId,
+      name,
+      shortName,
+      logo: nextLogo,
+      logoSource: nextLogoSource,
+    });
     row.name = name;
     row.shortName = shortName;
     row.logo = nextLogo;
+    row.logoSource = nextLogoSource;
   };
 
   // 1. Por externalId
@@ -244,16 +287,27 @@ function planCreate(
   const bySlug = slug ? index.byId.get(slug) : undefined;
   const id = bySlug ? `${slug}-${externalId}` : slug || `team-${externalId}`;
 
+  // Un equipo nuevo no tiene copia local todavía: Vercel no puede escribir en
+  // public/ desde la función serverless. Queda apuntando a ESPN hasta que se
+  // ejecute scripts/download-crests.ts en local.
   creates.push({
     id,
     externalId,
     name,
     shortName,
     logo: logo ?? null,
+    logoSource: logo ?? null,
     league: competition.league,
   });
 
-  const row: TeamRow = { id, externalId, name, shortName, logo: logo ?? null };
+  const row: TeamRow = {
+    id,
+    externalId,
+    name,
+    shortName,
+    logo: logo ?? null,
+    logoSource: logo ?? null,
+  };
   index.byId.set(id, row);
   index.byExternalId.set(externalId, row);
 }
@@ -282,6 +336,7 @@ async function applyWrites(
             name: u.name,
             shortName: u.shortName,
             logo: u.logo,
+            logoSource: u.logoSource,
           },
         })
       )

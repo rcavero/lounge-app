@@ -113,7 +113,10 @@ async function ensureTeam(
       name: team.name,
       shortName: team.shortName,
       league,
+      // Sin copia local todavía: apunta a ESPN hasta que se ejecute
+      // scripts/download-crests.ts. logoSource guarda siempre la procedencia.
       logo: team.crest || null,
+      logoSource: team.crest || null,
     },
   });
   return created.id;

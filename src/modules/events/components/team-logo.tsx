@@ -2,6 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import Image from "next/image";
+import { useState } from "react";
 import type { Team } from "../types";
 
 interface TeamLogoProps {
@@ -24,6 +25,11 @@ const sizePx = {
 };
 
 export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps) {
+  // Se guarda la ruta que ha fallado, no un booleano: así, si el equipo cambia
+  // (listas reutilizadas por React) o si el escudo se corrige, el error se
+  // resetea solo en vez de dejar las iniciales pegadas.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null);
+
   // Emoji override (deporte manual)
   if (emoji) {
     return (
@@ -40,8 +46,11 @@ export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps)
     return <div className={cn(sizeClasses[size], className)} />;
   }
 
-  // Logo URL
-  if (team.logo) {
+  // Escudo: ruta local (/escudos/...) o URL remota, indistintamente.
+  // Si la imagen no carga, se cae a las iniciales en vez de dejar el icono de
+  // imagen rota — es lo que hace que un fichero perdido o una URL caducada
+  // degraden bien en la web pública.
+  if (team.logo && failedSrc !== team.logo) {
     return (
       <div
         className={cn(
@@ -57,6 +66,7 @@ export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps)
           height={sizePx[size]}
           className="w-full h-full object-contain"
           unoptimized
+          onError={() => setFailedSrc(team.logo ?? null)}
         />
       </div>
     );
