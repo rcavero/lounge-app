@@ -174,7 +174,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
                 Sugerencias de Partidos
               </h1>
               <p className="text-white/50 text-xs">
-                football-data.org API
+                ESPN API
               </p>
             </div>
           </div>
