@@ -28,7 +28,11 @@ export async function initializePayment(data: {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { success: false, error: "Evento no encontrado" };
 
-  const pricePerSeat = event.pricePerSeat;
+  // Importes unitarios de la BD, nunca del cliente. Se trabaja en céntimos enteros:
+  // Redsys exige el importe como entero de céntimos y así el desglose que se guarda
+  // en la reserva no depende de ninguna división.
+  const seatPriceCents = event.pricePerSeat * 100;
+  const managementFeeCents = event.managementFeeCents;
 
   // Verify all selected seats are available in this event
   const seatStatuses = await prisma.seatStatus.findMany({
@@ -83,7 +87,8 @@ export async function initializePayment(data: {
     }
   }
 
-  const totalPrice = seatIds.length * pricePerSeat;
+  const totalCents = (seatPriceCents + managementFeeCents) * seatIds.length;
+  const totalPrice = totalCents / 100;
   const orderId = generateOrderId();
 
   // Create PENDING reservation and mark seats as RESERVED atomically
@@ -95,6 +100,8 @@ export async function initializePayment(data: {
         customerEmail: "cliente@lounge.com",
         numberOfSeats: seatIds.length,
         totalPrice,
+        seatPriceCents,
+        managementFeeCents,
         status: "PENDING",
         paymentStatus: "PENDING",
         paymentId: orderId,
@@ -110,7 +117,7 @@ export async function initializePayment(data: {
   });
 
   // Build Redsys signed redirect form
-  const amountInCents = String(totalPrice * 100);
+  const amountInCents = String(totalCents);
   const okUrl = `${BASE_URL}/reserva/confirmacion/${orderId}`;
   const koUrl = `${BASE_URL}/reserva/error?orderId=${orderId}&eventId=${eventId}`;
   const notifyUrl = `${BASE_URL}/api/payments/notify`;
@@ -226,6 +233,9 @@ export async function getReservationByOrderId(
     })),
     totalSeats: reservation.numberOfSeats,
     totalPrice: Number(reservation.totalPrice),
+    // Del snapshot de la reserva, no del evento: el evento puede haber cambiado
+    seatPriceCents: reservation.seatPriceCents,
+    managementFeeCents: reservation.managementFeeCents,
     status: reservation.status,
   };
 }

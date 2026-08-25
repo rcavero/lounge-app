@@ -5,6 +5,14 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Formatea un importe en euros con coma decimal: 34.5 → "34,50".
+ * Sin símbolo: el € lo pone cada vista, que es como estaba escrito hasta ahora.
+ */
+export function formatEuros(amount: number): string {
+  return amount.toFixed(2).replace(".", ",")
+}
+
 const MADRID_TZ = "Europe/Madrid"
 
 /**

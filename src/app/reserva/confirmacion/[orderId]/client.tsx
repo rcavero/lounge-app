@@ -7,6 +7,7 @@ import { es } from "date-fns/locale";
 import { CheckCircle, Download, Home, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { ReservationTicketData } from "@/modules/payments/types";
+import { formatEuros } from "@/lib/utils";
 
 interface Props {
   reservation: ReservationTicketData;
@@ -40,7 +41,11 @@ export function ConfirmationClient({ reservation, orderId }: Props) {
       const margin = 5;
       const qrSize = 35;
       const seatsHeight = Math.ceil(reservation.seats.length / 3) * 5;
-      const ticketHeight = 98 + seatsHeight + qrSize;
+      // El desglose solo se imprime si hubo gastos de gestión; sin ellos el ticket queda
+      // idéntico al de siempre. Las dos filas ocupan 9 mm: si no se amplía el lienzo
+      // (que es de alto fijo), el QR se recorta por abajo.
+      const hasFee = reservation.managementFeeCents > 0;
+      const ticketHeight = 98 + seatsHeight + qrSize + (hasFee ? 9 : 0);
 
       const doc = new jsPDF({
         unit: "mm",
@@ -142,12 +147,37 @@ export function ConfirmationClient({ reservation, orderId }: Props) {
 
       yPos += 7;
       doc.setFontSize(14);
-      doc.text(
-        `TOTAL: ${reservation.totalPrice.toFixed(2).replace(".", ",")}€`,
-        ticketWidth / 2,
-        yPos,
-        { align: "center" }
-      );
+      doc.text(`TOTAL: ${formatEuros(reservation.totalPrice)}€`, ticketWidth / 2, yPos, {
+        align: "center",
+      });
+
+      // Breakdown of that total: what is discountable and what is not
+      if (hasFee) {
+        const seats = reservation.totalSeats;
+        const seatPrice = formatEuros(reservation.seatPriceCents / 100);
+        const seatTotal = formatEuros((reservation.seatPriceCents * seats) / 100);
+        const fee = formatEuros(reservation.managementFeeCents / 100);
+        const feeTotal = formatEuros((reservation.managementFeeCents * seats) / 100);
+
+        doc.setFontSize(7);
+        doc.setFont("helvetica", "normal");
+
+        yPos += 5;
+        doc.text(
+          `Importe de la reserva: ${seatPrice}€ x ${seats} = ${seatTotal}€`,
+          ticketWidth / 2,
+          yPos,
+          { align: "center" }
+        );
+
+        yPos += 4;
+        doc.text(
+          `Gastos de gestión: ${fee}€ x ${seats} = ${feeTotal}€`,
+          ticketWidth / 2,
+          yPos,
+          { align: "center" }
+        );
+      }
 
       // Footer
       yPos += 8;

@@ -50,6 +50,10 @@ model Event {
   pricePerSeat    Int         @default(10) // Precio por asiento en euros
   durationMinutes Int         @default(120) // Duración estimada en minutos
 
+  // Gastos de gestión por asiento, en céntimos. No son descontables en consumiciones.
+  // Solo admite los valores de MANAGEMENT_FEE_OPTIONS_CENTS: 0–500 en pasos de 50.
+  managementFeeCents Int      @default(150)
+
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
@@ -133,6 +137,14 @@ model Reservation {
   // Detalles de la reserva
   numberOfSeats   Int
   totalPrice      Decimal
+
+  // Importes unitarios congelados en el momento del pago, en céntimos. Se guardan aquí
+  // (y no se releen del evento) para que editar el evento más tarde no reescriba el
+  // desglose de una reserva ya cobrada. Sin @default a propósito: así el cliente Prisma
+  // obliga a rellenarlos en cada create y no puede existir una reserva sin desglose.
+  // Invariante: totalPrice * 100 = (seatPriceCents + managementFeeCents) * numberOfSeats
+  seatPriceCents     Int
+  managementFeeCents Int
 
   status          ReservationStatus @default(PENDING)
 

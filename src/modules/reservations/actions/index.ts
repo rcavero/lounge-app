@@ -111,7 +111,12 @@ export async function createReservation(data: {
       };
     }
 
-    const totalPrice = seatIds.length * pricePerSeat;
+    // Mismo criterio que initializePayment: céntimos enteros y desglose congelado en
+    // la reserva. Los gastos de gestión se leen del evento, no del cliente.
+    const seatPriceCents = pricePerSeat * 100;
+    const managementFeeCents = event.managementFeeCents;
+    const totalCents = (seatPriceCents + managementFeeCents) * seatIds.length;
+    const totalPrice = totalCents / 100;
 
     // Create reservation and update seat statuses in a transaction
     const reservation = await prisma.$transaction(async (tx) => {
@@ -123,6 +128,8 @@ export async function createReservation(data: {
           customerEmail: "cliente@lounge.com",
           numberOfSeats: seatIds.length,
           totalPrice,
+          seatPriceCents,
+          managementFeeCents,
           status: "CONFIRMED",
           paymentStatus: "COMPLETED",
           confirmedAt: new Date(),

@@ -4,6 +4,18 @@ import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "../types";
 import { isManualSport, isMotorSport } from "@/modules/football-data/config/competitions";
 import { requireAuth } from "@/lib/auth-guard";
+import {
+  DEFAULT_MANAGEMENT_FEE_CENTS,
+  isValidManagementFeeCents,
+} from "../config/pricing";
+
+/**
+ * Los gastos de gestión acaban en un cobro real, así que nunca se escribe lo que llega
+ * del cliente sin comprobarlo contra la lista de valores admitidos.
+ */
+function safeManagementFeeCents(value: number | undefined): number {
+  return isValidManagementFeeCents(value) ? value : DEFAULT_MANAGEMENT_FEE_CENTS;
+}
 
 export async function getUpcomingEvents(): Promise<EventWithTeams[]> {
   const events = await prisma.event.findMany({
@@ -78,6 +90,7 @@ export async function createEvent(data: {
   screens: string[];
   competition?: string;
   pricePerSeat?: number;
+  managementFeeCents?: number;
   durationMinutes?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
   await requireAuth();
@@ -127,6 +140,7 @@ export async function createEvent(data: {
         screens: data.screens.join(","),
         status: "UPCOMING",
         pricePerSeat: data.pricePerSeat ?? 10,
+        managementFeeCents: safeManagementFeeCents(data.managementFeeCents),
         durationMinutes: data.durationMinutes ?? 120,
       },
     });
@@ -160,6 +174,7 @@ export async function updateEvent(
     screens: string[];
     competition?: string;
     pricePerSeat?: number;
+    managementFeeCents?: number;
     durationMinutes?: number;
   }
 ): Promise<{ success: boolean; error?: string }> {
@@ -210,6 +225,7 @@ export async function updateEvent(
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
         pricePerSeat: data.pricePerSeat ?? 10,
+        managementFeeCents: safeManagementFeeCents(data.managementFeeCents),
         durationMinutes: data.durationMinutes ?? 120,
       },
     });

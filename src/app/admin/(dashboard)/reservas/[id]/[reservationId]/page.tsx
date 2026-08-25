@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { formatEventDateMadrid } from "@/lib/utils";
+import { formatEventDateMadrid, formatEuros } from "@/lib/utils";
 import { getReservationWithSeats } from "@/modules/reservations/actions";
 import { getSeatsForEvent, getZoneLabels } from "@/modules/seating/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
@@ -46,6 +46,12 @@ export default async function ReservationDetailPage({ params }: Props) {
   const highlightedSeatIds = reservation.seatStatuses.map((ss) => ss.seat.id);
   const seatCodes = reservation.seatStatuses.map((ss) => ss.seat.code).join(", ");
   const totalPrice = Number(reservation.totalPrice);
+
+  // Desglose del snapshot de la reserva (nunca del evento, que puede haber cambiado):
+  // la camarera necesita saber cuánto de lo pagado se descuenta en consumiciones.
+  const hasFee = reservation.managementFeeCents > 0;
+  const seatsTotal = (reservation.seatPriceCents * reservation.numberOfSeats) / 100;
+  const feeTotal = (reservation.managementFeeCents * reservation.numberOfSeats) / 100;
 
   // Format date in Europe/Madrid (server runs in UTC in production)
   const { formattedDay, dayNumber, monthName, time } =
@@ -131,10 +137,26 @@ export default async function ReservationDetailPage({ params }: Props) {
                   Total pagado
                 </p>
                 <p className="text-[#D4AF37] text-lg font-bold">
-                  {totalPrice.toFixed(2).replace(".", ",")}€
+                  {formatEuros(totalPrice)}€
                 </p>
               </div>
             </div>
+
+            {hasFee && (
+              <div className="border-t border-white/10 pt-3 mb-3 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">
+                    Importe de la reserva{" "}
+                    <span className="text-white/30">(descontable)</span>
+                  </span>
+                  <span className="text-white">{formatEuros(seatsTotal)}€</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">Gastos de gestión</span>
+                  <span className="text-white">{formatEuros(feeTotal)}€</span>
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-white/10 pt-3">
               <p className="text-white/50 text-[10px] uppercase tracking-wider mb-1">

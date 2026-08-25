@@ -10,6 +10,11 @@ import { updateEvent, deleteEvent } from "@/modules/events/actions";
 import { ArrowLeft, Save, Check, Trash2, X } from "lucide-react";
 import type { Team, EventWithTeams } from "@/modules/events/types";
 import {
+  MANAGEMENT_FEE_OPTIONS_CENTS,
+  centsToEuros,
+} from "@/modules/events/config/pricing";
+import { formatEuros } from "@/lib/utils";
+import {
   COMPETITION_NAMES,
   COMPETITION_LEAGUES,
   MANUAL_SPORT_NAMES,
@@ -69,6 +74,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
   const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
   const [pricePerSeat, setPricePerSeat] = useState<number>(event.pricePerSeat ?? 10);
+  const [managementFeeCents, setManagementFeeCents] = useState<number>(
+    event.managementFeeCents
+  );
   const [durationMinutes, setDurationMinutes] = useState<number>(event.durationMinutes ?? 120);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -170,6 +178,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               screens: selectedScreens,
               competition,
               pricePerSeat,
+              managementFeeCents,
               durationMinutes,
             }
           : {
@@ -179,6 +188,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               screens: selectedScreens,
               competition,
               pricePerSeat,
+              managementFeeCents,
               durationMinutes,
             }
       );
@@ -432,6 +442,28 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Management fee per seat — 11 opciones, no caben como píldoras */}
+        <div className="space-y-2">
+          <label className="text-white/70 text-xs font-medium">
+            Gastos de gestión por asiento
+          </label>
+          <select
+            value={managementFeeCents}
+            onChange={(e) => setManagementFeeCents(Number(e.target.value))}
+            className={INPUT_CLASS}
+          >
+            {MANAGEMENT_FEE_OPTIONS_CENTS.map((cents) => (
+              <option key={cents} value={cents}>
+                {formatEuros(centsToEuros(cents))}€
+              </option>
+            ))}
+          </select>
+          <p className="text-white/40 text-[11px]">
+            No se descuentan en consumiciones. Se aplican solo a las reservas nuevas: las ya
+            pagadas conservan su importe.
+          </p>
         </div>
 
         {/* Duration Selection */}

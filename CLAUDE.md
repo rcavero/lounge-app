@@ -230,6 +230,7 @@ model Event {
   status        EventStatus @default(UPCOMING)
   screens       String      @default("PROYECTOR") // Comma-separated: PROYECTOR,TV1,TV2
   pricePerSeat  Int         @default(10)           // Precio por asiento en euros (10-30)
+  managementFeeCents Int    @default(150)         // Gastos de gestión por asiento, en céntimos (0-500, pasos de 50)
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
@@ -256,6 +257,8 @@ model Reservation {
   customerPhone   String?
   numberOfSeats   Int
   totalPrice      Decimal
+  seatPriceCents     Int            // Snapshot del precio por asiento cobrado (céntimos)
+  managementFeeCents Int            // Snapshot de los gastos de gestión por asiento (céntimos)
   status          ReservationStatus @default(PENDING)
   paymentId       String?           // orderId de Redsys (12 dígitos) para relacionar webhook con reserva
   paymentStatus   PaymentStatus     @default(PENDING)
@@ -403,7 +406,9 @@ if (!session.isLoggedIn) redirect("/admin/login");
 1. Cliente selecciona asientos → pulsa RESERVAR
 2. `initializePayment()` (payments/actions):
    - Verifica disponibilidad de asientos
-   - Crea reserva `PENDING` con asientos `RESERVED` en transacción
+   - Calcula el importe **en céntimos enteros**: `(pricePerSeat*100 + managementFeeCents) * asientos`
+   - Crea reserva `PENDING` con asientos `RESERVED` en transacción, **congelando el desglose**
+     (`seatPriceCents`, `managementFeeCents`) en la propia reserva
    - Genera orderId (12 dígitos de timestamp) → guardado en `Reservation.paymentId`
    - Construye formulario Redsys firmado con HMAC-SHA256 (`redsys-easy`)
    - Devuelve `{ redsysUrl, formBody }`
@@ -465,7 +470,16 @@ npm run build
 
 6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `REDSYS.md` para la configuración por entorno.
 
-7. **Escudos y emblemas servidos en local**: las imágenes viven en `public/escudos/{Team.id}.png` y `public/competiciones/{slug}.png`, versionadas en git. La web pública **no hace ninguna petición a `a.espncdn.com`**: ESPN es solo la fuente en el momento del sync. Consecuencias al tocar este código:
+7. **Gastos de gestión (`Event.managementFeeCents`)**: importe por asiento que se cobra junto a la
+   reserva pero **no es descontable en consumiciones**. Se maneja siempre en céntimos enteros y solo
+   admite los valores de `MANAGEMENT_FEE_OPTIONS_CENTS` (`src/modules/events/config/pricing.ts`),
+   validados en la server action. Cada reserva **congela** el precio y los gastos unitarios que pagó
+   (`Reservation.seatPriceCents` / `managementFeeCents`), así que el ticket y el detalle de admin
+   nunca releen el evento: editarlo no reescribe reservas ya cobradas. Un `CHECK` en la BD garantiza
+   que `totalPrice * 100 = (seatPriceCents + managementFeeCents) * numberOfSeats`.
+   Verificación: `npx tsx scripts/verify-management-fee.ts report`.
+
+8. **Escudos y emblemas servidos en local**: las imágenes viven en `public/escudos/{Team.id}.png` y `public/competiciones/{slug}.png`, versionadas en git. La web pública **no hace ninguna petición a `a.espncdn.com`**: ESPN es solo la fuente en el momento del sync. Consecuencias al tocar este código:
    - `Team.logo` es lo que se renderiza; `Team.logoSource` guarda la URL remota de origen.
    - **El sync nunca sobrescribe un `logo` que empiece por `/escudos/`** (`LOCAL_LOGO_PREFIX` en `lib/team-sync.ts`). Si se quita ese guardarraíl, el primer cron deshace toda la descarga.
    - Los equipos que crea el cron sobre la marcha apuntan a ESPN hasta que se ejecuta `npx tsx scripts/download-crests.ts` en local y se hace commit: Vercel tiene el sistema de ficheros en solo lectura y la función serverless no puede escribir en `public/`.

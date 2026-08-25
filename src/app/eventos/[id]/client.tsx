@@ -7,6 +7,8 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatEuros } from "@/lib/utils";
+import { centsToEuros } from "@/modules/events/config/pricing";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
 import { useReservationStore } from "@/shared/hooks";
 import { initializePayment } from "@/modules/payments/actions";
@@ -117,13 +119,25 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const time = format(eventDate, "HH:mm");
   const dateString = `${formattedDay} ${dayNumber} ${formattedMonth} • ${time}`;
 
+  // Gastos de gestión del evento. Con 0 € el punto 3 se queda EXACTAMENTE como estaba:
+  // "excepto los gastos de gestión de 0€/asiento" no tendría ningún sentido.
+  const feeCents = event.managementFeeCents;
+  const feeSuffixEs =
+    feeCents > 0
+      ? `, excepto los gastos de gestión de ${formatEuros(centsToEuros(feeCents))}€/asiento`
+      : "";
+  const feeSuffixEn =
+    feeCents > 0
+      ? `, excluding the ${centsToEuros(feeCents).toFixed(2)}€/seat management fee`
+      : "";
+
   const conditions = isSpanish
     ? {
         title: "CONDICIONES DE LA RESERVA",
         items: [
           { text: "No se admiten cancelaciones", bold: null },
           { text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)", bold: null },
-          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: "" },
+          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: feeSuffixEs },
           { text: "La reserva de los asientos es válida sólo durante la duración del evento", bold: null },
         ],
         accept: "Aceptar",
@@ -133,7 +147,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         items: [
           { text: "No cancellations accepted", bold: null },
           { text: "Seats will be released 10 minutes after the event start time (punctuality is required)", bold: null },
-          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: "" },
+          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: feeSuffixEn },
           { text: "Seat reservation is only valid for the duration of the event", bold: null },
         ],
         accept: "Accept",
@@ -261,8 +275,13 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
             {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
           </p>
           <p className="text-white font-bold">
-            {totalPrice.toFixed(2).replace(".", ",")}€
+            {formatEuros(totalPrice)}€
           </p>
+          {feeCents > 0 && (
+            <p className="text-[9px] text-white/40 leading-tight">
+              {isSpanish ? "gastos de gestión incl." : "management fee incl."}
+            </p>
+          )}
         </div>
       )}
 

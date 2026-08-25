@@ -18,5 +18,8 @@ export interface ReservationTicketData {
   seats: { id: string; code: string }[];
   totalSeats: number;
   totalPrice: number;
+  // Desglose congelado en la reserva (céntimos por asiento), para el ticket
+  seatPriceCents: number;
+  managementFeeCents: number;
   status: string;
 }

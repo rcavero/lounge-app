@@ -81,7 +81,7 @@ Cliente selecciona asientos → RESERVAR
 - Almacenado en `Reservation.paymentId` para relacionar webhook y reserva
 - Mapa interactivo del bar con posiciones reales de los asientos
 - Asientos: verde=disponible, azul=seleccionado, rojo=ocupado/bloqueado
-- Precio total calculado en tiempo real según `event.pricePerSeat`
+- Precio total calculado en tiempo real según `event.pricePerSeat` + `event.managementFeeCents`
 - Sin recogida de datos personales del cliente (flujo anónimo)
 
 #### Comportamiento por entorno (webhook y auto-confirmación):
@@ -152,6 +152,8 @@ Cliente selecciona asientos → RESERVAR
 
 ### Event
 - `pricePerSeat Int @default(10)` — precio por asiento en euros, editable por evento
+- `managementFeeCents Int @default(150)` — gastos de gestión por asiento en céntimos (0-500 en pasos de 50),
+  editable por evento. No son descontables en consumiciones
 - `homeTeamId String?` / `awayTeamId String?` — nullable; null para deportes manuales
 - `homeTeamName String?` / `awayTeamName String?` — nombre libre para deportes manuales; awayTeamName null en motor sports
 - Patrón de acceso: `event.homeTeam?.shortName ?? event.homeTeamName ?? ""`
