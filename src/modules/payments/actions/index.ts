@@ -213,8 +213,11 @@ export async function getReservationByOrderId(
       event: {
         include: { homeTeam: true, awayTeam: true },
       },
+      // Ordenado por código: sin este orderBy Postgres devuelve los asientos como
+      // le viene, y el ticket puede listarlos salteados (P-B3 • T1-A1 • P-A2).
       seatStatuses: {
         include: { seat: true },
+        orderBy: { seat: { code: "asc" } },
       },
     },
   });

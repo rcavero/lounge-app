@@ -64,5 +64,5 @@ export interface ZoneLabelConfig {
 export const DEFAULT_ZONE_LABEL_POSITIONS: ZoneLabelConfig[] = [
   { zone: "TV1", posX: 51.5, posY: 2.6, scaleX: 1.5, rotation: -11 },
   { zone: "TV2", posX: 43, posY: 31.7, scaleX: 1.25, rotation: 15 },
-  { zone: "PROYECTOR", posX: 54.6, posY: 86.1, scaleX: 1.5, rotation: 15.79 },
+  { zone: "TV3", posX: 54.6, posY: 86.1, scaleX: 1.5, rotation: 15.79 },
 ];

@@ -67,18 +67,31 @@ async function main() {
     { id: "P-D1", code: "P-D1", zone: "PROJECTOR" as const, row: "D", number: 1, posX: 85, posY: 81, capacity: 1 },
   ];
 
-  for (const seat of seatsToCreate) {
-    await prisma.seat.upsert({
-      where: { id: seat.id },
-      update: {
-        posX: seat.posX,
-        posY: seat.posY,
-      },
-      create: seat,
-    });
-  }
+  // Los nombres y las posiciones de los asientos los fija el local, no este fichero:
+  // los códigos se renombraron con scripts/rename-seats.ts y las posiciones se colocan
+  // desde /admin/asientos. Re-sembrar aquí devolvería los 47 asientos a las posiciones
+  // de más abajo, deshaciendo el plano real. Este bloque sólo actúa sobre una base
+  // virgen (prisma migrate reset).
+  const existingSeats = await prisma.seat.count();
 
-  console.log(`✅ Created ${seatsToCreate.length} seats`);
+  if (existingSeats > 0) {
+    console.log(
+      `ℹ️  Ya hay ${existingSeats} asientos. El plano se gestiona desde /admin/asientos y scripts/rename-seats.ts. Se omite la siembra.`
+    );
+  } else {
+    for (const seat of seatsToCreate) {
+      await prisma.seat.upsert({
+        where: { id: seat.id },
+        update: {
+          posX: seat.posX,
+          posY: seat.posY,
+        },
+        create: seat,
+      });
+    }
+
+    console.log(`✅ Created ${seatsToCreate.length} seats`);
+  }
 
   // Create Admin User
   const hashedPassword = await bcrypt.hash("12345678", 12);

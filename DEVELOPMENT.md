@@ -27,7 +27,7 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
   - Emoji como icono de competición (dentro del mismo círculo blanco que los escudos de fútbol)
   - Emoji como logo de equipo en todas las vistas (tarjetas, filas, detalles de reserva)
   - Layout estándar de 3 columnas para todos los deportes; columna derecha vacía en motor sports
-- Configuración de pantallas (PROYECTOR, TV1, TV2)
+- Configuración de pantallas (TV1, TV2, TV3)
 - **Precio por asiento configurable** (10€, 15€, 20€, 25€, 30€) — por defecto 10€
 - Estados: UPCOMING, LIVE, FINISHED, CANCELLED
 - Integración con la API de ESPN para crear eventos desde partidos reales
@@ -125,6 +125,9 @@ Cliente selecciona asientos → RESERVAR
 - Drag & drop para posicionar asientos en el mapa
 - Configuración de etiquetas de zona (posición, escala, rotación)
 - Cambios persistidos en BD (modelo ZoneLabel)
+- **No permite renombrar, crear ni eliminar asientos.** Los nombres se cambian con
+  `npx tsx scripts/rename-seats.ts` (ver punto 9 de CLAUDE.md); el CRUD desde el panel sigue
+  pendiente en `PLAN_EDITOR_ASIENTOS_V2.md`
 
 ### 9. Infraestructura
 - Cron job `/api/cron/cleanup` (3:00 AM diario):

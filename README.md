@@ -6,7 +6,7 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo en Valen
 
 - **Framework**: Next.js 16 (App Router)
 - **UI**: React 19, Tailwind CSS 4, Radix UI, Lucide React
-- **Base de datos**: SQLite (desarrollo) / PostgreSQL via Supabase (producción)
+- **Base de datos**: PostgreSQL via Supabase en los dos entornos (`.env` → producción, `.env.testing` → testing)
 - **ORM**: Prisma 6
 - **Autenticación**: iron-session + bcryptjs
 - **Estado**: Zustand

@@ -60,7 +60,7 @@ export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: Floo
                 borderColor: colors.border,
               }}
             >
-              {label.zone === "PROYECTOR" ? "PROYECTOR" : label.zone}
+              {label.zone}
             </div>
           );
         })}

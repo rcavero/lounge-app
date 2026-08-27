@@ -218,6 +218,7 @@ export async function getEventWithReservations(eventId: string) {
             include: {
               seat: true,
             },
+            orderBy: { seat: { code: "asc" } },
           },
         },
         orderBy: {
@@ -246,6 +247,7 @@ export async function getReservationWithSeats(reservationId: string) {
         include: {
           seat: true,
         },
+        orderBy: { seat: { code: "asc" } },
       },
     },
   });

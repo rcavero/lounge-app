@@ -31,7 +31,7 @@ interface EditEventFormProps {
 const SCREENS = [
   { id: "TV1", label: "TV1", color: "bg-[#7f1d1d] border-[#b91c1c]" },
   { id: "TV2", label: "TV2", color: "bg-[#1e3a5f] border-[#3b82f6]" },
-  { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
+  { id: "TV3", label: "TV3", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
 const DURATION_OPTIONS = [
@@ -46,7 +46,7 @@ const INPUT_CLASS =
   "w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] placeholder:text-white/30";
 
 function getInitialScreens(event: EventWithTeams): string[] {
-  if (!event.screens) return ["PROYECTOR"];
+  if (!event.screens) return ["TV3"];
   return event.screens.split(",").filter(Boolean);
 }
 

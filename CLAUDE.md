@@ -2,7 +2,7 @@
 
 ## Resumen del Proyecto
 
-**The Lounge Beerhouse** es una aplicación web para gestionar reservas de asientos en un bar deportivo. Desarrollada con Next.js 16 (App Router), Prisma ORM y SQLite.
+**The Lounge Beerhouse** es una aplicación web para gestionar reservas de asientos en un bar deportivo. Desarrollada con Next.js 16 (App Router), Prisma ORM y PostgreSQL (Supabase).
 
 ---
 
@@ -14,7 +14,7 @@
 | React | 19.2.3 | UI Library |
 | TypeScript | 5.x | Tipado estático |
 | Prisma | 6.19.2 | ORM para base de datos |
-| SQLite | - | Base de datos (desarrollo) → PostgreSQL en producción |
+| PostgreSQL (Supabase) | - | Base de datos en los dos entornos: `.env` → producción, `.env.testing` → testing |
 | qrcode | 1.5.x | Generación de QR codes en cliente |
 | redsys-easy | - | Integración pasarela de pago Redsys (firma HMAC-SHA256) |
 | Tailwind CSS | 4.x | Estilos |
@@ -35,8 +35,7 @@
 lounge-app/
 ├── prisma/
 │   ├── schema.prisma      # Esquema de base de datos
-│   ├── dev.db             # Base de datos SQLite
-│   ├── seed.ts            # Script de seed
+│   ├── seed.ts            # Script de seed (omite los asientos si ya hay filas)
 │   └── migrations/        # Migraciones de Prisma
 │
 ├── src/
@@ -228,7 +227,7 @@ model Event {
   awayTeamName String?     // Null para motor sports (solo un participante)
   eventDate     DateTime
   status        EventStatus @default(UPCOMING)
-  screens       String      @default("PROYECTOR") // Comma-separated: PROYECTOR,TV1,TV2
+  screens       String      @default("PROYECTOR") // Comma-separated: TV1,TV2,TV3. Ver punto 10
   pricePerSeat  Int         @default(10)           // Precio por asiento en euros (10-30)
   managementFeeCents Int    @default(150)         // Gastos de gestión por asiento, en céntimos (0-500, pasos de 50)
   createdAt     DateTime    @default(now())
@@ -289,10 +288,10 @@ enum PaymentStatus {
 ```prisma
 model Seat {
   id       String   @id @default(cuid())
-  code     String   @unique  // "P1", "T1-A1"
-  zone     SeatZone
-  row      String?
-  number   Int
+  code     String   @unique  // Nombre real del local: "A7.2", "M3.1". Ver punto 9
+  zone     SeatZone           // Vestigial
+  row      String?            // Vestigial
+  number   Int                // Vestigial
   posX     Int
   posY     Int
   capacity Int      @default(1)
@@ -332,7 +331,7 @@ enum SeatStatusType {
 ```prisma
 model ZoneLabel {
   id       String @id @default(cuid())
-  zone     String @unique // "TV1", "TV2", "PROYECTOR"
+  zone     String @unique // "TV1", "TV2", "TV3"
   posX     Float  // Posición X en porcentaje (0-100)
   posY     Float  // Posición Y en porcentaje (0-100)
   scaleX   Float  @default(1)
@@ -484,3 +483,30 @@ npm run build
    - **El sync nunca sobrescribe un `logo` que empiece por `/escudos/`** (`LOCAL_LOGO_PREFIX` en `lib/team-sync.ts`). Si se quita ese guardarraíl, el primer cron deshace toda la descarga.
    - Los equipos que crea el cron sobre la marcha apuntan a ESPN hasta que se ejecuta `npx tsx scripts/download-crests.ts` en local y se hace commit: Vercel tiene el sistema de ficheros en solo lectura y la función serverless no puede escribir en `public/`.
    - `scripts/sync-verify.ts report` incluye el recuento de escudos locales vs remotos.
+
+9. **Nombres de asiento (`Seat.code`)**: es el nombre real del asiento en el local (`"A7.2"`,
+   `"M3.1"`) y **lo único que ve el cliente**: se imprime en el ticket PDF y en las tarjetas de
+   reserva del panel. No se desnormaliza en ningún sitio —siempre se resuelve por join
+   `SeatStatus → Seat`—, así que cambiarlo aquí cambia las dos pantallas a la vez. Al tocarlo:
+   - Se renombra con **`npx tsx scripts/rename-seats.ts report|apply`**, nunca a mano. El mapa de
+     nombres vive dentro del script, versionado en git, y es el registro de qué se cambió.
+   - **Máximo 10 caracteres**, sólo `A-Za-z0-9_-/.`, y únicos **ignorando mayúsculas**. El límite
+     de 10 es duro: el ticket son 80 mm de papel con 3 códigos por línea
+     (`reserva/confirmacion/[orderId]/client.tsx`).
+   - El renombrado va en **dos fases** (código temporal por el medio) porque `Seat_code_key` es un
+     índice único no diferible y una permutación no tiene ningún orden seguro.
+   - **`Seat.id` no se toca nunca.** En las 47 filas actuales `id === code` original (lo fijó el
+     seed), y `SeatStatus.seatId` es FK contra él: cambiarlo destruiría las reservas. Por eso
+     `DEFAULT_SEAT_POSITIONS` (indexado por `id`) sigue siendo válido tras un renombrado.
+   - **`zone`, `row` y `number` son vestigiales**: el nombre ya no codifica zona ni fila. Nada vivo
+     las lee, y las ordenaciones van por `code`.
+   - Renombrar **reescribe el pasado**: las reservas de partidos ya jugados pasan a mostrar el
+     nombre nuevo, mientras que el PDF que el cliente descargó sigue diciendo el viejo. Elegir para
+     producción una ventana sin reservas pendientes de consumir.
+
+10. **Pantallas: `TV1` / `TV2` / `TV3`**. `PROYECTOR` se renombró a `TV3` en agosto de 2026. Vive en
+    dos sistemas independientes que hay que mover juntos: el cartel del plano (tabla `ZoneLabel` +
+    `DEFAULT_ZONE_LABEL_POSITIONS` en `seating/constants.ts`) y el badge de pantalla de cada evento
+    (`Event.screens`, string separado por comas). Los datos de ambos los migra
+    `scripts/rename-seats.ts`. El `@default("PROYECTOR")` de `schema.prisma` se dejó a propósito: no
+    lo usa ningún camino de creación y cambiarlo pediría una migración a cambio de nada.

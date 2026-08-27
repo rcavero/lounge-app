@@ -27,7 +27,7 @@ interface SuggestionsClientProps {
 const SCREENS = [
   { id: "TV1", label: "TV1", color: "bg-[#7f1d1d] border-[#b91c1c]" },
   { id: "TV2", label: "TV2", color: "bg-[#1e3a5f] border-[#3b82f6]" },
-  { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
+  { id: "TV3", label: "TV3", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
 function formatDate(utcDate: string): string {
@@ -81,7 +81,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
-  const [selectedScreens, setSelectedScreens] = useState<string[]>(["PROYECTOR"]);
+  const [selectedScreens, setSelectedScreens] = useState<string[]>(["TV3"]);
   const [creatingMatchId, setCreatingMatchId] = useState<number | null>(null);
   const [createdMatches, setCreatedMatches] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
