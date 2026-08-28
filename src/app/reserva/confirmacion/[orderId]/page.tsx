@@ -3,6 +3,7 @@ import {
   confirmReservationByOrderId,
   getReservationByOrderId,
 } from "@/modules/payments/actions";
+import { MERCHANT_INFO } from "@/lib/redsys";
 import { ConfirmationClient } from "./client";
 import { ProcessingClient } from "./processing-client";
 
@@ -26,10 +27,16 @@ export default async function ConfirmationPage({ params }: Props) {
 
   // Already confirmed (sandbox auto-confirm, or the webhook already arrived).
   if (reservation.status === "CONFIRMED") {
-    return <ConfirmationClient reservation={reservation} orderId={orderId} />;
+    return (
+      <ConfirmationClient
+        reservation={reservation}
+        orderId={orderId}
+        merchant={MERCHANT_INFO}
+      />
+    );
   }
 
   // In production the browser can reach this page before the Redsys webhook
   // confirms the reservation. Poll for the webhook instead of showing a 404.
-  return <ProcessingClient orderId={orderId} />;
+  return <ProcessingClient orderId={orderId} merchant={MERCHANT_INFO} />;
 }

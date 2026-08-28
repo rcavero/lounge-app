@@ -12,6 +12,8 @@ export interface InitializePaymentResult {
 export interface ReservationTicketData {
   id: string;
   eventId: string;
+  /** Nombre o alias que escribió el cliente. "Cliente" en las reservas antiguas. */
+  customerName: string;
   homeTeamName: string;
   awayTeamName: string;
   eventDate: string; // ISO string
@@ -22,4 +24,10 @@ export interface ReservationTicketData {
   seatPriceCents: number;
   managementFeeCents: number;
   status: string;
+  // Recibo de pago (Ds_AuthorisationCode, Ds_Date + Ds_Hour, Ds_Response). Son null
+  // mientras no llegue una notificación firmada de Redsys: en las reservas anteriores
+  // a esta funcionalidad y en los entornos donde el webhook no alcanza al servidor.
+  authorisationCode: string | null;
+  paymentDateTime: string | null;
+  paymentResponseCode: string | null;
 }

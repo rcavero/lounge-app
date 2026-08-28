@@ -12,11 +12,20 @@ import { centsToEuros } from "@/modules/events/config/pricing";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
 import { useReservationStore } from "@/shared/hooks";
 import { initializePayment } from "@/modules/payments/actions";
+import {
+  CUSTOMER_NAME_MAX_LENGTH,
+  CUSTOMER_NAME_MIN_LENGTH,
+  normalizeCustomerName,
+  validateCustomerName,
+} from "@/modules/payments/lib/customer-name";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 import type { EventWithTeams } from "@/modules/events/types";
 import type { SeatWithStatus } from "@/modules/seating/types";
 import type { ZoneLabelConfig } from "@/modules/seating/constants";
+
+/** El nombre se precarga en la siguiente reserva: casi siempre reserva la misma persona. */
+const CUSTOMER_NAME_STORAGE_KEY = "lounge:customerName";
 
 interface EventReservationClientProps {
   event: EventWithTeams;
@@ -37,6 +46,9 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConditions, setShowConditions] = useState(true);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [isSpanish, setIsSpanish] = useState(true);
   const redsysFormRef = useRef<HTMLFormElement>(null);
 
@@ -58,23 +70,88 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const eventDate = new Date(event.eventDate);
   const totalPrice = getTotalPrice();
 
-  // Initialize payment: creates PENDING reservation and redirects to Redsys
-  const handleReserve = async () => {
+  const nameModal = isSpanish
+    ? {
+        title: "NOMBRE o ALIAS de la reserva",
+        seat: "asiento",
+        seats: "asientos",
+        placeholder: "Ej.: Ramón",
+        help: "Lo usaremos para localizar tu reserva en el local.",
+        pay: "PAGAR",
+        processing: "Procesando...",
+        cancel: "Cancelar",
+        errors: {
+          length: "Escribe entre 2 y 24 caracteres.",
+          chars: "Usa solo letras, números, espacios y . ' -",
+        },
+      }
+    : {
+        title: "NAME or NICKNAME for the booking",
+        seat: "seat",
+        seats: "seats",
+        placeholder: "e.g. Ramon",
+        help: "We'll use it to find your booking at the venue.",
+        pay: "PAY",
+        processing: "Processing...",
+        cancel: "Cancel",
+        errors: {
+          length: "Enter between 2 and 24 characters.",
+          chars: "Use only letters, numbers, spaces and . ' -",
+        },
+      };
+
+  // RESERVAR ya no paga: abre el modal que pide el nombre. El cobro sale de ahí.
+  const openNameModal = () => {
     if (selectedSeats.length === 0) return;
 
+    setError(null);
+    setNameError(null);
+
+    // Dentro del handler, nunca en render: leer localStorage al renderizar rompe el SSR.
+    try {
+      const saved = localStorage.getItem(CUSTOMER_NAME_STORAGE_KEY);
+      if (saved) setCustomerName(saved);
+    } catch {
+      // Safari en modo privado lanza al tocar localStorage
+    }
+
+    setShowNameModal(true);
+  };
+
+  // Initialize payment: creates PENDING reservation and redirects to Redsys
+  const handleReserve = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedSeats.length === 0) return;
+
+    const name = normalizeCustomerName(customerName);
+    const invalid = validateCustomerName(name);
+    if (invalid) {
+      setNameError(nameModal.errors[invalid]);
+      return;
+    }
+
     setIsProcessing(true);
+    setNameError(null);
     setError(null);
 
     try {
       const result = await initializePayment({
         eventId: event.id,
         seatIds: selectedSeats,
+        customerName: name,
       });
 
       if (!result.success || !result.redsysUrl || !result.formBody) {
-        setError(result.error || "Error al iniciar el pago");
+        // Dentro del modal: el banner de error de la página queda tapado por el overlay.
+        setNameError(result.error || "Error al iniciar el pago");
         setIsProcessing(false);
         return;
+      }
+
+      try {
+        localStorage.setItem(CUSTOMER_NAME_STORAGE_KEY, name);
+      } catch {
+        // Igual que arriba: no es crítico si no se puede guardar
       }
 
       clearSelection();
@@ -94,7 +171,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       form.submit();
     } catch (err) {
       console.error("Error initiating payment:", err);
-      setError("Error al procesar el pago");
+      setNameError("Error al procesar el pago");
       setIsProcessing(false);
     }
   };
@@ -192,6 +269,75 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         </div>
       )}
 
+      {/* Name modal - se abre al pulsar RESERVAR, antes de ir a la pasarela */}
+      {showNameModal && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+            <h2 className="text-white font-bold text-sm tracking-widest text-center mb-2">
+              {nameModal.title}
+            </h2>
+            <p className="text-white/50 text-xs text-center mb-5">
+              {selectedSeats.length}{" "}
+              {selectedSeats.length === 1 ? nameModal.seat : nameModal.seats}
+              {" · "}
+              {formatEuros(totalPrice)}€
+            </p>
+
+            {/* El <form> es lo que hace que Enter funcione en el teclado del movil */}
+            <form onSubmit={handleReserve}>
+              <input
+                type="text"
+                autoFocus
+                autoComplete="name"
+                enterKeyHint="go"
+                maxLength={CUSTOMER_NAME_MAX_LENGTH}
+                disabled={isProcessing}
+                value={customerName}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  setNameError(null);
+                }}
+                placeholder={nameModal.placeholder}
+                className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/30 focus:border-[#D4AF37] outline-none disabled:opacity-50"
+              />
+
+              {nameError && (
+                <p className="text-red-400 text-xs mt-2">{nameError}</p>
+              )}
+
+              <p className="text-white/40 text-[11px] mt-2 mb-5">{nameModal.help}</p>
+
+              <Button
+                type="submit"
+                disabled={
+                  isProcessing ||
+                  normalizeCustomerName(customerName).length < CUSTOMER_NAME_MIN_LENGTH
+                }
+                className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {nameModal.processing}
+                  </>
+                ) : (
+                  nameModal.pay
+                )}
+              </Button>
+            </form>
+
+            <button
+              type="button"
+              onClick={() => setShowNameModal(false)}
+              disabled={isProcessing}
+              className="w-full text-white/40 text-xs mt-3 hover:text-white/70 disabled:opacity-40"
+            >
+              {nameModal.cancel}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-black/95 backdrop-blur border-b border-white/10">
         <div className="flex items-center justify-between px-4 py-4">
@@ -252,18 +398,11 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
           {/* Right: Reserve button */}
           <Button
-            disabled={selectedSeats.length === 0 || isProcessing}
-            onClick={handleReserve}
+            disabled={selectedSeats.length === 0}
+            onClick={openNameModal}
             className="bg-[#D4AF37] hover:bg-[#C5A028] text-black font-semibold px-5 py-1 text-base"
           >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              "RESERVAR"
-            )}
+            RESERVAR
           </Button>
         </div>
       </header>

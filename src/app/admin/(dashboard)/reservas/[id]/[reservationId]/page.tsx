@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { formatEventDateMadrid, formatEuros } from "@/lib/utils";
 import { getReservationWithSeats } from "@/modules/reservations/actions";
+import { displayCustomerName } from "@/modules/payments/lib/customer-name";
 import { getSeatsForEvent, getZoneLabels } from "@/modules/seating/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
@@ -123,6 +124,15 @@ export default async function ReservationDetailPage({ params }: Props) {
 
           {/* Reservation Summary Card */}
           <div className="bg-[#1a1a1a] rounded-2xl p-4">
+            <div className="mb-3 pb-3 border-b border-white/10">
+              <p className="text-white/50 text-[10px] uppercase tracking-wider">
+                Nombre / Alias
+              </p>
+              <p className="text-white text-base font-semibold break-words">
+                {displayCustomerName(reservation.customerName)}
+              </p>
+            </div>
+
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-white/50 text-[10px] uppercase tracking-wider">

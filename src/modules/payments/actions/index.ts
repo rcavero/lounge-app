@@ -1,28 +1,40 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { BASE_URL } from "@/lib/base-url";
 import {
   createRedirectForm,
   MERCHANT_CODE,
   MERCHANT_TERMINAL,
+  PRODUCT_DESCRIPTION,
   generateOrderId,
 } from "@/lib/redsys";
+import {
+  normalizeCustomerName,
+  validateCustomerName,
+} from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  (process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : null) ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-  "http://localhost:3000";
 
 export async function initializePayment(data: {
   eventId: string;
   seatIds: string[];
+  customerName: string;
 }): Promise<InitializePaymentResult> {
   const { eventId, seatIds } = data;
 
   if (seatIds.length === 0) {
     return { success: false, error: "No hay asientos seleccionados" };
+  }
+
+  // Se valida antes de tocar la base de datos: un nombre inválido no puede llegar a
+  // crear una reserva PENDING que deje asientos bloqueados hasta que expire. El modal
+  // valida lo mismo, pero esta es la comprobación que cuenta.
+  const customerName = normalizeCustomerName(data.customerName);
+  if (validateCustomerName(customerName)) {
+    return {
+      success: false,
+      error: "Indica un nombre o alias válido (entre 2 y 24 caracteres)",
+    };
   }
 
   const event = await prisma.event.findUnique({ where: { id: eventId } });
@@ -96,7 +108,8 @@ export async function initializePayment(data: {
     const newReservation = await tx.reservation.create({
       data: {
         eventId,
-        customerName: "Cliente",
+        customerName,
+        // La columna es NOT NULL y en este alcance no se pide email al cliente.
         customerEmail: "cliente@lounge.com",
         numberOfSeats: seatIds.length,
         totalPrice,
@@ -118,8 +131,13 @@ export async function initializePayment(data: {
 
   // Build Redsys signed redirect form
   const amountInCents = String(totalCents);
-  const okUrl = `${BASE_URL}/reserva/confirmacion/${orderId}`;
-  const koUrl = `${BASE_URL}/reserva/error?orderId=${orderId}&eventId=${eventId}`;
+  // Las vueltas de Redsys NO apuntan directamente a las páginas: pasan por una ruta
+  // propia que acepta GET y POST. Las páginas son `page.tsx` y en el App Router un POST
+  // contra ellas devuelve 405; si CaixaBank activa el envío de parámetros en las URLs de
+  // respuesta, sin esta ruta se rompería la pantalla de todos los que acaban de pagar.
+  // De paso, la ruta aprovecha esos parámetros para guardar el recibo.
+  const okUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ok`;
+  const koUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ko&eventId=${eventId}`;
   const notifyUrl = `${BASE_URL}/api/payments/notify`;
 
   const form = createRedirectForm({
@@ -132,7 +150,7 @@ export async function initializePayment(data: {
     DS_MERCHANT_URLOK: okUrl,
     DS_MERCHANT_URLKO: koUrl,
     DS_MERCHANT_MERCHANTURL: notifyUrl,
-    DS_MERCHANT_PRODUCTDESCRIPTION: "Reserva de asientos",
+    DS_MERCHANT_PRODUCTDESCRIPTION: PRODUCT_DESCRIPTION,
     DS_MERCHANT_MERCHANTNAME: "The Lounge Beerhouse",
   });
 
@@ -227,6 +245,7 @@ export async function getReservationByOrderId(
   return {
     id: reservation.id,
     eventId: reservation.eventId,
+    customerName: reservation.customerName,
     homeTeamName: reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
     awayTeamName: reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
     eventDate: reservation.event.eventDate.toISOString(),
@@ -240,5 +259,9 @@ export async function getReservationByOrderId(
     seatPriceCents: reservation.seatPriceCents,
     managementFeeCents: reservation.managementFeeCents,
     status: reservation.status,
+    // Recibo: null mientras no haya llegado una notificación firmada de Redsys
+    authorisationCode: reservation.authorisationCode,
+    paymentDateTime: reservation.paymentDateTime,
+    paymentResponseCode: reservation.paymentResponseCode,
   };
 }

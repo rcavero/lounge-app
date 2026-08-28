@@ -165,6 +165,13 @@ model Reservation {
   paymentId       String?           // ID de transacción Redsys
   paymentStatus   PaymentStatus     @default(PENDING)
 
+  // Recibo de pago: lo exige CaixaBank en la URL OK. Se guardan tal cual los manda
+  // Redsys y solo desde una notificación con la firma ya verificada, así que son
+  // NULL en las reservas anteriores y allí donde el webhook no llega (local, testing).
+  authorisationCode   String?       // Ds_AuthorisationCode
+  paymentDateTime     String?       // Ds_Date + Ds_Hour: "28/08/2026 21:34"
+  paymentResponseCode String?       // Ds_Response: "0000".."0099" = autorizada
+
   // Timestamps
   confirmedAt     DateTime?
   cancelledAt     DateTime?

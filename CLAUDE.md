@@ -78,7 +78,9 @@ lounge-app/
 │   │   │       └── page.tsx
 │   │   └── api/
 │   │       ├── payments/
-│   │       │   └── notify/         # Webhook POST de notificación Redsys
+│   │       │   ├── notify/         # Webhook POST de notificación Redsys
+│   │       │   │   └── route.ts
+│   │       │   └── return/[orderId]/ # URLOK/URLKO: acepta GET y POST, 303. Ver punto 11
 │   │       │       └── route.ts
 │   │       └── cron/
 │   │           ├── cleanup/        # Limpieza de eventos + expiración de reservas PENDING
@@ -141,6 +143,8 @@ lounge-app/
 │   │   │
 │   │   ├── payments/               # Módulo de pagos Redsys
 │   │   │   ├── actions/index.ts    # initializePayment, confirmReservationByOrderId, cancelReservationByOrderId, getReservationByOrderId
+│   │   │   ├── lib/customer-name.ts # Normaliza/valida el nombre. Módulo PLANO, no action
+│   │   │   ├── lib/receipt.ts      # Guarda el recibo firmado. Módulo PLANO, no action
 │   │   │   └── types/index.ts      # InitializePaymentResult, ReservationTicketData
 │   │   │
 │   │   └── users/
@@ -160,8 +164,9 @@ lounge-app/
 │   │   └── prisma/                 # Cliente Prisma generado
 │   │
 │   └── lib/
+│       ├── base-url.ts             # URL pública del servidor (la usan action, redsys y la ruta de retorno)
 │       ├── prisma.ts               # Instancia de Prisma
-│       ├── redsys.ts               # Config redsys-easy (sandbox/producción, generateOrderId)
+│       ├── redsys.ts               # Config redsys-easy (sandbox/producción, generateOrderId, MERCHANT_INFO)
 │       └── utils.ts                # Utilidades (cn para clases)
 │
 ├── backups/                        # Backups de base de datos
@@ -261,6 +266,9 @@ model Reservation {
   status          ReservationStatus @default(PENDING)
   paymentId       String?           // orderId de Redsys (12 dígitos) para relacionar webhook con reserva
   paymentStatus   PaymentStatus     @default(PENDING)
+  authorisationCode   String?       // Ds_AuthorisationCode. Ver punto 11
+  paymentDateTime     String?       // Ds_Date + Ds_Hour: "28/08/2026 21:34". Texto a propósito
+  paymentResponseCode String?       // Ds_Response ("0000".."0099" = autorizada)
   confirmedAt     DateTime?
   cancelledAt     DateTime?
   createdAt       DateTime          @default(now())
@@ -510,3 +518,42 @@ npm run build
     (`Event.screens`, string separado por comas). Los datos de ambos los migra
     `scripts/rename-seats.ts`. El `@default("PROYECTOR")` de `schema.prisma` se dejó a propósito: no
     lo usa ningún camino de creación y cambiarlo pediría una migración a cambio de nada.
+
+11. **Nombre del cliente y recibo de pago** (agosto 2026). Dos cosas que se implementaron juntas
+    porque comparten pantalla, pero que son independientes:
+
+    - **`Reservation.customerName`** ya no es el literal `"Cliente"`: lo escribe el cliente en un
+      modal al pulsar RESERVAR, antes de ir a la pasarela. Se normaliza y valida en
+      `modules/payments/lib/customer-name.ts`, un **módulo plano a propósito** (sin `"use server"`)
+      para que lo compartan el modal y la server action; si solo validara el cliente, bastaría con
+      llamar a `initializePayment` desde la consola para saltárselo. La lista blanca es **Latin-1**:
+      no es paranoia con SQL (Prisma parametriza) ni con XSS (React escapa), sino que las fuentes
+      estándar de jsPDF no saben pintar otra cosa y que las marcas bidireccionales permiten que un
+      nombre se lea distinto de como está guardado. El tope de 24 caracteres es lo que hace que
+      entre en una línea de los 80 mm del ticket.
+    - Las reservas anteriores conservan `"Cliente"`. **`displayCustomerName()` las pinta como "Sin
+      nombre"**, y el ticket omite el bloque entero: su PDF sale con el layout de siempre.
+
+    - **El recibo** (`authorisationCode`, `paymentDateTime`, `paymentResponseCode`) lo exige
+      CaixaBank en la URL OK. Esos datos **solo llegan dentro de la notificación firmada de Redsys**,
+      así que los escriben únicamente el webhook y la ruta de retorno, vía
+      `modules/payments/lib/receipt.ts` — que **tampoco es server action** por lo mismo: lo sería un
+      endpoint sin autenticar capaz de escribir un código de autorización inventado en cualquier
+      reserva. Gana el primero que escribe, así que recargar la URL OK no reescribe un recibo.
+    - `paymentDateTime` es **texto, no `DateTime`**: Redsys manda `Ds_Date` + `Ds_Hour` en hora local
+      española ya formateada. Guardarlo literal hace que el recibo imprima lo mismo que figura en los
+      registros del banco y evita decidir el desfase CET/CEST — un fallo ahí saldría impreso en un
+      documento contable. El timestamp de máquina sigue siendo `confirmedAt`.
+
+    - **URLOK y URLKO ya no apuntan a las páginas**, sino a `/api/payments/return/[orderId]`, que
+      acepta GET y POST y redirige con **303**. El motivo es que las pantallas son `page.tsx` y en el
+      App Router no responden a POST: el día que en el módulo de administración de Redsys se active
+      el envío de parámetros en las URLs de respuesta, sin esa ruta se rompería la pantalla de todos
+      los clientes que acaban de pagar. La ruta **no confirma ni cancela nada**: solo anota el recibo.
+
+    - **En local y en testing el recibo sale con guiones**, porque ahí el webhook no llega y la
+      página autoconfirma. Para probarlo:
+      `npx tsx scripts/simulate-redsys-notify.ts <orderId> [ok|ko]`, que firma una notificación con
+      la clave del entorno y la manda a localhost. Aborta si `REDSYS_ENV=production` o si el destino
+      no es localhost, y pide `--force` para un `ko` sobre una reserva ya confirmada (la cancelaría
+      y liberaría sus asientos de forma irreversible).
