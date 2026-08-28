@@ -29,6 +29,17 @@ export const MERCHANT_TERMINAL = merchantTerminal;
 export const PRODUCT_DESCRIPTION = "Reserva de asientos";
 
 /**
+ * Métodos de pago que se ofrecen en el TPV. `"C"` = solo tarjeta.
+ *
+ * Si no se envía `Ds_Merchant_PayMethods`, Redsys muestra TODOS los métodos que tenga
+ * contratados el terminal, y hoy eso incluye Bizum. Va dentro del payload firmado junto
+ * al importe, así que el navegador no puede cambiarlo.
+ *
+ * Para reactivar Bizum el valor es `"z"`. Comprobar en sandbox antes de tocarlo.
+ */
+export const PAY_METHODS = "C";
+
+/**
  * Datos del comercio que CaixaBank exige mostrar en un recibo imprimible en la URL OK.
  *
  * Se leen aquí (servidor) y se pasan como prop desde los Server Components: no pueden

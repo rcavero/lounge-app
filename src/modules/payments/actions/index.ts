@@ -7,6 +7,7 @@ import {
   MERCHANT_CODE,
   MERCHANT_TERMINAL,
   PRODUCT_DESCRIPTION,
+  PAY_METHODS,
   generateOrderId,
 } from "@/lib/redsys";
 import {
@@ -147,6 +148,8 @@ export async function initializePayment(data: {
     DS_MERCHANT_AMOUNT: amountInCents,
     DS_MERCHANT_CURRENCY: "978", // EUR
     DS_MERCHANT_TRANSACTIONTYPE: "0", // Authorization
+    // Solo tarjeta: sin este parámetro el TPV ofrece también Bizum. Ver lib/redsys.ts
+    DS_MERCHANT_PAYMETHODS: PAY_METHODS,
     DS_MERCHANT_URLOK: okUrl,
     DS_MERCHANT_URLKO: koUrl,
     DS_MERCHANT_MERCHANTURL: notifyUrl,

@@ -47,6 +47,21 @@ lo que convierte el POST en GET; con un 302 algunos navegadores repiten el POST)
 llegan, verifica la firma y guarda los datos del recibo. **No confirma ni cancela nada**: eso sigue
 en el webhook y en el respaldo de cada página.
 
+### Métodos de pago (`src/modules/payments/actions/index.ts`)
+
+| Parámetro | Valor |
+|-----------|-------|
+| `DS_MERCHANT_PAYMETHODS` | `"C"` (solo tarjeta) — constante `PAY_METHODS` en `src/lib/redsys.ts` |
+
+**Por qué se envía.** El parámetro es opcional y, si no se manda, Redsys muestra en la pasarela
+**todos los métodos que tenga contratados el terminal**: hasta agosto de 2026 el cliente veía un
+selector con tarjeta **y Bizum**. Enviando `"C"` la pasarela abre directamente el formulario de
+tarjeta. Va dentro del `Ds_MerchantParameters` firmado, igual que el importe, así que no se puede
+manipular desde el navegador.
+
+Valores de Redsys: `"C"` tarjeta, `"z"` Bizum, `"xpay"` Apple Pay / Google Pay. Ojo: si algún día se
+contrata X-Pay en el terminal, `"C"` también lo ocultaría.
+
 ### Lógica de URLs de Redsys (`src/lib/redsys.ts`)
 
 ```typescript
