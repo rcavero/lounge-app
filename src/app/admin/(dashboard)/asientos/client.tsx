@@ -269,7 +269,7 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
                 onTouchStart={(e) => handleLabelTouchStart(label.zone, e)}
                 title={`${label.zone} (${label.posX}%, ${label.posY}%) - Ancho: ${label.scaleX}x - Rotación: ${label.rotation}°`}
               >
-                {label.zone === "PROYECTOR" ? "PROYECTOR" : label.zone}
+                {label.zone}
               </div>
             );
           })}

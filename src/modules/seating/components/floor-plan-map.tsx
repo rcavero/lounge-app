@@ -37,7 +37,6 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
         {labels.map((label) => {
           const isTV1 = label.zone === "TV1";
           const isTV2 = label.zone === "TV2";
-          const isProyector = label.zone === "PROYECTOR";
           // Calculate padding based on scaleX multiplier
           const horizontalPadding = Math.round(BASE_PADDING * label.scaleX);
 
@@ -62,7 +61,7 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
                 borderColor: colors.border,
               }}
             >
-              {label.zone === "PROYECTOR" ? "PROYECTOR" : label.zone}
+              {label.zone}
             </div>
           );
         })}

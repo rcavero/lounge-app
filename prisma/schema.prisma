@@ -15,11 +15,12 @@ datasource db {
 // Equipos deportivos
 model Team {
   id         String   @id @default(cuid())
-  externalId Int?     @unique // ID de football-data.org
+  externalId Int?     @unique // ID del proveedor externo (ESPN)
   name       String
   shortName  String
   league     String   // La Liga, Premier League, Serie A, Bundesliga, Ligue 1
-  logo       String?  // URL del escudo
+  logo       String?  // Lo que pinta la UI: ruta local /escudos/{id}.png, o URL remota si aún no se ha descargado
+  logoSource String?  // URL remota de origen (ESPN). Permite volver a descargar el escudo
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 
@@ -34,6 +35,7 @@ model Event {
   description String?
   sport       String      @default("football") // football, basketball, etc.
   competition String?     // La Liga, Champions League, etc.
+  externalMatchId Int?    @unique // ID del partido en el proveedor externo; evita eventos duplicados
 
   homeTeamId   String?
   homeTeam     Team?       @relation("HomeTeam", fields: [homeTeamId], references: [id])
@@ -44,9 +46,17 @@ model Event {
 
   eventDate    DateTime
   status       EventStatus @default(UPCOMING)
-  screens      String      @default("PROYECTOR") // Comma-separated: "TV1,TV2,PROYECTOR"
+  // Pantallas donde se emite, separadas por comas: "TV1,TV2,TV3".
+  // El @default sigue diciendo PROYECTOR a propósito: no lo usa nadie —los tres caminos
+  // de creación (createEvent, updateEvent, createEventFromSuggestion) escriben `screens`
+  // siempre— y cambiarlo obligaría a una migración a cambio de nada.
+  screens      String      @default("PROYECTOR")
   pricePerSeat    Int         @default(10) // Precio por asiento en euros
   durationMinutes Int         @default(120) // Duración estimada en minutos
+
+  // Gastos de gestión por asiento, en céntimos. No son descontables en consumiciones.
+  // Solo admite los valores de MANAGEMENT_FEE_OPTIONS_CENTS: 0–500 en pasos de 50.
+  managementFeeCents Int      @default(150)
 
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
@@ -65,10 +75,19 @@ enum EventStatus {
 // Definición de asientos del bar (estático)
 model Seat {
   id       String   @id @default(cuid())
-  code     String   @unique // Ej: "P1", "T1-A1", "T2-B3"
+
+  // Nombre del asiento tal y como se lee en el local, y lo único que ve el cliente:
+  // se imprime en el ticket PDF y en las tarjetas de reserva. Formato "A7.2", "M3.1".
+  // Reglas: máx. 10 caracteres (ancho del ticket de 80 mm), sólo [A-Za-z0-9_-/.],
+  // y único ignorando mayúsculas. Se cambia con scripts/rename-seats.ts.
+  code     String   @unique
+
+  // Vestigiales desde el renombrado a la nomenclatura del local: el nombre ya no
+  // codifica zona ni fila. Se conservan porque son NOT NULL y porque cambiarlas
+  // no aportaría nada; no las lee ningún camino vivo.
   zone     SeatZone
-  row      String?  // Fila dentro de la zona
-  number   Int      // Número de asiento
+  row      String?
+  number   Int
 
   // Posición en el mapa (para renderizado visual)
   posX     Int
@@ -132,11 +151,26 @@ model Reservation {
   numberOfSeats   Int
   totalPrice      Decimal
 
+  // Importes unitarios congelados en el momento del pago, en céntimos. Se guardan aquí
+  // (y no se releen del evento) para que editar el evento más tarde no reescriba el
+  // desglose de una reserva ya cobrada. Sin @default a propósito: así el cliente Prisma
+  // obliga a rellenarlos en cada create y no puede existir una reserva sin desglose.
+  // Invariante: totalPrice * 100 = (seatPriceCents + managementFeeCents) * numberOfSeats
+  seatPriceCents     Int
+  managementFeeCents Int
+
   status          ReservationStatus @default(PENDING)
 
   // Pago
   paymentId       String?           // ID de transacción Redsys
   paymentStatus   PaymentStatus     @default(PENDING)
+
+  // Recibo de pago: lo exige CaixaBank en la URL OK. Se guardan tal cual los manda
+  // Redsys y solo desde una notificación con la firma ya verificada, así que son
+  // NULL en las reservas anteriores y allí donde el webhook no llega (local, testing).
+  authorisationCode   String?       // Ds_AuthorisationCode
+  paymentDateTime     String?       // Ds_Date + Ds_Hour: "28/08/2026 21:34"
+  paymentResponseCode String?       // Ds_Response: "0000".."0099" = autorizada
 
   // Timestamps
   confirmedAt     DateTime?

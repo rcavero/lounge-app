@@ -6,6 +6,7 @@ import { Loader2, XCircle, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getReservationByOrderId } from "@/modules/payments/actions";
 import type { ReservationTicketData } from "@/modules/payments/types";
+import type { MerchantInfo } from "@/lib/redsys";
 import { ConfirmationClient } from "./client";
 
 const POLL_INTERVAL_MS = 2500;
@@ -13,6 +14,8 @@ const MAX_ATTEMPTS = 16; // ~40s waiting for the Redsys webhook
 
 interface Props {
   orderId: string;
+  /** Datos del comercio para el recibo: solo se leen en el servidor. */
+  merchant: MerchantInfo;
 }
 
 type PollState =
@@ -21,7 +24,7 @@ type PollState =
   | { phase: "failed"; eventId: string | null }
   | { phase: "timeout" };
 
-export function ProcessingClient({ orderId }: Props) {
+export function ProcessingClient({ orderId, merchant }: Props) {
   const [state, setState] = useState<PollState>({ phase: "polling" });
 
   useEffect(() => {
@@ -71,7 +74,11 @@ export function ProcessingClient({ orderId }: Props) {
 
   if (state.phase === "confirmed") {
     return (
-      <ConfirmationClient reservation={state.reservation} orderId={orderId} />
+      <ConfirmationClient
+        reservation={state.reservation}
+        orderId={orderId}
+        merchant={merchant}
+      />
     );
   }
 

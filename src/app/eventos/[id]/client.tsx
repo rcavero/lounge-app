@@ -7,14 +7,25 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatEuros } from "@/lib/utils";
+import { centsToEuros } from "@/modules/events/config/pricing";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
 import { useReservationStore } from "@/shared/hooks";
 import { initializePayment } from "@/modules/payments/actions";
+import {
+  CUSTOMER_NAME_MAX_LENGTH,
+  CUSTOMER_NAME_MIN_LENGTH,
+  normalizeCustomerName,
+  validateCustomerName,
+} from "@/modules/payments/lib/customer-name";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 import type { EventWithTeams } from "@/modules/events/types";
 import type { SeatWithStatus } from "@/modules/seating/types";
 import type { ZoneLabelConfig } from "@/modules/seating/constants";
+
+/** El nombre se precarga en la siguiente reserva: casi siempre reserva la misma persona. */
+const CUSTOMER_NAME_STORAGE_KEY = "lounge:customerName";
 
 interface EventReservationClientProps {
   event: EventWithTeams;
@@ -35,6 +46,9 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConditions, setShowConditions] = useState(true);
+  const [showNameModal, setShowNameModal] = useState(false);
+  const [customerName, setCustomerName] = useState("");
+  const [nameError, setNameError] = useState<string | null>(null);
   const [isSpanish, setIsSpanish] = useState(true);
   const redsysFormRef = useRef<HTMLFormElement>(null);
 
@@ -56,23 +70,88 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const eventDate = new Date(event.eventDate);
   const totalPrice = getTotalPrice();
 
-  // Initialize payment: creates PENDING reservation and redirects to Redsys
-  const handleReserve = async () => {
+  const nameModal = isSpanish
+    ? {
+        title: "NOMBRE o ALIAS de la reserva",
+        seat: "asiento",
+        seats: "asientos",
+        placeholder: "Ej.: Ramón",
+        help: "Lo usaremos para localizar tu reserva en el local.",
+        pay: "PAGAR",
+        processing: "Procesando...",
+        cancel: "Cancelar",
+        errors: {
+          length: "Escribe entre 2 y 24 caracteres.",
+          chars: "Usa solo letras, números, espacios y . ' -",
+        },
+      }
+    : {
+        title: "NAME or NICKNAME for the booking",
+        seat: "seat",
+        seats: "seats",
+        placeholder: "e.g. Ramon",
+        help: "We'll use it to find your booking at the venue.",
+        pay: "PAY",
+        processing: "Processing...",
+        cancel: "Cancel",
+        errors: {
+          length: "Enter between 2 and 24 characters.",
+          chars: "Use only letters, numbers, spaces and . ' -",
+        },
+      };
+
+  // RESERVAR ya no paga: abre el modal que pide el nombre. El cobro sale de ahí.
+  const openNameModal = () => {
     if (selectedSeats.length === 0) return;
 
+    setError(null);
+    setNameError(null);
+
+    // Dentro del handler, nunca en render: leer localStorage al renderizar rompe el SSR.
+    try {
+      const saved = localStorage.getItem(CUSTOMER_NAME_STORAGE_KEY);
+      if (saved) setCustomerName(saved);
+    } catch {
+      // Safari en modo privado lanza al tocar localStorage
+    }
+
+    setShowNameModal(true);
+  };
+
+  // Initialize payment: creates PENDING reservation and redirects to Redsys
+  const handleReserve = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (selectedSeats.length === 0) return;
+
+    const name = normalizeCustomerName(customerName);
+    const invalid = validateCustomerName(name);
+    if (invalid) {
+      setNameError(nameModal.errors[invalid]);
+      return;
+    }
+
     setIsProcessing(true);
+    setNameError(null);
     setError(null);
 
     try {
       const result = await initializePayment({
         eventId: event.id,
         seatIds: selectedSeats,
+        customerName: name,
       });
 
       if (!result.success || !result.redsysUrl || !result.formBody) {
-        setError(result.error || "Error al iniciar el pago");
+        // Dentro del modal: el banner de error de la página queda tapado por el overlay.
+        setNameError(result.error || "Error al iniciar el pago");
         setIsProcessing(false);
         return;
+      }
+
+      try {
+        localStorage.setItem(CUSTOMER_NAME_STORAGE_KEY, name);
+      } catch {
+        // Igual que arriba: no es crítico si no se puede guardar
       }
 
       clearSelection();
@@ -92,7 +171,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       form.submit();
     } catch (err) {
       console.error("Error initiating payment:", err);
-      setError("Error al procesar el pago");
+      setNameError("Error al procesar el pago");
       setIsProcessing(false);
     }
   };
@@ -117,13 +196,25 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const time = format(eventDate, "HH:mm");
   const dateString = `${formattedDay} ${dayNumber} ${formattedMonth} • ${time}`;
 
+  // Gastos de gestión del evento. Con 0 € el punto 3 se queda EXACTAMENTE como estaba:
+  // "excepto los gastos de gestión de 0€/asiento" no tendría ningún sentido.
+  const feeCents = event.managementFeeCents;
+  const feeSuffixEs =
+    feeCents > 0
+      ? `, excepto los gastos de gestión de ${formatEuros(centsToEuros(feeCents))}€/asiento`
+      : "";
+  const feeSuffixEn =
+    feeCents > 0
+      ? `, excluding the ${centsToEuros(feeCents).toFixed(2)}€/seat management fee`
+      : "";
+
   const conditions = isSpanish
     ? {
         title: "CONDICIONES DE LA RESERVA",
         items: [
           { text: "No se admiten cancelaciones", bold: null },
           { text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)", bold: null },
-          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: "" },
+          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: feeSuffixEs },
           { text: "La reserva de los asientos es válida sólo durante la duración del evento", bold: null },
         ],
         accept: "Aceptar",
@@ -133,7 +224,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         items: [
           { text: "No cancellations accepted", bold: null },
           { text: "Seats will be released 10 minutes after the event start time (punctuality is required)", bold: null },
-          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: "" },
+          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: feeSuffixEn },
           { text: "Seat reservation is only valid for the duration of the event", bold: null },
         ],
         accept: "Accept",
@@ -174,6 +265,75 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
             >
               {conditions.accept}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Name modal - se abre al pulsar RESERVAR, antes de ir a la pasarela */}
+      {showNameModal && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5">
+          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+            <h2 className="text-white font-bold text-sm tracking-widest text-center mb-2">
+              {nameModal.title}
+            </h2>
+            <p className="text-white/50 text-xs text-center mb-5">
+              {selectedSeats.length}{" "}
+              {selectedSeats.length === 1 ? nameModal.seat : nameModal.seats}
+              {" · "}
+              {formatEuros(totalPrice)}€
+            </p>
+
+            {/* El <form> es lo que hace que Enter funcione en el teclado del movil */}
+            <form onSubmit={handleReserve}>
+              <input
+                type="text"
+                autoFocus
+                autoComplete="name"
+                enterKeyHint="go"
+                maxLength={CUSTOMER_NAME_MAX_LENGTH}
+                disabled={isProcessing}
+                value={customerName}
+                onChange={(e) => {
+                  setCustomerName(e.target.value);
+                  setNameError(null);
+                }}
+                placeholder={nameModal.placeholder}
+                className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/30 focus:border-[#D4AF37] outline-none disabled:opacity-50"
+              />
+
+              {nameError && (
+                <p className="text-red-400 text-xs mt-2">{nameError}</p>
+              )}
+
+              <p className="text-white/40 text-[11px] mt-2 mb-5">{nameModal.help}</p>
+
+              <Button
+                type="submit"
+                disabled={
+                  isProcessing ||
+                  normalizeCustomerName(customerName).length < CUSTOMER_NAME_MIN_LENGTH
+                }
+                className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
+              >
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    {nameModal.processing}
+                  </>
+                ) : (
+                  nameModal.pay
+                )}
+              </Button>
+            </form>
+
+            <button
+              type="button"
+              onClick={() => setShowNameModal(false)}
+              disabled={isProcessing}
+              className="w-full text-white/40 text-xs mt-3 hover:text-white/70 disabled:opacity-40"
+            >
+              {nameModal.cancel}
+            </button>
           </div>
         </div>
       )}
@@ -238,18 +398,11 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
           {/* Right: Reserve button */}
           <Button
-            disabled={selectedSeats.length === 0 || isProcessing}
-            onClick={handleReserve}
+            disabled={selectedSeats.length === 0}
+            onClick={openNameModal}
             className="bg-[#D4AF37] hover:bg-[#C5A028] text-black font-semibold px-5 py-1 text-base"
           >
-            {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Procesando...
-              </>
-            ) : (
-              "RESERVAR"
-            )}
+            RESERVAR
           </Button>
         </div>
       </header>
@@ -261,8 +414,13 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
             {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
           </p>
           <p className="text-white font-bold">
-            {totalPrice.toFixed(2).replace(".", ",")}€
+            {formatEuros(totalPrice)}€
           </p>
+          {feeCents > 0 && (
+            <p className="text-[9px] text-white/40 leading-tight">
+              {isSpanish ? "gastos de gestión incl." : "management fee incl."}
+            </p>
+          )}
         </div>
       )}
 

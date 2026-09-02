@@ -27,7 +27,7 @@ interface SuggestionsClientProps {
 const SCREENS = [
   { id: "TV1", label: "TV1", color: "bg-[#7f1d1d] border-[#b91c1c]" },
   { id: "TV2", label: "TV2", color: "bg-[#1e3a5f] border-[#3b82f6]" },
-  { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
+  { id: "TV3", label: "TV3", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
 function formatDate(utcDate: string): string {
@@ -81,7 +81,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
   const [isSyncing, setIsSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
   const [expandedMatch, setExpandedMatch] = useState<number | null>(null);
-  const [selectedScreens, setSelectedScreens] = useState<string[]>(["PROYECTOR"]);
+  const [selectedScreens, setSelectedScreens] = useState<string[]>(["TV3"]);
   const [creatingMatchId, setCreatingMatchId] = useState<number | null>(null);
   const [createdMatches, setCreatedMatches] = useState<Set<number>>(new Set());
   const [error, setError] = useState<string | null>(null);
@@ -94,7 +94,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       const result = await syncTeamsFromAPI();
       setSyncResult(result);
     } catch (err) {
-      setError("Error al sincronizar equipos. Verifica la API key.");
+      setError("Error al sincronizar equipos. Inténtalo de nuevo en unos minutos.");
     } finally {
       setIsSyncing(false);
     }
@@ -109,7 +109,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       const results = await getMatchSuggestions(code);
       setSuggestions(results);
     } catch (err) {
-      setError("Error al obtener partidos. Verifica la API key.");
+      setError("Error al obtener partidos. Inténtalo de nuevo en unos minutos.");
     } finally {
       setIsLoadingMatches(false);
     }
@@ -174,7 +174,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
                 Sugerencias de Partidos
               </h1>
               <p className="text-white/50 text-xs">
-                football-data.org API
+                ESPN API
               </p>
             </div>
           </div>
@@ -248,7 +248,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
           <div className="text-center py-12">
             <Loader2 className="w-8 h-8 text-[#D4AF37] mx-auto mb-3 animate-spin" />
             <p className="text-white/50 text-sm">
-              Obteniendo partidos... (puede tardar por rate limiting)
+              Obteniendo partidos...
             </p>
           </div>
         )}

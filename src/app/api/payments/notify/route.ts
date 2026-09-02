@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { processRedirectNotification, isResponseCodeOk } from "@/lib/redsys";
 import prisma from "@/lib/prisma";
+import { recordPaymentReceipt } from "@/modules/payments/lib/receipt";
 
 export async function POST(request: Request) {
   try {
@@ -27,6 +28,7 @@ export async function POST(request: Request) {
       select: {
         id: true,
         eventId: true,
+        totalPrice: true,
         seatStatuses: { select: { seatId: true } },
       },
     });
@@ -35,6 +37,26 @@ export async function POST(request: Request) {
       console.error(`[Payment notify] Reservation not found for orderId=${orderId}`);
       // Must return 200 or Redsys will keep retrying
       return NextResponse.json({ ok: true }, { status: 200 });
+    }
+
+    // Datos del recibo que CaixaBank exige mostrar en la URL OK. Fuera de las
+    // transacciones de abajo a propósito: es un dato informativo, y si fallara no debe
+    // impedir que la reserva se confirme o se libere.
+    await recordPaymentReceipt(orderId, {
+      authorisationCode: result.Ds_AuthorisationCode,
+      date: result.Ds_Date,
+      hour: result.Ds_Hour,
+      responseCode: result.Ds_Response,
+    });
+
+    // Desde que los eventos llevan gastos de gestión el importe ya no es un múltiplo del
+    // precio del asiento. Esto es solo una traza de auditoría: no altera el flujo, porque
+    // el importe va firmado y una discrepancia significaría un problema mucho mayor.
+    const expectedCents = Math.round(Number(reservation.totalPrice) * 100);
+    if (Number(result.Ds_Amount) !== expectedCents) {
+      console.error(
+        `[Payment notify] IMPORTE DISCREPANTE orderId=${orderId} redsys=${result.Ds_Amount} esperado=${expectedCents}`
+      );
     }
 
     if (isSuccess) {

@@ -10,6 +10,11 @@ import { updateEvent, deleteEvent } from "@/modules/events/actions";
 import { ArrowLeft, Save, Check, Trash2, X } from "lucide-react";
 import type { Team, EventWithTeams } from "@/modules/events/types";
 import {
+  MANAGEMENT_FEE_OPTIONS_CENTS,
+  centsToEuros,
+} from "@/modules/events/config/pricing";
+import { formatEuros } from "@/lib/utils";
+import {
   COMPETITION_NAMES,
   COMPETITION_LEAGUES,
   MANUAL_SPORT_NAMES,
@@ -26,7 +31,7 @@ interface EditEventFormProps {
 const SCREENS = [
   { id: "TV1", label: "TV1", color: "bg-[#7f1d1d] border-[#b91c1c]" },
   { id: "TV2", label: "TV2", color: "bg-[#1e3a5f] border-[#3b82f6]" },
-  { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
+  { id: "TV3", label: "TV3", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
 const DURATION_OPTIONS = [
@@ -41,7 +46,7 @@ const INPUT_CLASS =
   "w-full bg-[#1a1a1a] border border-white/20 rounded-lg px-3 py-2.5 text-white text-sm focus:outline-none focus:border-[#D4AF37] placeholder:text-white/30";
 
 function getInitialScreens(event: EventWithTeams): string[] {
-  if (!event.screens) return ["PROYECTOR"];
+  if (!event.screens) return ["TV3"];
   return event.screens.split(",").filter(Boolean);
 }
 
@@ -69,6 +74,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
   const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
   const [pricePerSeat, setPricePerSeat] = useState<number>(event.pricePerSeat ?? 10);
+  const [managementFeeCents, setManagementFeeCents] = useState<number>(
+    event.managementFeeCents
+  );
   const [durationMinutes, setDurationMinutes] = useState<number>(event.durationMinutes ?? 120);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -78,6 +86,15 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   const isManual = isManualSport(competition);
   const isMotor = isMotorSport(competition);
   const sportEmoji = getSportEmoji(competition);
+
+  // Eventos históricos pueden tener una competición ya retirada del sync (p.ej.
+  // Championship o Brasileirão). Sin esta opción, el <select> controlado no
+  // encontraría su valor y mostraría la primera de la lista, dando a entender
+  // que el evento es de otra competición.
+  const isRetiredCompetition =
+    !!competition &&
+    !COMPETITION_NAMES.includes(competition) &&
+    !MANUAL_SPORT_NAMES.includes(competition);
 
   // Filter teams based on selected competition (football only)
   const filteredTeams = useMemo(() => {
@@ -161,6 +178,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               screens: selectedScreens,
               competition,
               pricePerSeat,
+              managementFeeCents,
               durationMinutes,
             }
           : {
@@ -170,6 +188,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               screens: selectedScreens,
               competition,
               pricePerSeat,
+              managementFeeCents,
               durationMinutes,
             }
       );
@@ -226,6 +245,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               onChange={(e) => handleCompetitionChange(e.target.value)}
               className={INPUT_CLASS}
             >
+              {isRetiredCompetition && (
+                <option value={competition}>{competition} (retirada)</option>
+              )}
               <optgroup label="Fútbol">
                 {COMPETITION_NAMES.map((comp) => (
                   <option key={comp} value={comp}>
@@ -420,6 +442,28 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Management fee per seat — 11 opciones, no caben como píldoras */}
+        <div className="space-y-2">
+          <label className="text-white/70 text-xs font-medium">
+            Gastos de gestión por asiento
+          </label>
+          <select
+            value={managementFeeCents}
+            onChange={(e) => setManagementFeeCents(Number(e.target.value))}
+            className={INPUT_CLASS}
+          >
+            {MANAGEMENT_FEE_OPTIONS_CENTS.map((cents) => (
+              <option key={cents} value={cents}>
+                {formatEuros(centsToEuros(cents))}€
+              </option>
+            ))}
+          </select>
+          <p className="text-white/40 text-[11px]">
+            No se descuentan en consumiciones. Se aplican solo a las reservas nuevas: las ya
+            pagadas conservan su importe.
+          </p>
         </div>
 
         {/* Duration Selection */}

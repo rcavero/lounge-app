@@ -23,6 +23,45 @@ La separación entre entornos se hace **exclusivamente con variables de entorno 
 | `REDSYS_ENV` | Si es `"production"`, usa URLs de producción Redsys. Si no está definida, usa sandbox. |
 | `NEXT_PUBLIC_BASE_URL` | URL base del servidor (para construir URLOK, URLKO y MERCHANTURL) |
 
+> ⚠️ Desde agosto de 2026 `NEXT_PUBLIC_BASE_URL` **se imprime en el recibo de pago** como "URL del
+> comercio". En Vercel scope Production tiene que ser el dominio real de cara al cliente, no una URL
+> de preview.
+
+### URLs de vuelta (`src/modules/payments/actions/index.ts`)
+
+| Parámetro | Valor |
+|-----------|-------|
+| `DS_MERCHANT_URLOK` | `{BASE_URL}/api/payments/return/{orderId}?r=ok` |
+| `DS_MERCHANT_URLKO` | `{BASE_URL}/api/payments/return/{orderId}?r=ko&eventId={eventId}` |
+| `DS_MERCHANT_MERCHANTURL` | `{BASE_URL}/api/payments/notify` |
+
+**Por qué las vueltas no apuntan directamente a las pantallas.** `/reserva/confirmacion/[orderId]` y
+`/reserva/error` son `page.tsx`, y en el App Router una página solo responde a GET. Hoy Redsys hace
+una redirección limpia y funciona, pero la opción de **enviar parámetros en las URLs de respuesta** y
+la de **redirección automática** se configuran en el mismo módulo de administración: si al activar la
+segunda se activa la primera, Redsys empezaría a hacer POST contra esas páginas y se rompería la
+pantalla de todos los clientes que acaban de pagar, en producción y sin aviso.
+
+`src/app/api/payments/return/[orderId]/route.ts` acepta las dos formas y redirige con **303** (que es
+lo que convierte el POST en GET; con un 302 algunos navegadores repiten el POST). Si los parámetros
+llegan, verifica la firma y guarda los datos del recibo. **No confirma ni cancela nada**: eso sigue
+en el webhook y en el respaldo de cada página.
+
+### Métodos de pago (`src/modules/payments/actions/index.ts`)
+
+| Parámetro | Valor |
+|-----------|-------|
+| `DS_MERCHANT_PAYMETHODS` | `"C"` (solo tarjeta) — constante `PAY_METHODS` en `src/lib/redsys.ts` |
+
+**Por qué se envía.** El parámetro es opcional y, si no se manda, Redsys muestra en la pasarela
+**todos los métodos que tenga contratados el terminal**: hasta agosto de 2026 el cliente veía un
+selector con tarjeta **y Bizum**. Enviando `"C"` la pasarela abre directamente el formulario de
+tarjeta. Va dentro del `Ds_MerchantParameters` firmado, igual que el importe, así que no se puede
+manipular desde el navegador.
+
+Valores de Redsys: `"C"` tarjeta, `"z"` Bizum, `"xpay"` Apple Pay / Google Pay. Ojo: si algún día se
+contrata X-Pay en el terminal, `"C"` también lo ocultaría.
+
 ### Lógica de URLs de Redsys (`src/lib/redsys.ts`)
 
 ```typescript
@@ -50,6 +89,18 @@ if (process.env.REDSYS_ENV !== "production") {
 | **Producción real** | `production` | **Solo el webhook confirma** (fuente de verdad única) |
 
 En producción, el navegador del cliente puede llegar a la página de confirmación antes de que el webhook de Redsys haya confirmado la reserva. Para evitar un error 404 en esa carrera, si la reserva aún no está `CONFIRMED` se renderiza `ProcessingClient` (`processing-client.tsx`), que sondea el estado cada 2,5 s (hasta ~40 s) y muestra el ticket al confirmarse, o un mensaje de espera si el webhook tarda más.
+
+**Consecuencia para el recibo de pago**: el código de autorización y la fecha/hora solo llegan en la
+notificación firmada, así que en local y en testing (donde la página autoconfirma sin webhook) la
+tarjeta de recibo sale con guiones. Para probarla sin esperar a un pago real:
+
+```bash
+npx tsx scripts/simulate-redsys-notify.ts <orderId> [ok|ko]
+```
+
+Firma una notificación con la clave del entorno cargado y la manda a `localhost:3000`. Aborta si
+`REDSYS_ENV=production` o si el destino no es localhost, y exige `--force` para un `ko` sobre una
+reserva ya confirmada (la cancelaría y liberaría sus asientos de forma irreversible).
 
 ---
 

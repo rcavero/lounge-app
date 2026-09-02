@@ -1,0 +1,14 @@
+# Los escudos y emblemas de public/ son binarios: sin esto, git aplica
+# conversión de saltos de línea (LF ↔ CRLF en Windows) a los ficheros que
+# heurísticamente considera texto y los corrompe en el checkout.
+# Detectado al añadir public/escudos/, donde un escudo servido por ESPN en SVG
+# hizo que git tratara un supuesto .png como texto.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

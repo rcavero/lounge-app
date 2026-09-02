@@ -77,10 +77,13 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
       customerPhone: phone,
     }),
 
+  // Total que ve el cliente: ya incluye los gastos de gestión, igual que el cargo que
+  // hará Redsys. El importe autoritativo lo recalcula el servidor en initializePayment.
   getTotalPrice: () => {
     const { selectedSeats, event } = get();
-    const price = event?.pricePerSeat ?? SEAT_PRICE;
-    return selectedSeats.length * price;
+    const seatPriceCents = (event?.pricePerSeat ?? SEAT_PRICE) * 100;
+    const feeCents = event?.managementFeeCents ?? 0;
+    return (selectedSeats.length * (seatPriceCents + feeCents)) / 100;
   },
 
   getSelectedSeatsData: () => {

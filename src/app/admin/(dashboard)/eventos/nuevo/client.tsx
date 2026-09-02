@@ -25,7 +25,7 @@ interface NewEventFormProps {
 const SCREENS = [
   { id: "TV1", label: "TV1", color: "bg-[#7f1d1d] border-[#b91c1c]" },
   { id: "TV2", label: "TV2", color: "bg-[#1e3a5f] border-[#3b82f6]" },
-  { id: "PROYECTOR", label: "PROYECTOR", color: "bg-[#92700c] border-[#D4AF37]" },
+  { id: "TV3", label: "TV3", color: "bg-[#92700c] border-[#D4AF37]" },
 ];
 
 const DURATION_OPTIONS = [
@@ -51,7 +51,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
   // Common state
   const [eventDate, setEventDate] = useState<string>("");
   const [eventTime, setEventTime] = useState<string>("");
-  const [selectedScreens, setSelectedScreens] = useState<string[]>(["PROYECTOR"]);
+  const [selectedScreens, setSelectedScreens] = useState<string[]>(["TV3"]);
   const [durationMinutes, setDurationMinutes] = useState<number>(120);
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

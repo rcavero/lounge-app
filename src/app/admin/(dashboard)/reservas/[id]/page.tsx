@@ -3,6 +3,7 @@ import Link from "next/link";
 import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
 import { formatEventDateMadrid } from "@/lib/utils";
 import { getEventWithReservations } from "@/modules/reservations/actions";
+import { displayCustomerName } from "@/modules/payments/lib/customer-name";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
 import { getSportEmoji } from "@/modules/football-data/config/competitions";
@@ -19,7 +20,7 @@ function getActiveScreens(screens: string | null): string[] {
 }
 
 const screenColors: Record<string, string> = {
-  PROYECTOR: "bg-[#D4AF37] text-black",
+  TV3: "bg-[#D4AF37] text-black",
   TV1: "bg-[#b91c1c] text-white",
   TV2: "bg-[#3b82f6] text-white",
 };
@@ -138,12 +139,14 @@ export default async function EventReservationsPage({ params }: Props) {
                   >
                     <div className="bg-[#1a1a1a] rounded-2xl p-4 hover:bg-[#222] transition-colors">
                       <div className="flex items-start justify-between mb-2">
-                        <div>
+                        {/* min-w-0 + truncate: sin ellos un nombre de 24 caracteres
+                            empuja el precio fuera de la tarjeta en móvil */}
+                        <div className="min-w-0 pr-3">
                           <p className="text-white/50 text-[10px] uppercase tracking-wider">
-                            ID Reserva
+                            Nombre / Alias
                           </p>
-                          <p className="text-white text-xs font-mono">
-                            {reservation.id.slice(0, 12)}...
+                          <p className="text-white text-sm font-semibold truncate">
+                            {displayCustomerName(reservation.customerName)}
                           </p>
                         </div>
                         <div className="text-right">

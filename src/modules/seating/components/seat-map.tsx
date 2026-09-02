@@ -94,7 +94,7 @@ export function SeatMap({ seats, selectedSeats, onSeatSelect, prices }: SeatMapP
 
         {/* Screen representation */}
         <div className="w-full max-w-md mx-auto h-4 bg-gradient-to-b from-primary/30 to-transparent rounded-t-full mb-8 flex items-center justify-center">
-          <span className="text-[10px] text-primary font-medium">PROYECTOR</span>
+          <span className="text-[10px] text-primary font-medium">TV3</span>
         </div>
 
         {/* TV Zones */}

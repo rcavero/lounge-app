@@ -55,13 +55,12 @@ async function expireStaleReservations(eventId: string): Promise<void> {
 export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[]> {
   await expireStaleReservations(eventId);
 
-  // Get all seats
+  // Get all seats.
+  // Se ordena por `code` y no por zone/row/number: desde el renombrado a la
+  // nomenclatura del local esas tres columnas son vestigiales y no significan nada.
+  // Aquí el orden sólo afecta al render del plano, que va posicionado en absoluto.
   const seats = await prisma.seat.findMany({
-    orderBy: [
-      { zone: "asc" },
-      { row: "asc" },
-      { number: "asc" },
-    ],
+    orderBy: { code: "asc" },
   });
 
   // Get the event to know its date and duration
@@ -156,11 +155,7 @@ export async function getSeatsByZone(eventId: string, zone: string): Promise<Sea
 export async function getAllSeats() {
   await requireAuth();
   const seats = await prisma.seat.findMany({
-    orderBy: [
-      { zone: "asc" },
-      { row: "asc" },
-      { number: "asc" },
-    ],
+    orderBy: { code: "asc" },
   });
 
   return seats;

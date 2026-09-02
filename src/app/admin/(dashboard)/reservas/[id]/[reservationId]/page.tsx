@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { formatEventDateMadrid } from "@/lib/utils";
+import { formatEventDateMadrid, formatEuros } from "@/lib/utils";
 import { getReservationWithSeats } from "@/modules/reservations/actions";
+import { displayCustomerName } from "@/modules/payments/lib/customer-name";
 import { getSeatsForEvent, getZoneLabels } from "@/modules/seating/actions";
 import { TeamLogo } from "@/modules/events/components/team-logo";
 import { CompetitionEmblem } from "@/modules/events/components/competition-emblem";
@@ -20,7 +21,7 @@ function getActiveScreens(screens: string | null): string[] {
 }
 
 const screenColors: Record<string, string> = {
-  PROYECTOR: "bg-[#D4AF37] text-black",
+  TV3: "bg-[#D4AF37] text-black",
   TV1: "bg-[#b91c1c] text-white",
   TV2: "bg-[#3b82f6] text-white",
 };
@@ -46,6 +47,12 @@ export default async function ReservationDetailPage({ params }: Props) {
   const highlightedSeatIds = reservation.seatStatuses.map((ss) => ss.seat.id);
   const seatCodes = reservation.seatStatuses.map((ss) => ss.seat.code).join(", ");
   const totalPrice = Number(reservation.totalPrice);
+
+  // Desglose del snapshot de la reserva (nunca del evento, que puede haber cambiado):
+  // la camarera necesita saber cuánto de lo pagado se descuenta en consumiciones.
+  const hasFee = reservation.managementFeeCents > 0;
+  const seatsTotal = (reservation.seatPriceCents * reservation.numberOfSeats) / 100;
+  const feeTotal = (reservation.managementFeeCents * reservation.numberOfSeats) / 100;
 
   // Format date in Europe/Madrid (server runs in UTC in production)
   const { formattedDay, dayNumber, monthName, time } =
@@ -117,6 +124,15 @@ export default async function ReservationDetailPage({ params }: Props) {
 
           {/* Reservation Summary Card */}
           <div className="bg-[#1a1a1a] rounded-2xl p-4">
+            <div className="mb-3 pb-3 border-b border-white/10">
+              <p className="text-white/50 text-[10px] uppercase tracking-wider">
+                Nombre / Alias
+              </p>
+              <p className="text-white text-base font-semibold break-words">
+                {displayCustomerName(reservation.customerName)}
+              </p>
+            </div>
+
             <div className="flex items-start justify-between mb-3">
               <div>
                 <p className="text-white/50 text-[10px] uppercase tracking-wider">
@@ -131,10 +147,26 @@ export default async function ReservationDetailPage({ params }: Props) {
                   Total pagado
                 </p>
                 <p className="text-[#D4AF37] text-lg font-bold">
-                  {totalPrice.toFixed(2).replace(".", ",")}€
+                  {formatEuros(totalPrice)}€
                 </p>
               </div>
             </div>
+
+            {hasFee && (
+              <div className="border-t border-white/10 pt-3 mb-3 space-y-1">
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">
+                    Importe de la reserva{" "}
+                    <span className="text-white/30">(descontable)</span>
+                  </span>
+                  <span className="text-white">{formatEuros(seatsTotal)}€</span>
+                </div>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="text-white/50">Gastos de gestión</span>
+                  <span className="text-white">{formatEuros(feeTotal)}€</span>
+                </div>
+              </div>
+            )}
 
             <div className="border-t border-white/10 pt-3">
               <p className="text-white/50 text-[10px] uppercase tracking-wider mb-1">

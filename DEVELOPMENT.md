@@ -27,17 +27,26 @@ Aplicación web para gestionar reservas de asientos en un bar deportivo (The Lou
   - Emoji como icono de competición (dentro del mismo círculo blanco que los escudos de fútbol)
   - Emoji como logo de equipo en todas las vistas (tarjetas, filas, detalles de reserva)
   - Layout estándar de 3 columnas para todos los deportes; columna derecha vacía en motor sports
-- Configuración de pantallas (PROYECTOR, TV1, TV2)
+- Configuración de pantallas (TV1, TV2, TV3)
 - **Precio por asiento configurable** (10€, 15€, 20€, 25€, 30€) — por defecto 10€
 - Estados: UPCOMING, LIVE, FINISHED, CANCELLED
-- Integración con football-data.org para crear eventos desde partidos reales
+- Integración con la API de ESPN para crear eventos desde partidos reales
 - Escudo de competición en tarjetas con `CompetitionEmblem` (maneja errores de carga)
 
-### 3. Integración football-data.org
-- Sync automático de equipos desde 12 competiciones del free tier (cron diario a las 4:00)
-- Página de sugerencias de partidos (`/admin/eventos/sugerencias`) para crear eventos desde la API
-- Emblemas de competición cargados desde `crests.football-data.org`
-- Rate limiting en `api-client.ts` para respetar el límite de 10 req/min del free tier
+### 3. Integración con la API de ESPN
+Desde agosto de 2026 (antes football-data.org, ver `MIGRACION_API_FUTBOL.md`).
+
+- **17 competiciones**, incluidas Europa League, Conference League, La Liga 2, Copa del Rey,
+  Supercopa, Copa América y Nations League — ninguna disponible en el free tier anterior
+- **Sin API key, sin registro y sin cuota diaria**: no hay variables de entorno que configurar
+- Sync automático de equipos (cron diario a las 4:00) y página de sugerencias en
+  `/admin/eventos/sugerencias`
+- Escudos y emblemas servidos desde `a.espncdn.com`
+- Las competiciones se piden en paralelo: las 17 tardan ~680 ms (antes ~67 s por el rate limiting)
+- `Event.externalMatchId` es único, así que no se pueden crear eventos duplicados desde sugerencias
+
+> ESPN es una API **no documentada**. `scripts/espn-smoke-test.ts` valida el pipeline completo
+> contra la API en vivo; conviene ejecutarlo de vez en cuando para detectar cambios de forma.
 
 ### 4. Vista Pública de Cliente
 - Página principal (`/`) con listado de eventos próximos
@@ -72,7 +81,7 @@ Cliente selecciona asientos → RESERVAR
 - Almacenado en `Reservation.paymentId` para relacionar webhook y reserva
 - Mapa interactivo del bar con posiciones reales de los asientos
 - Asientos: verde=disponible, azul=seleccionado, rojo=ocupado/bloqueado
-- Precio total calculado en tiempo real según `event.pricePerSeat`
+- Precio total calculado en tiempo real según `event.pricePerSeat` + `event.managementFeeCents`
 - Sin recogida de datos personales del cliente (flujo anónimo)
 
 #### Comportamiento por entorno (webhook y auto-confirmación):
@@ -116,6 +125,9 @@ Cliente selecciona asientos → RESERVAR
 - Drag & drop para posicionar asientos en el mapa
 - Configuración de etiquetas de zona (posición, escala, rotación)
 - Cambios persistidos en BD (modelo ZoneLabel)
+- **No permite renombrar, crear ni eliminar asientos.** Los nombres se cambian con
+  `npx tsx scripts/rename-seats.ts` (ver punto 9 de CLAUDE.md); el CRUD desde el panel sigue
+  pendiente en `PLAN_EDITOR_ASIENTOS_V2.md`
 
 ### 9. Infraestructura
 - Cron job `/api/cron/cleanup` (3:00 AM diario):
@@ -143,6 +155,8 @@ Cliente selecciona asientos → RESERVAR
 
 ### Event
 - `pricePerSeat Int @default(10)` — precio por asiento en euros, editable por evento
+- `managementFeeCents Int @default(150)` — gastos de gestión por asiento en céntimos (0-500 en pasos de 50),
+  editable por evento. No son descontables en consumiciones
 - `homeTeamId String?` / `awayTeamId String?` — nullable; null para deportes manuales
 - `homeTeamName String?` / `awayTeamName String?` — nombre libre para deportes manuales; awayTeamName null en motor sports
 - Patrón de acceso: `event.homeTeam?.shortName ?? event.homeTeamName ?? ""`
@@ -207,8 +221,7 @@ AUTH_SECRET="..."               # Secreto para iron-session
 # Cron jobs
 CRON_SECRET="..."               # Header de autorización para endpoints cron
 
-# Football-data.org
-FOOTBALL_DATA_API_KEY="..."
+# Datos de fútbol: la API de ESPN no requiere clave — no hay nada que configurar
 
 # Redsys — sandbox (credenciales públicas de prueba, para .env.local)
 REDSYS_MERCHANT_CODE="999008881"

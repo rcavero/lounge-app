@@ -1,23 +1,25 @@
 "use server";
 
 import prisma from "@/lib/prisma";
+import { BASE_URL } from "@/lib/base-url";
 import {
   createRedirectForm,
   MERCHANT_CODE,
   MERCHANT_TERMINAL,
+  PRODUCT_DESCRIPTION,
+  PAY_METHODS,
   generateOrderId,
 } from "@/lib/redsys";
+import {
+  normalizeCustomerName,
+  validateCustomerName,
+} from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
-
-const BASE_URL =
-  process.env.NEXT_PUBLIC_BASE_URL ||
-  (process.env.VERCEL_BRANCH_URL ? `https://${process.env.VERCEL_BRANCH_URL}` : null) ||
-  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : null) ||
-  "http://localhost:3000";
 
 export async function initializePayment(data: {
   eventId: string;
   seatIds: string[];
+  customerName: string;
 }): Promise<InitializePaymentResult> {
   const { eventId, seatIds } = data;
 
@@ -25,10 +27,25 @@ export async function initializePayment(data: {
     return { success: false, error: "No hay asientos seleccionados" };
   }
 
+  // Se valida antes de tocar la base de datos: un nombre inválido no puede llegar a
+  // crear una reserva PENDING que deje asientos bloqueados hasta que expire. El modal
+  // valida lo mismo, pero esta es la comprobación que cuenta.
+  const customerName = normalizeCustomerName(data.customerName);
+  if (validateCustomerName(customerName)) {
+    return {
+      success: false,
+      error: "Indica un nombre o alias válido (entre 2 y 24 caracteres)",
+    };
+  }
+
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { success: false, error: "Evento no encontrado" };
 
-  const pricePerSeat = event.pricePerSeat;
+  // Importes unitarios de la BD, nunca del cliente. Se trabaja en céntimos enteros:
+  // Redsys exige el importe como entero de céntimos y así el desglose que se guarda
+  // en la reserva no depende de ninguna división.
+  const seatPriceCents = event.pricePerSeat * 100;
+  const managementFeeCents = event.managementFeeCents;
 
   // Verify all selected seats are available in this event
   const seatStatuses = await prisma.seatStatus.findMany({
@@ -83,7 +100,8 @@ export async function initializePayment(data: {
     }
   }
 
-  const totalPrice = seatIds.length * pricePerSeat;
+  const totalCents = (seatPriceCents + managementFeeCents) * seatIds.length;
+  const totalPrice = totalCents / 100;
   const orderId = generateOrderId();
 
   // Create PENDING reservation and mark seats as RESERVED atomically
@@ -91,10 +109,13 @@ export async function initializePayment(data: {
     const newReservation = await tx.reservation.create({
       data: {
         eventId,
-        customerName: "Cliente",
+        customerName,
+        // La columna es NOT NULL y en este alcance no se pide email al cliente.
         customerEmail: "cliente@lounge.com",
         numberOfSeats: seatIds.length,
         totalPrice,
+        seatPriceCents,
+        managementFeeCents,
         status: "PENDING",
         paymentStatus: "PENDING",
         paymentId: orderId,
@@ -110,9 +131,14 @@ export async function initializePayment(data: {
   });
 
   // Build Redsys signed redirect form
-  const amountInCents = String(totalPrice * 100);
-  const okUrl = `${BASE_URL}/reserva/confirmacion/${orderId}`;
-  const koUrl = `${BASE_URL}/reserva/error?orderId=${orderId}&eventId=${eventId}`;
+  const amountInCents = String(totalCents);
+  // Las vueltas de Redsys NO apuntan directamente a las páginas: pasan por una ruta
+  // propia que acepta GET y POST. Las páginas son `page.tsx` y en el App Router un POST
+  // contra ellas devuelve 405; si CaixaBank activa el envío de parámetros en las URLs de
+  // respuesta, sin esta ruta se rompería la pantalla de todos los que acaban de pagar.
+  // De paso, la ruta aprovecha esos parámetros para guardar el recibo.
+  const okUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ok`;
+  const koUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ko&eventId=${eventId}`;
   const notifyUrl = `${BASE_URL}/api/payments/notify`;
 
   const form = createRedirectForm({
@@ -122,10 +148,12 @@ export async function initializePayment(data: {
     DS_MERCHANT_AMOUNT: amountInCents,
     DS_MERCHANT_CURRENCY: "978", // EUR
     DS_MERCHANT_TRANSACTIONTYPE: "0", // Authorization
+    // Solo tarjeta: sin este parámetro el TPV ofrece también Bizum. Ver lib/redsys.ts
+    DS_MERCHANT_PAYMETHODS: PAY_METHODS,
     DS_MERCHANT_URLOK: okUrl,
     DS_MERCHANT_URLKO: koUrl,
     DS_MERCHANT_MERCHANTURL: notifyUrl,
-    DS_MERCHANT_PRODUCTDESCRIPTION: "Reserva de asientos",
+    DS_MERCHANT_PRODUCTDESCRIPTION: PRODUCT_DESCRIPTION,
     DS_MERCHANT_MERCHANTNAME: "The Lounge Beerhouse",
   });
 
@@ -206,8 +234,11 @@ export async function getReservationByOrderId(
       event: {
         include: { homeTeam: true, awayTeam: true },
       },
+      // Ordenado por código: sin este orderBy Postgres devuelve los asientos como
+      // le viene, y el ticket puede listarlos salteados (P-B3 • T1-A1 • P-A2).
       seatStatuses: {
         include: { seat: true },
+        orderBy: { seat: { code: "asc" } },
       },
     },
   });
@@ -217,6 +248,7 @@ export async function getReservationByOrderId(
   return {
     id: reservation.id,
     eventId: reservation.eventId,
+    customerName: reservation.customerName,
     homeTeamName: reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
     awayTeamName: reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
     eventDate: reservation.event.eventDate.toISOString(),
@@ -226,6 +258,13 @@ export async function getReservationByOrderId(
     })),
     totalSeats: reservation.numberOfSeats,
     totalPrice: Number(reservation.totalPrice),
+    // Del snapshot de la reserva, no del evento: el evento puede haber cambiado
+    seatPriceCents: reservation.seatPriceCents,
+    managementFeeCents: reservation.managementFeeCents,
     status: reservation.status,
+    // Recibo: null mientras no haya llegado una notificación firmada de Redsys
+    authorisationCode: reservation.authorisationCode,
+    paymentDateTime: reservation.paymentDateTime,
+    paymentResponseCode: reservation.paymentResponseCode,
   };
 }

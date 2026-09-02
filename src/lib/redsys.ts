@@ -1,4 +1,5 @@
 import { createRedsysAPI, SANDBOX_URLS, PRODUCTION_URLS, isResponseCodeOk } from "redsys-easy";
+import { BASE_URL } from "./base-url";
 
 const secretKey = process.env.REDSYS_SECRET_KEY;
 const merchantCode = process.env.REDSYS_MERCHANT_CODE;
@@ -20,6 +21,43 @@ export { isResponseCodeOk };
 
 export const MERCHANT_CODE = merchantCode;
 export const MERCHANT_TERMINAL = merchantTerminal;
+
+/**
+ * Descripción del producto que se firma en cada pago. Es una constante y no un literal
+ * suelto porque el recibo tiene que imprimir exactamente lo que se envió a Redsys.
+ */
+export const PRODUCT_DESCRIPTION = "Reserva de asientos";
+
+/**
+ * Métodos de pago que se ofrecen en el TPV. `"C"` = solo tarjeta.
+ *
+ * Si no se envía `Ds_Merchant_PayMethods`, Redsys muestra TODOS los métodos que tenga
+ * contratados el terminal, y hoy eso incluye Bizum. Va dentro del payload firmado junto
+ * al importe, así que el navegador no puede cambiarlo.
+ *
+ * Para reactivar Bizum el valor es `"z"`. Comprobar en sandbox antes de tocarlo.
+ */
+export const PAY_METHODS = "C";
+
+/**
+ * Datos del comercio que CaixaBank exige mostrar en un recibo imprimible en la URL OK.
+ *
+ * Se leen aquí (servidor) y se pasan como prop desde los Server Components: no pueden
+ * viajar en `getReservationByOrderId`, que es una server action llamada desde el
+ * navegador.
+ *
+ * `url` sale de BASE_URL, que es la misma que se le da a Redsys como URLOK, así que el
+ * recibo y lo que ve el banco no pueden divergir.
+ */
+export const MERCHANT_INFO = {
+  fuc: merchantCode,
+  terminal: merchantTerminal,
+  name: "The Lounge Beerhouse",
+  url: BASE_URL,
+  productDescription: PRODUCT_DESCRIPTION,
+} as const;
+
+export type MerchantInfo = typeof MERCHANT_INFO;
 
 /**
  * Generates a Redsys-compatible order ID.

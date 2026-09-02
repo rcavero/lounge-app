@@ -1,10 +1,25 @@
 import Link from "next/link";
 import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { cancelReservationByOrderId } from "@/modules/payments/actions";
+import {
+  cancelReservationByOrderId,
+  getReservationByOrderId,
+} from "@/modules/payments/actions";
+import { MERCHANT_INFO } from "@/lib/redsys";
+import { formatEuros } from "@/lib/utils";
 
 interface Props {
   searchParams: Promise<{ orderId?: string; eventId?: string }>;
+}
+
+/** Fila etiqueta/valor, igual que en la pantalla de confirmación. */
+function ReceiptRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 text-xs">
+      <span className="text-white/40 shrink-0">{label}</span>
+      <span className="text-white text-right break-all">{value}</span>
+    </div>
+  );
 }
 
 export default async function PaymentErrorPage({ searchParams }: Props) {
@@ -17,6 +32,12 @@ export default async function PaymentErrorPage({ searchParams }: Props) {
   if (orderId) {
     await cancelReservationByOrderId(orderId);
   }
+
+  // El banco no exige esta información en la URL KO, pero tenerla en pantalla resuelve
+  // en el momento la llamada de "creo que me han cobrado": el código de respuesta de
+  // Redsys dice por qué se rechazó. Se lee después de cancelar, para reflejar el estado
+  // final de la reserva.
+  const reservation = orderId ? await getReservationByOrderId(orderId) : null;
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
@@ -66,6 +87,35 @@ export default async function PaymentErrorPage({ searchParams }: Props) {
             </a>
           </p>
         </div>
+
+        {reservation && orderId && (
+          <div className="bg-[#1a1a1a] rounded-xl p-4 text-left border border-white/10 space-y-2">
+            <p className="text-white/40 text-xs uppercase tracking-wider text-center mb-1">
+              Datos de la operación
+            </p>
+            <ReceiptRow label="Comercio" value={MERCHANT_INFO.name} />
+            <ReceiptRow label="FUC" value={MERCHANT_INFO.fuc} />
+            <ReceiptRow label="URL" value={MERCHANT_INFO.url} />
+            <ReceiptRow
+              label="Importe"
+              value={`${formatEuros(reservation.totalPrice)}€`}
+            />
+            <ReceiptRow label="Nº de pedido" value={orderId} />
+            {reservation.paymentDateTime && (
+              <ReceiptRow
+                label="Fecha / hora"
+                value={reservation.paymentDateTime}
+              />
+            )}
+            {reservation.paymentResponseCode && (
+              <ReceiptRow
+                label="Cód. de respuesta"
+                value={reservation.paymentResponseCode}
+              />
+            )}
+            <ReceiptRow label="Estado" value="No autorizada" />
+          </div>
+        )}
 
         <p className="text-xs text-white/30 tracking-wider">
           THE LOUNGE BEERHOUSE • VALENCIA

@@ -22,7 +22,7 @@ function getActiveScreens(event: EventWithTeams): string[] {
 }
 
 const screenColors: Record<string, string> = {
-  PROYECTOR: "bg-[#D4AF37] text-black",
+  TV3: "bg-[#D4AF37] text-black",
   TV1: "bg-[#b91c1c] text-white",
   TV2: "bg-[#3b82f6] text-white",
 };

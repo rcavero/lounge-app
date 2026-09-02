@@ -115,7 +115,7 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
                   borderColor: colors.border,
                 }}
               >
-                {label.zone === "PROYECTOR" ? "PROYECTOR" : label.zone}
+                {label.zone}
               </div>
             );
           })}
