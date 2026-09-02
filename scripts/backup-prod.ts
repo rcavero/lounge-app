@@ -24,6 +24,20 @@ import { PrismaClient } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
+/**
+ * El orden es el de las dependencias: así un restore se puede hacer de arriba abajo
+ * sin violar ninguna clave ajena.
+ */
+const TABLES = [
+  "AdminUser",
+  "Team",
+  "Seat",
+  "ZoneLabel",
+  "Event",
+  "Reservation",
+  "SeatStatus",
+] as const;
+
 /** Igual que en scripts/db-whoami.ts: identifica el proyecto sin imprimir credenciales. */
 function projectRef(url: string | undefined): string {
   if (!url) return "(DATABASE_URL sin definir)";
@@ -34,8 +48,8 @@ function projectRef(url: string | undefined): string {
 /**
  * `Reservation.totalPrice` es `Decimal` y `JSON.stringify` no lo serializa solo.
  * decimal.js define `toJSON`, así que llega aquí ya convertido a string; el
- * `instanceof`-por-forma cubre el caso de que algún día deje de definirlo, y el
- * `bigint` está por si se añade una columna `BigInt` más adelante.
+ * duck-typing cubre el caso de que algún día deje de definirlo, y el `bigint` está
+ * porque una consulta cruda devuelve los `int8` de Postgres como tal.
  */
 function replacer(_key: string, value: unknown): unknown {
   if (typeof value === "bigint") return value.toString();
@@ -61,18 +75,16 @@ function stamp(): string {
   console.log(`\n  Proyecto Supabase : ${ref}`);
 
   try {
-    // El orden es el de las dependencias: así un restore se puede hacer de arriba
-    // abajo sin violar ninguna clave ajena.
-    const [adminUsers, teams, seats, zoneLabels, events, reservations, seatStatuses] =
-      await Promise.all([
-        prisma.adminUser.findMany(),
-        prisma.team.findMany(),
-        prisma.seat.findMany(),
-        prisma.zoneLabel.findMany(),
-        prisma.event.findMany(),
-        prisma.reservation.findMany(),
-        prisma.seatStatus.findMany(),
-      ]);
+    // `SELECT *` en crudo y no el cliente de Prisma a propósito: el cliente está
+    // generado a partir del esquema NUEVO y pide columnas que la base todavía no
+    // tiene, así que reventaría justo cuando más falta hace el backup. En crudo se
+    // vuelca lo que hay de verdad, antes o después de migrar.
+    const data: Record<string, unknown[]> = {};
+    for (const table of TABLES) {
+      data[table] = await prisma.$queryRawUnsafe<unknown[]>(
+        `SELECT * FROM "${table}" ORDER BY "id"`
+      );
+    }
 
     const migrations = await prisma.$queryRaw<Array<{ migration_name: string }>>`
       SELECT migration_name FROM "_prisma_migrations" ORDER BY finished_at
@@ -84,27 +96,17 @@ function stamp(): string {
         takenAt: new Date().toISOString(),
         migrationsApplied: migrations.map((m) => m.migration_name),
       },
-      adminUsers,
-      teams,
-      seats,
-      zoneLabels,
-      events,
-      reservations,
-      seatStatuses,
+      ...data,
     };
 
     const path = `backups/prod-${stamp()}.json`;
     writeFileSync(path, JSON.stringify(dump, replacer, 2), "utf8");
 
     console.log(`  Migraciones       : ${migrations.length}\n`);
-    console.log(`  Usuarios admin    : ${adminUsers.length}`);
-    console.log(`  Equipos           : ${teams.length}`);
-    console.log(`  Asientos          : ${seats.length}`);
-    console.log(`  Carteles de zona  : ${zoneLabels.length}`);
-    console.log(`  Eventos           : ${events.length}`);
-    console.log(`  Reservas          : ${reservations.length}`);
-    console.log(`  Estados de asiento: ${seatStatuses.length}\n`);
-    console.log(`  ✓ Escrito en ${path}`);
+    for (const table of TABLES) {
+      console.log(`  ${table.padEnd(18)}: ${data[table].length}`);
+    }
+    console.log(`\n  ✓ Escrito en ${path}`);
     console.log(`    Lleva datos personales: no commitear (está en .gitignore).\n`);
   } catch (error) {
     console.log(`\n  ✗ Falló: ${error instanceof Error ? error.message : error}\n`);
