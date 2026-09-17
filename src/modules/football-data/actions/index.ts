@@ -56,9 +56,11 @@ export async function getMatchSuggestions(
 
   const suggestions: MatchSuggestion[] = [];
   const seen = new Set<number>();
+  let rejected = 0;
 
   for (const outcome of settled) {
     if (outcome.status === "rejected") {
+      rejected++;
       console.error("[suggestions] Error al obtener partidos:", outcome.reason);
       continue;
     }
@@ -71,6 +73,17 @@ export async function getMatchSuggestions(
         suggestions.push(suggestion);
       }
     }
+  }
+
+  // Si no respondió NI UNA, es una caída de ESPN, no una semana sin partidos:
+  // hay que lanzar. Devolver [] pinta el estado vacío "Buscar partidos
+  // programados", indistinguible de "no hay nada esta semana" — que es
+  // exactamente cómo se manifestó el 400 de ESPN del 17/09/2026. El catch de
+  // client.tsx ya muestra el banner de error.
+  if (rejected > 0 && rejected === settled.length) {
+    throw new Error(
+      `ESPN no respondió a ninguna de las ${settled.length} peticiones`
+    );
   }
 
   // Orden de competición según el array de configuración, luego por fecha.

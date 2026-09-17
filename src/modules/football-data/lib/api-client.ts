@@ -2,6 +2,7 @@ import type {
   EspnScoreboardResponse,
   EspnTeamsResponse,
   EspnTeam,
+  EspnEvent,
 } from "../types";
 
 const BASE_URL = "https://site.api.espn.com/apis/site/v2/sports/soccer";
@@ -81,32 +82,79 @@ async function fetchApi<T extends { code?: number }>(
   );
 }
 
-/** Devuelve YYYYMMDD, el formato que espera el parámetro `dates` de ESPN. */
-function toEspnDate(date: Date): string {
-  return date.toISOString().slice(0, 10).replace(/-/g, "");
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Meses (YYYYMM) que hay que pedir para cubrir la ventana [from, to].
+ *
+ * Se añade un día de margen a cada lado a propósito: ESPN agrupa por su propio
+ * día (huso de EE. UU.), así que un partido a las 01:00 UTC del día 1 de un mes
+ * aparece listado en el mes anterior. El margen cuesta como mucho una petición
+ * más y elimina el caso de borde.
+ */
+function espnMonths(from: Date, to: Date): string[] {
+  const months: string[] = [];
+  const cursor = new Date(from.getTime() - DAY_MS);
+  const last = new Date(to.getTime() + DAY_MS);
+
+  cursor.setUTCDate(1);
+  while (cursor.getTime() <= last.getTime()) {
+    const year = cursor.getUTCFullYear();
+    const month = String(cursor.getUTCMonth() + 1).padStart(2, "0");
+    months.push(`${year}${month}`);
+    cursor.setUTCMonth(cursor.getUTCMonth() + 1);
+  }
+
+  return months;
 }
 
 /**
  * Partidos de una competición dentro de los próximos N días.
  *
  * @param code Slug de ESPN (p.ej. "esp.1" para La Liga)
- * @param days Días hacia delante (por defecto 7, igual que el cliente anterior)
+ * @param days Días hacia delante
  *
- * Nota: rangos de fechas muy amplios (más de unos meses) hacen que ESPN
- * devuelva 0 eventos aunque los haya. La ventana de 7 días está muy por
- * debajo de ese umbral.
+ * IMPORTANTE — no volver a usar `dates=YYYYMMDD-YYYYMMDD`.
+ * Desde el 17/09/2026 ESPN responde 400 `{"code":400,"message":"Failed to get
+ * events endpoint."}` a CUALQUIER rango con guion, sea de dos días o de una
+ * semana. No es cuestión de amplitud ni de nuestros slugs: es un cambio global
+ * de ESPN, que devuelve lo mismo en /football/nfl y /basketball/nba. Sí siguen
+ * funcionando el día suelto (`20260917`), el mes (`202609`) y el año (`2026`).
+ *
+ * Por eso se pide el mes —o los dos meses que toque la ventana— y se filtra
+ * aquí: el mes devuelve exactamente la misma forma de respuesta que el rango,
+ * así que el mapeo de toSuggestion y los tipos no cambian.
  */
 export async function getScheduledMatches(
   code: string,
-  days: number = 7
+  days: number = 14
 ): Promise<EspnScoreboardResponse | null> {
-  const today = new Date();
-  const from = toEspnDate(today);
-  const to = toEspnDate(new Date(today.getTime() + days * 24 * 60 * 60 * 1000));
+  const from = new Date();
+  const to = new Date(from.getTime() + days * DAY_MS);
 
-  return fetchApi<EspnScoreboardResponse>(
-    `/${code}/scoreboard?dates=${from}-${to}`
+  const responses = await Promise.all(
+    espnMonths(from, to).map((month) =>
+      fetchApi<EspnScoreboardResponse>(`/${code}/scoreboard?dates=${month}`)
+    )
   );
+
+  const found = responses.filter((r): r is EspnScoreboardResponse => r !== null);
+  // Ningún mes existe: el slug no está en ESPN. Se conserva el null para que
+  // quien llama se salte esta competición sin abortar el resto.
+  if (found.length === 0) return null;
+
+  // Un partido puede venir en dos meses distintos por el margen de un día.
+  const byId = new Map<string, EspnEvent>();
+  for (const response of found) {
+    for (const event of response.events ?? []) {
+      const time = new Date(event.date).getTime();
+      if (Number.isNaN(time)) continue;
+      if (time < from.getTime() || time > to.getTime()) continue;
+      byId.set(event.id, event);
+    }
+  }
+
+  return { leagues: found[0].leagues, events: [...byId.values()] };
 }
 
 /**
