@@ -16,14 +16,30 @@ import { PrismaClient } from "../src/generated/prisma";
 
 const prisma = new PrismaClient();
 
-function projectRef(url: string | undefined): string {
+/**
+ * Describe el destino sin exponer credenciales: el ref del proyecto si es Supabase,
+ * y host:puerto/base si es la base local de Docker. Nunca imprime la URL entera.
+ */
+function describeTarget(url: string | undefined): string {
   if (!url) return "(DATABASE_URL sin definir)";
-  const match = url.match(/postgres\.([a-z0-9]+)/);
-  return match ? match[1] : "(ref no reconocido)";
+
+  const supabase = url.match(/postgres\.([a-z0-9]+)/);
+  if (supabase) return `Supabase ${supabase[1]}`;
+
+  try {
+    const u = new URL(url);
+    return `${u.hostname}:${u.port || "5432"}${u.pathname}`;
+  } catch {
+    return "(destino no reconocido)";
+  }
 }
 
 (async () => {
-  console.log(`\n  Proyecto Supabase : ${projectRef(process.env.DATABASE_URL)}`);
+  // El entorno autodeclarado va primero: es la respuesta a "¿dónde estoy?" y lo que
+  // leen los guardarraíles. El destino real va debajo para poder contrastarlo.
+  const dbEnv = (process.env.DB_ENV ?? "").trim() || "⚠️  SIN DECLARAR";
+  console.log(`\n  Entorno (DB_ENV)  : ${dbEnv}`);
+  console.log(`  Destino           : ${describeTarget(process.env.DATABASE_URL)}`);
 
   try {
     const [teams, events, reservations, seats, admins, migrations] = await Promise.all([
