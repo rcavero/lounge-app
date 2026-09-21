@@ -15,9 +15,10 @@
  *   npx tsx scripts/rename-seats.ts report
  *   npx tsx scripts/rename-seats.ts apply    # escribe, en una única transacción
  *
- * Antes de nada, cargar el entorno correcto — `.env` apunta a PRODUCCIÓN:
+ * Antes de nada, cargar explícitamente el entorno contra el que quieres trabajar:
  *   set -a && . ./.env.testing && set +a
- * El script imprime siempre contra qué proyecto Supabase va a trabajar.
+ * El script imprime siempre en su primera línea contra qué proyecto Supabase va a
+ * trabajar: esa es la comprobación que cuenta, no el nombre del fichero que cargaste.
  *
  * Es idempotente: lanzarlo dos veces detecta que ya está aplicado y no hace nada.
  */

@@ -10,9 +10,12 @@
  * Solo lee. Nunca imprime credenciales: del DATABASE_URL únicamente extrae el
  * identificador del proyecto Supabase, que no es secreto.
  *
- * Uso:
- *   set -a && . ./.env && set +a     # ⚠️ .env apunta a PRODUCCIÓN
+ * Uso: cargar explícitamente el entorno de PRODUCCIÓN (`.env.production`) y ejecutar:
  *   npx tsx scripts/backup-prod.ts
+ *
+ * ⚠️ No te fíes del nombre del fichero que hayas cargado. La comprobación que cuenta es
+ * la PRIMERA LÍNEA de salida, que imprime el ref del proyecto Supabase: si no es el de
+ * producción —o dice "(ref no reconocido)"— estás contra otra base de datos. Aborta.
  *
  * El fichero resultante lleva datos personales de clientes reales (nombre, email,
  * teléfono) y los hashes bcrypt de los usuarios admin. `backups/*.json` está en
