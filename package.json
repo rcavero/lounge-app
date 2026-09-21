@@ -10,10 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
-
     "db:up": "docker compose up -d --wait",
     "db:down": "docker compose down",
-
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
@@ -21,24 +19,20 @@
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "db:whoami": "npx tsx scripts/db-whoami.ts",
-
     "db:whoami:testing": "dotenv -e .env.testing -- npx tsx scripts/db-whoami.ts",
     "db:whoami:academic": "dotenv -e .env.academic -- npx tsx scripts/db-whoami.ts",
     "db:whoami:prod": "dotenv -e .env.production -- npx tsx scripts/db-whoami.ts",
-
     "db:deploy:testing": "dotenv -e .env.testing -- prisma migrate deploy",
     "db:deploy:academic": "dotenv -e .env.academic -- prisma migrate deploy",
     "db:deploy:prod": "dotenv -e .env.production -- prisma migrate deploy",
-
     "db:seed:academic": "dotenv -e .env.academic -- npx tsx prisma/seed.ts",
     "db:studio:academic": "dotenv -e .env.academic -- prisma studio",
-
     "db:backup:testing": "dotenv -e .env.testing -- npx tsx scripts/backup-db.ts",
     "db:backup:academic": "dotenv -e .env.academic -- npx tsx scripts/backup-db.ts",
     "db:backup:prod": "dotenv -e .env.production -- npx tsx scripts/backup-db.ts"
   },
   "engines": {
-    "node": ">=22.12.0"
+    "node": "24.x"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -69,7 +63,7 @@
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^22.20.4",
+    "@types/node": "^24.13.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "dotenv-cli": "^11.0.0",
