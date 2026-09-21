@@ -24,6 +24,7 @@
  */
 
 import { PrismaClient } from "../src/generated/prisma";
+import { requireDbEnv } from "./lib/require-db-env";
 
 const prisma = new PrismaClient();
 
@@ -353,7 +354,17 @@ async function aplicar(d: Diagnostico) {
     return;
   }
 
-  console.log(`\n  Proyecto Supabase : ${projectRef(process.env.DATABASE_URL)}`);
+  // `report` solo lee y puede correr contra lo que sea. `apply` reescribe los nombres
+  // de los 47 asientos, que es lo que el cliente ve impreso en su ticket, así que exige
+  // que el entorno cargado se haya declarado explícitamente. No restringe a cuál —este
+  // renombrado se aplica en los tres—, pero impide lanzarlo con un entorno a ciegas.
+  const dbEnv =
+    modo === "apply"
+      ? requireDbEnv("local", "test", "testing", "academic", "production")
+      : ((process.env.DB_ENV ?? "").trim() || "sin declarar");
+
+  console.log(`\n  Entorno (DB_ENV)  : ${dbEnv}`);
+  console.log(`  Proyecto Supabase : ${projectRef(process.env.DATABASE_URL)}`);
   console.log(`  Modo              : ${modo}\n`);
 
   try {

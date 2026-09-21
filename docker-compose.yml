@@ -1,0 +1,42 @@
+# Base de datos local, para desarrollo y para los tests.
+#
+# Dos bases dentro de un solo contenedor:
+#   lounge_dev   -> .env       (npm run dev). Persiste entre reinicios.
+#   lounge_test  -> .env.test  (Vitest y Playwright). Se trunca en cada test.
+#
+# Están separadas a propósito: la suite de integración hace TRUNCATE de todas las
+# tablas en cada test, y si compartieran base te borraría los datos con los que
+# estabas trabajando.
+#
+# El puerto es 5433 y no el 5432 estándar para no chocar con un PostgreSQL que
+# hubiera instalado en la máquina.
+#
+# Las credenciales de aquí son de usar y tirar y están versionadas a propósito:
+# esta base no sale de tu portátil y no contiene ningún dato real.
+#
+#   npm run db:up     levanta y espera a que esté sana
+#   npm run db:down   la para (el volumen sobrevive)
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: lounge-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lounge
+      POSTGRES_PASSWORD: lounge
+      POSTGRES_DB: lounge_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - lounge-pgdata:/var/lib/postgresql/data
+      # Solo se ejecuta la primera vez, cuando el volumen está vacío.
+      - ./docker/initdb:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lounge -d lounge_dev"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+volumes:
+  lounge-pgdata:

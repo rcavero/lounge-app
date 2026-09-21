@@ -10,12 +10,16 @@
  * Solo lee. Nunca imprime credenciales: del DATABASE_URL únicamente extrae el
  * identificador del proyecto Supabase, que no es secreto.
  *
- * Uso: cargar explícitamente el entorno de PRODUCCIÓN (`.env.production`) y ejecutar:
- *   npx tsx scripts/backup-prod.ts
+ * Sirve para cualquier entorno: vuelca lo que diga el DATABASE_URL que esté cargado.
+ *   npm run db:backup:prod        # o :testing, o :academic
  *
- * ⚠️ No te fíes del nombre del fichero que hayas cargado. La comprobación que cuenta es
- * la PRIMERA LÍNEA de salida, que imprime el ref del proyecto Supabase: si no es el de
- * producción —o dice "(ref no reconocido)"— estás contra otra base de datos. Aborta.
+ * El volcado se escribe en `backups/<DB_ENV>-<fecha>.json`, así que el nombre del
+ * fichero dice de dónde salió y no se pueden confundir dos backups entre sí.
+ *
+ * ⚠️ No te fíes del nombre del fichero de entorno que hayas cargado. La comprobación
+ * que cuenta es la PRIMERA LÍNEA de salida, que imprime el ref del proyecto Supabase:
+ * si no es el que esperabas —o dice "(ref no reconocido)"— estás contra otra base de
+ * datos. Aborta.
  *
  * El fichero resultante lleva datos personales de clientes reales (nombre, email,
  * teléfono) y los hashes bcrypt de los usuarios admin. `backups/*.json` está en
@@ -75,7 +79,11 @@ function stamp(): string {
 
 (async () => {
   const ref = projectRef(process.env.DATABASE_URL);
-  console.log(`\n  Proyecto Supabase : ${ref}`);
+  // Si el entorno cargado no se autodeclara, el nombre del fichero lo dice en vez de
+  // mentir: un backup que no sabes de dónde salió no sirve de nada.
+  const dbEnv = (process.env.DB_ENV ?? "").trim() || "sin-declarar";
+  console.log(`\n  Entorno (DB_ENV)  : ${dbEnv}`);
+  console.log(`  Proyecto Supabase : ${ref}`);
 
   try {
     // `SELECT *` en crudo y no el cliente de Prisma a propósito: el cliente está
@@ -95,6 +103,7 @@ function stamp(): string {
 
     const dump = {
       meta: {
+        dbEnv,
         projectRef: ref,
         takenAt: new Date().toISOString(),
         migrationsApplied: migrations.map((m) => m.migration_name),
@@ -102,7 +111,7 @@ function stamp(): string {
       ...data,
     };
 
-    const path = `backups/prod-${stamp()}.json`;
+    const path = `backups/${dbEnv}-${stamp()}.json`;
     writeFileSync(path, JSON.stringify(dump, replacer, 2), "utf8");
 
     console.log(`  Migraciones       : ${migrations.length}\n`);
