@@ -11,7 +11,9 @@
  *
  * @type {import("lint-staged").Configuration}
  */
-export default {
+const config = {
   "*.{ts,tsx}": ["prettier --write", "eslint --fix"],
   "*.{mts,mjs,js,jsx,json,css}": ["prettier --write"],
 };
+
+export default config;
