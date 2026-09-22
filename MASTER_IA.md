@@ -2,9 +2,14 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> Las fases **−1, 0 y 1 están ejecutadas**, y lo que sigue describe **lo que realmente se
-> hizo**, que en varios puntos no fue lo planeado. De la **Fase 2 en adelante** el texto es el
-> plan tal como se concibió, sin tocar.
+> **Ejecutado: las fases −1, 0 y 1, y el paso P2** (tests de caracterización). Esas secciones
+> describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
+> texto es el plan tal como se concibió.
+>
+> **Numeración.** Las «Fase N» de este documento agrupan por **tema**; Linear numera por
+> **orden de ejecución**, y por eso su «Fase 2» es la caracterización y no la capa de dominio.
+> Para no mezclarlas, aquí el orden se cita siempre como **P0–P6**, y la tabla de
+> [Orden de ejecución](#orden-de-ejecución) da la tarjeta de Linear de cada paso.
 >
 > El detalle de cada desvío, con su porqué y su verificación, está en las tarjetas del proyecto
 > **"Máster desarrollo software IA"** en Linear.
@@ -29,14 +34,15 @@ Estado de partida el 21 de septiembre, verificado entonces:
 | Hallazgo | Estado |
 |---|---|
 | `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Abierto.** Bug real en producción |
-| `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | Abierto, se corrige al extraer `domain/expiry.ts` (Fase 2) |
-| Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 7) |
-| Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | Abierto, se borra en la Fase 2 |
+| `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | Abierto, se corrige al extraer `domain/expiry.ts` (P4) |
+| Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 4). Desde P2, un test fija las dos fronteras al minuto |
+| Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | Abierto, se borra en P4 |
 
 **Hallazgos nuevos, aparecidos durante la ejecución:**
 
 - **`npm run lint` fallaba con 533 errores y 1761 avisos**, igual en `main`. **Resuelto en 1.4**: estaban todos en el cliente generado por Prisma, que nunca debió entrar en el lint. La deuda real son 3 errores.
 - **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
+- **Una tercera, que la auditoría de 0.6 no vio**: `prisma/seed.ts` crea un admin con el email real y la contraseña `12345678`, en claro y en todo el historial. **Abierta (RCA-275, urgente)**: hay que comprobar que ninguna cuenta viva la usa **antes de publicar el repositorio**. Ver P2.4.
 
 ---
 
@@ -244,7 +250,7 @@ src/shared/components/info-banner.tsx:17         react-hooks/set-state-in-effect
 src/modules/events/components/event-row.tsx:64   react-hooks/purity
 ```
 
-No se tocan aquí, que esta fase no cambia `src/`. El tercero lo arregla sola la Fase 2, al meter el reloj como parámetro en lugar de llamar a `new Date()` dentro del render.
+No se tocan aquí, que esta fase no cambia `src/`. El tercero lo arregla sola la extracción de dominio (P4), al meter el reloj como parámetro en lugar de llamar a `new Date()` dentro del render.
 
 **Consecuencia: el `lint` bloqueante de CI (3.5) vuelve a ser viable**, sin baseline ni deuda congelada.
 
@@ -274,6 +280,78 @@ El pre-commit corre `lint-staged` —Prettier primero y ESLint después, en ese 
 
 ---
 
+## Paso P2 — Tests de caracterización · EJECUTADO
+
+Tests sobre el código que **ya era puro**, antes de refactorizar nada: son la red que permitirá demostrar que la extracción de dominio (P4) no cambió el comportamiento. Ejecuta la parte de 3.1 y 3.2 que no depende de extraer nada, y las exportaciones triviales de la Fase 2. En Linear, «05 · Fase 2». 15 commits, de `3f3005c` a `87a93cb`.
+
+### P2.1 Qué quedó cubierto
+
+| Módulo | Fichero de test | Tests |
+|---|---|---|
+| Nombre del cliente | `payments/lib/customer-name.test.ts` | 34 |
+| Gastos de gestión | `events/config/pricing.test.ts` | 31 |
+| Competiciones y su configuración | `football-data/config/competitions.test.ts` | 20 |
+| `toSuggestion` | `football-data/lib/suggestions.test.ts` | 15 |
+| Helpers de `team-sync` | `football-data/lib/team-sync.test.ts` | 24 |
+| Emparejado de equipos (`planTeam`, `planCreate`) | `football-data/lib/team-sync.plan.test.ts` | 25 |
+| `espnMonths`, `getTeamLogo` | `football-data/lib/api-client.test.ts` | 9 |
+| Rate limit del login | `lib/rate-limit.test.ts` | 9 |
+| `BASE_URL` | `lib/base-url.test.ts` | 5 |
+| Asientos sembrados | `tests/unit/seats.test.ts` | 7 |
+| `EventRow` (ventana de reservas) | `events/components/event-row.test.tsx` | 12 |
+| `FloorPlanMap` | `seating/components/floor-plan-map.test.tsx` | 10 |
+
+**201 tests nuevos**; con los 15 de la Fase 1, la suite `npm test` suma **216 en 2,6 s**.
+
+Del 3.1 quedan fuera, a propósito, los importes, el solape de eventos, el resultado del pago, `resolveEventNaming`, `report-months` y `availability`: todavía no son funciones puras. Nacen en P4, y hasta entonces su red es la integración de P3.
+
+### P2.2 Lo que sí tocó `src/` — sin cambio de comportamiento
+
+1. **`safeManagementFeeCents` se movió a `events/config/pricing.ts`** (`3f3005c`), adelantando un punto de la Fase 2. Era interna de un fichero `"use server"`, donde no se puede exportar una función síncrona: sin moverla no había forma de testearla.
+2. **Exportaciones de `football-data`** (`dbc03ea`): `espnMonths`, `planTeam`, `planCreate` y sus tipos, y `loadTeamIndex` partida en la consulta más un `buildTeamIndex(rows)` puro. Va precedida de un commit **solo de formato** (`1ddadd7`) para que este diff se pudiera revisar línea a línea: el cuerpo de `buildTeamIndex` es el bucle original, sin tocar.
+3. **`prisma/seats.ts`** (`6814b1e`, el refactor previo de 3.3): el seed ya no declara los 47 asientos, los importa. El fichero se **generó con un script a partir de las líneas del seed**, no a mano, y se comprobó con `isDeepStrictEqual` que el array es idéntico al de antes. Ojo para el E2E: son los **códigos anteriores al renombrado** (`T1-A1`), no los del local (`A7.2`).
+
+### P2.3 Cómo se comprobó que los tests sirven
+
+Un test de caracterización que pasa a la primera no demuestra nada por sí solo. Los que protegen reglas caras se validaron **rompiendo el código a propósito** y viendo fallar el test correcto:
+
+| Mutación | Qué falla |
+|---|---|
+| `safeManagementFeeCents` reescrita como `value \|\| DEFAULT` | solo el test del `0` |
+| Sin la guarda del escudo local (`isLocal = false`) | 4 tests de `planTeam` |
+| `planTeam` compara contra la fila ya mutada en memoria | solo el test del `externalId` pendiente |
+| Frontera de 48 h inclusiva | solo el test de las 48 h |
+| Frontera de 4 h inclusiva, o de vuelta a las 5 h de la documentación | solo el test de las 4 h |
+| El plano deshabilita por estado sin mirar la selección | solo el test del asiento seleccionado que otro cogió |
+
+Y una que **no** falló, anotada tal cual: quitar `vi.resetModules()` de los tests de `rate-limit` no rompe ninguno, porque todos arrancan en el mismo instante y lo que se filtra entre tests caduca a la vez. El reset se queda por higiene, pero hoy no está demostrado que haga falta.
+
+### P2.4 Hallazgos
+
+- **RCA-275, urgente — contraseña de admin en claro en `prisma/seed.ts`.** Email real y `12345678`, en todos los commits. La auditoría de 0.6 buscó secretos, claves y bases de datos, no credenciales de aplicación. Si alguna cuenta de producción o de testing se creó con ese seed y nunca cambió de contraseña, publicar el repositorio publica la llave del panel, y `academic` es una preview pública sobre la base de testing. **Antes de publicar**: comprobar con `bcrypt.compare`, en solo lectura, que ningún `AdminUser` vivo la usa, y sacarla del seed.
+- **RCA-274, baja — los mapas por nombre aceptan claves del prototipo.** `isManualSport("constructor") === true`. Solo lo alcanza un admin autenticado mandando el valor a mano.
+- **Comportamientos actuales, documentados como tales** en tests titulados `COMPORTAMIENTO ACTUAL:` —que tienen que cambiar de signo el día que se arreglen—: un evento ya empezado no se bloquea en `EventRow`; `toIntId("83abc") === 83`; las letras que NFD no descompone (`ø`, `ß`) desaparecen al normalizar nombres de equipo; y nada quita la barra final de `NEXT_PUBLIC_BASE_URL`. Ninguno falla con los datos reales, así que no llevan tarjeta.
+
+La regla del plan se aplicó igual que con el `"Boxeo vs "`: **un fallo encontrado al caracterizar se documenta y se abre, no se arregla dentro de un commit de tests**.
+
+### P2.5 Unicode oculto en el código
+
+El test de nombres necesita caracteres invisibles y marcas bidireccionales. Escritos como secuencias de escape de JavaScript en la herramienta de edición, **acabaron literales en el fichero**: invisibles al leerlo y justo lo que GitHub marca como *hidden bidirectional Unicode*. Los tests pasaban igual, así que nada avisó. Se reescribieron con `String.fromCodePoint(0x…)` en constantes con nombre, y antes de cerrar se barrieron los 19 ficheros tocados en P2: **cero caracteres ocultos**.
+
+### P2.6 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` (unit + ui) | 216 tests en verde, 2,6 s |
+| `npm run typecheck` | limpio |
+| `npm run lint` | los 3 errores y 5 avisos heredados. Hubo un sexto aviso, `lint-staged.config.mjs` de la Fase 1, corregido en `87a93cb` |
+| `npm run build` | limpio, las mismas 24 rutas |
+| Caracteres ocultos en los ficheros de P2 | 0 |
+
+**No se ejecutó la integración**: Docker estaba parado, y P2 no toca nada de lo que prueba.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 Patrón único: **crear `src/modules/<módulo>/domain/*.ts` como módulos planos (sin `"use server"`, sin Prisma, sin `next/*`), mover ahí la regla, y dejar la server action como adaptador fino**. El reloj entra como parámetro `now: Date` con valor por defecto, en lugar de llamar a `new Date()` dentro.
@@ -300,7 +378,7 @@ En `overlap.ts`, el filtro `status: { in: ["UPCOMING","LIVE"] }` se queda en la 
 
 ### Exportaciones y borrados
 
-Sin mover código (riesgo ~0): exportar `espnMonths` (`api-client.ts:95` — **no está exportada**, corrección respecto a la primera versión de este plan), `planTeam` y `planCreate` (`team-sync.ts:182,271`, ya puras pero internas), y partir `loadTeamIndex()` en un `buildTeamIndex(rows)` puro más la query. **`safeManagementFeeCents` se mueve** de `events/actions:16-18` a `events/config/pricing.ts`, que ya es un módulo plano.
+~~Sin mover código (riesgo ~0): exportar `espnMonths`, `planTeam` y `planCreate`, partir `loadTeamIndex()` en un `buildTeamIndex(rows)` puro más la query, y mover `safeManagementFeeCents` a `events/config/pricing.ts`.~~ **Hecho en P2** (ver P2.2): hacía falta para poder testearlas.
 
 Ya son puras y se testean tal cual: `payments/lib/customer-name.ts`, `events/config/pricing.ts`, `toSuggestion`, `getTeamLogo`, los helpers de `team-sync.ts` y `football-data/config/competitions.ts`.
 
@@ -322,6 +400,8 @@ Borrados, en commits aparte tras `grep` confirmatorio: **`createReservation`** (
 
 ### 3.1 Unitarios (`src/**/*.test.ts`, colocados junto al código)
 
+> **Hechos en P2:** el 2, el 4, el 6 y del 7 `toSuggestion`, `espnMonths`, `rate-limit` y `base-url`. Quedan el 1, el 3, el 5 y el resto del 7, que necesitan que P4 cree primero las funciones puras.
+
 Por riesgo, empezando por el dinero:
 
 1. **Importes** — tabla sobre `computeReservationAmount`: precios 0–30 €, los 11 valores de `MANAGEMENT_FEE_OPTIONS_CENTS`, 1–47 asientos. Casos nombrados: base (10 €/150/1), fee cero, fee máximo, precio no redondo, aforo completo. Y los invariantes recorriendo toda la matriz: `Number.isInteger(totalCents)`, la regla del `CHECK` de la BD, y **`expectedCentsFromTotalPrice(totalPriceEuros) === totalCents`**, que demuestra que la traza de descuadre del webhook no puede dar un falso positivo. Es el test más valioso de la suite.
@@ -333,6 +413,8 @@ Por riesgo, empezando por el dinero:
 7. **Resto** — `toSuggestion` (partido empezado, competidor ausente, id no parseable, fecha inválida, `dbTeamId` presente y ausente), `espnMonths` (cruza mes y año), `resolveEventNaming` (tres ramas + el bug documentado), `report-months` (febrero bisiesto, diciembre), `availability` (BLOCKED nunca se pisa), `rate-limit` (5 intentos, ventana, aislamiento por IP — con `vi.resetModules()` porque el `Map` es estado de módulo) y `base-url` (la cadena de fallback, con import dinámico porque es constante de módulo).
 
 ### 3.2 Componentes (`src/**/*.test.tsx`, jsdom)
+
+> **Hecho en P2**, con los selectores por `title` que hay hoy. Cuando lleguen los `data-testid` (P5), estos tests pueden pasar a usarlos.
 
 Dos ficheros, solo donde la UI *decide* algo:
 
@@ -347,7 +429,7 @@ Base `lounge_test` del Docker local; en CI, `services: postgres` de GitHub Actio
 
 **Guard**: el setup exige `DB_ENV=test` y aborta si no. Aislamiento: `TRUNCATE … RESTART IDENTITY CASCADE` en `beforeEach`, y factories en `tests/fixtures/factories.ts` con un `TEST_NOW` fijo del que cuelgan todas las fechas. Descartada una transacción por test con rollback: el código bajo prueba abre sus propias `$transaction` y Prisma no soporta anidarlas.
 
-Refactor previo trivial: extraer el array de asientos de `prisma/seed.ts:17-68` a `prisma/seats.ts` exportado, para que el seed y el fixture de E2E no puedan divergir.
+~~Refactor previo trivial: extraer el array de asientos de `prisma/seed.ts` a `prisma/seats.ts`.~~ **Hecho en P2** (ver P2.2).
 
 **Por qué no `vi.mock` de Prisma:** `$transaction` interactiva está en todos los caminos críticos, y un doble nunca falla donde falla Postgres — no valida `@@unique([eventId, seatId])`, ni el `onDelete: Cascade`, ni el `CHECK`, ni hace rollback. Además `totalPrice` es `Decimal`: un mock devolvería `number` y escondería justo el `Number(reservation.totalPrice)` del webhook. `vi.mock` sí se usa, pero para cortar los bordes del framework (`@/lib/auth-guard`, `next/headers`, `next/navigation`).
 
@@ -462,17 +544,17 @@ Antes de montarlo hay que capturar pantallas de la app desplegada en `academic`.
 
 Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: la caracterización va antes que el refactor, o no hay forma de demostrar que el refactor no cambió nada.
 
-| Paso | Qué | Riesgo |
-|---|---|---|
-| ~~**P0**~~ | ~~Fase −1 y Fase 0: docstrings, Node, renombrado de entornos, backup, rama, Vercel, GitHub.~~ **Hecho.** | — |
-| ~~**P1**~~ | ~~Andamiaje: devDeps, config de Vitest, `tests/setup/*`, scripts, ESLint, y un test que valide la tubería en Windows. **Cero cambios en `src/`.**~~ **Hecho.** Ver Fase 1 | — |
-| **P2** | Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales. | Bajo |
-| **P3** | Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar. | Bajo |
-| **P4** | Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto. | Alto en los dos últimos |
-| **P5** | E2E: los `data-testid` en un commit aislado, luego config y escenarios, luego el job de CI. | Bajo |
-| **P6** | Umbrales de cobertura y cierre. | Bajo |
+| Paso | Qué | Riesgo | En Linear |
+|---|---|---|---|
+| ~~**P0**~~ | ~~Fase −1 y Fase 0: docstrings, Node, renombrado de entornos, backup, rama, Vercel, GitHub.~~ **Hecho.** | — | 01 a 03 |
+| ~~**P1**~~ | ~~Andamiaje: devDeps, config de Vitest, `tests/setup/*`, scripts, ESLint, y un test que valide la tubería en Windows. **Cero cambios en `src/`.**~~ **Hecho.** Ver Fase 1 | — | 04 · Fase 1 |
+| ~~**P2**~~ | ~~Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales.~~ **Hecho.** Ver P2 | — | 05 · Fase 2 |
+| **P3** | Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar. | Bajo | 06 · Fase 3 |
+| **P4** | Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto. | Alto en los dos últimos | 07 · Fase 4 |
+| **P5** | E2E: los `data-testid` en un commit aislado, luego config y escenarios, luego el job de CI. | Bajo | 08 · Fase 5 |
+| **P6** | Umbrales de cobertura y cierre. | Bajo | 09 · Fase 6 |
 
-**La documentación (fase 4) y la presentación (fase 5) van en paralelo a partir de P3**: no dependen del refactor, y conviene escribirlas mientras el contexto está fresco en lugar de dejarlas para el final, que es cuando se entregan a medias.
+**La documentación (Fase 4 de este documento, «10 · Fase 7» en Linear) y la presentación (Fase 5, «11 · Fase 8») van en paralelo a partir de P3**: no dependen del refactor, y conviene escribirlas mientras el contexto está fresco en lugar de dejarlas para el final, que es cuando se entregan a medias. La carrera de asientos es «12» en Linear.
 
 ---
 
