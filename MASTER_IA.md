@@ -2,8 +2,8 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> Las fases **−1, 0.1 y 0.2 están ejecutadas**, y lo que sigue describe **lo que realmente se
-> hizo**, que en varios puntos no fue lo planeado. De la **Fase 1 en adelante** el texto es el
+> Las fases **−1, 0 y 1 están ejecutadas**, y lo que sigue describe **lo que realmente se
+> hizo**, que en varios puntos no fue lo planeado. De la **Fase 2 en adelante** el texto es el
 > plan tal como se concibió, sin tocar.
 >
 > El detalle de cada desvío, con su porqué y su verificación, está en las tarjetas del proyecto
@@ -35,7 +35,7 @@ Estado de partida el 21 de septiembre, verificado entonces:
 
 **Hallazgos nuevos, aparecidos durante la ejecución:**
 
-- **`npm run lint` falla con 533 errores y 1761 avisos**, y ya fallaba igual en `main` antes de tocar nada. La Fase 6 planea `lint` como job bloqueante de CI: tal cual está, nunca se pondría verde. Hay que decidir entre arreglarlos, acotar la configuración o congelar la deuda con un baseline.
+- **`npm run lint` fallaba con 533 errores y 1761 avisos**, igual en `main`. **Resuelto en 1.4**: estaban todos en el cliente generado por Prisma, que nunca debió entrar en el lint. La deuda real son 3 errores.
 - **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
 
 ---
@@ -191,26 +191,86 @@ De paso quedó comprobado que **el recibo lleva funcionando en producción desde
 
 ---
 
-## Fase 1 — Tooling de calidad
+## Fase 1 — Tooling de calidad · EJECUTADA
 
-`devDependencies` a añadir: `vitest`, `@vitest/coverage-v8`, `jsdom`, `@testing-library/react`, `@testing-library/user-event`, `@playwright/test`, `dotenv-cli`, `prettier`, `husky`, `lint-staged`.
+Fase de riesgo cero por diseño: **no cambia una sola línea de `src/`**. Solo añade ficheros de test y el andamiaje que los ejecuta. Tres commits: `f3093bb`, `3a9e7ac`, `308f1df`.
 
-Nada de `vite-tsconfig-paths` (el alias es uno solo: dos líneas de `resolve.alias` en el config y una dependencia menos) ni de `@vitejs/plugin-react` (Vite ya transforma `.tsx` con esbuild respetando el `jsx: "react-jsx"` del `tsconfig.json`; el plugin solo aporta Fast Refresh, irrelevante en tests).
+### 1.1 Los tres proyectos de Vitest
 
-**`vitest.config.ts`** en la raíz, con `test.projects`:
+`vitest.config.mts` — con extensión `.mts` y no `.ts`, porque Vite avisa de que carga el config como CommonJS y este proyecto no es `"type": "module"`.
 
-- `unit` — `environment: "node"`, `src/**/*.test.ts`, **excluye `src/app/**`**.
-- `ui` — `environment: "jsdom"`, `src/**/*.test.tsx`.
-- `integration` — `environment: "node"`, `tests/integration/**`, `globalSetup` que migra, `setupFiles` que fija entorno y trunca, `pool: "forks"` con `singleFork` y `fileParallelism: false`.
+| Proyecto | Entorno | Qué recoge |
+|---|---|---|
+| `unit` | node | `src/**/*.test.ts` y `tests/unit/**` |
+| `ui` | jsdom | `src/**/*.test.tsx` |
+| `integration` | node | `tests/integration/**`, contra Postgres de verdad |
 
-Dos detalles que se olvidan y cuestan una tarde:
+Se mantuvo del plan:
 
-- **`process.env.TZ ??= "Europe/Madrid"` al principio del config**, antes de que arranque ningún worker: `monthRange` usa constructores de fecha **locales**, así que sin fijar el huso los tests de informes pasan aquí y fallan en CI (UTC).
-- **Ningún `*.test.ts` bajo `src/app/`**: el App Router escanea ese árbol para descubrir rutas. Los tests de handlers van en `tests/integration/`, importando `{ POST } from "@/app/api/payments/notify/route"`.
+- **Ningún test bajo `src/app/`.** El App Router escanea ese árbol para descubrir rutas, así que un `page.test.tsx` suelto se convertiría en una ruta de la aplicación. Los tests de handlers van en `tests/integration/`, importando la ruta.
+- **Alias `@/` escrito a mano**, dos líneas, sin `vite-tsconfig-paths`. Y sin `@vitejs/plugin-react`: Vite ya transforma `.tsx` con esbuild respetando el `tsconfig`, y lo único que aportaría el plugin es Fast Refresh.
+- Imports explícitos desde `vitest`, sin `globals`.
 
-Imports explícitos desde `vitest`, sin `globals`. `eslint.config.mjs` necesita un bloque para los ficheros de test. Al `.gitignore` solo hay que añadir los artefactos de test —`/test-results`, `/playwright-report`, `/tests/e2e/.auth`, `/tests/e2e/.artifacts`—: los ficheros de entorno ya los cubre la regla `.env*` que existía.
+Cambió al ejecutarlo:
 
-**Husky + lint-staged**: pre-commit ejecuta `lint-staged` (prettier + eslint sobre lo tocado) y `typecheck`. Nada de correr la suite entera en cada commit.
+- **`TZ` se fija sin condición**, no con `??=`. Madrid no es una preferencia de quien ejecuta los tests, es el huso del negocio; con `??=` la suite daría resultados distintos en cada máquina y la aserción que lo comprueba no podría existir. El motivo de fondo sigue siendo el mismo: `monthRange` construye los límites del mes con constructores **locales** de `Date`, y en UTC —como corre CI— el informe de enero se comería la última hora de diciembre.
+- **`singleFork` ya no existe**: `poolOptions` desapareció en Vitest 4. El equivalente es `maxWorkers: 1` más `fileParallelism: false`. `isolate` se deja en su valor por defecto, así que cada fichero estrena proceso y cliente de Prisma: más lento y más determinista.
+
+### 1.2 El entorno de los tests
+
+**Comprobado: Vitest 5 no lee ficheros `.env` por su cuenta.** Al worker le llega un `process.env` pelado, y eso rompe antes de empezar porque `src/lib/redsys.ts` valida sus tres variables **en tiempo de import**. Cualquier test que arrastre ese import revienta aunque no toque la pasarela. Por eso `tests/setup/env.ts` las carga explícitamente.
+
+Precedencia, de más fuerte a más débil: lo que ya venga en `process.env` (lo que inyecta CI) → `.env.test` si existe → los valores por defecto del propio fichero.
+
+Los defectos cubren las credenciales **públicas** del sandbox de Redsys y los secretos de usar y tirar, para que la suite arranque en un clon limpio. **`DB_ENV` y `DATABASE_URL` se quedan sin defecto a propósito**: son las dos que deciden qué base de datos se vacía, y un valor por defecto las convertiría en algo que "ya funciona" sin que nadie lo haya dicho.
+
+### 1.3 Aislamiento de la base de tests
+
+`TRUNCATE ... RESTART IDENTITY CASCADE` antes de cada test, y no una transacción que se deshace: el código bajo prueba abre **sus propias** transacciones (`prisma.$transaction` en el flujo de pago) y envolverlo en una externa cambiaría lo que se está midiendo. El precio es que la suite va en serie.
+
+La lista de tablas se le pregunta al catálogo de Postgres. Una lista escrita a mano se queda vieja en la primera migración, y el síntoma sería un test fallando por datos que creía borrados.
+
+**`requireDbEnv("test")` se repite en dos sitios**: `db-global.ts` (proceso principal) y `db-each.ts` (worker). La comprobación va donde está el daño. Probado: con `DB_ENV=testing` aborta con código de salida 1.
+
+### 1.4 Los 533 errores de lint eran del cliente de Prisma
+
+El hallazgo que desbloquea la 3.5. `npm run lint` fallaba con **533 errores y 1761 avisos**, y estaban **todos** en `src/generated/prisma`: código que no escribimos, que no podemos arreglar, que está gitignorado y que se regenera en cada build. Nunca debió entrar en el lint.
+
+Con `src/generated/**` en los ignores, la deuda real es de **3 errores y 5 avisos**:
+
+```
+src/app/eventos/[id]/client.tsx:67               react-hooks/set-state-in-effect
+src/shared/components/info-banner.tsx:17         react-hooks/set-state-in-effect
+src/modules/events/components/event-row.tsx:64   react-hooks/purity
+```
+
+No se tocan aquí, que esta fase no cambia `src/`. El tercero lo arregla sola la Fase 2, al meter el reloj como parámetro en lugar de llamar a `new Date()` dentro del render.
+
+**Consecuencia: el `lint` bloqueante de CI (3.5) vuelve a ser viable**, sin baseline ni deuda congelada.
+
+### 1.5 Prettier, husky y lint-staged
+
+El repositorio tenía dos estilos conviviendo: lo generado por shadcn sin punto y coma, el resto con él.
+
+**Adopción gradual**: el pre-commit formatea **lo que se toca**, no el repositorio entero. Así el ruido de formato aparece solo en ficheros que ya iban a salir en el diff, y `academic` no se separa de `main` por un reformateo masivo.
+
+`printWidth: 90` es el único valor que se aparta del defecto, y por un motivo medible: de las 10.700 líneas de `src/`, 661 pasan de 80 columnas pero solo 265 pasan de 90.
+
+El pre-commit corre `lint-staged` —Prettier primero y ESLint después, en ese orden, porque al revés ESLint arreglaría cosas que Prettier volvería a tocar— y `typecheck`. **No corre la suite**: un hook que tarda un minuto se acaba saltando con `--no-verify`, y un hook que se salta no protege nada. Los tests son trabajo de CI.
+
+### 1.6 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` (unit + ui) | 15 tests en verde, 0,9 s |
+| `npm run test:integration` | 7 tests en verde contra `lounge_test`, 1,5 s |
+| Migraciones en la base de tests | las 5, incluido el `CHECK` que vive en SQL crudo |
+| `npm run typecheck` | limpio |
+| `npm run build` | limpio, y **la lista de rutas no cambia** |
+| Puerta de la base de datos con `DB_ENV=testing` | aborta, código de salida 1 |
+| `npm run lint` | los 3 errores preexistentes, ninguno nuevo |
+
+**Queda fuera, para la 3.4**: `@playwright/test` está instalado pero sin configurar, y no hay script `e2e` todavía. Un script que apunta a un config que no existe solo sirve para confundir.
 
 ---
 
@@ -405,7 +465,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | Paso | Qué | Riesgo |
 |---|---|---|
 | ~~**P0**~~ | ~~Fase −1 y Fase 0: docstrings, Node, renombrado de entornos, backup, rama, Vercel, GitHub.~~ **Hecho.** | — |
-| **P1** | Andamiaje: devDeps, `vitest.config.ts`, `tests/setup/*`, Docker Compose, scripts, ESLint, y un test trivial que valide la tubería en Windows. **Cero cambios en `src/`.** | Nulo |
+| ~~**P1**~~ | ~~Andamiaje: devDeps, config de Vitest, `tests/setup/*`, scripts, ESLint, y un test que valide la tubería en Windows. **Cero cambios en `src/`.**~~ **Hecho.** Ver Fase 1 | — |
 | **P2** | Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales. | Bajo |
 | **P3** | Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar. | Bajo |
 | **P4** | Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto. | Alto en los dos últimos |
