@@ -5,7 +5,6 @@
   "scripts": {
     "dev": "next dev",
     "dev:testing": "dotenv -e .env.testing -- next dev",
-    "dev:academic": "dotenv -e .env.academic -- next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
@@ -20,15 +19,11 @@
     "db:reset": "prisma migrate reset",
     "db:whoami": "npx tsx scripts/db-whoami.ts",
     "db:whoami:testing": "dotenv -e .env.testing -- npx tsx scripts/db-whoami.ts",
-    "db:whoami:academic": "dotenv -e .env.academic -- npx tsx scripts/db-whoami.ts",
     "db:whoami:prod": "dotenv -e .env.production -- npx tsx scripts/db-whoami.ts",
     "db:deploy:testing": "dotenv -e .env.testing -- prisma migrate deploy",
-    "db:deploy:academic": "dotenv -e .env.academic -- prisma migrate deploy",
     "db:deploy:prod": "dotenv -e .env.production -- prisma migrate deploy",
-    "db:seed:academic": "dotenv -e .env.academic -- npx tsx prisma/seed.ts",
-    "db:studio:academic": "dotenv -e .env.academic -- prisma studio",
+    "db:studio:testing": "dotenv -e .env.testing -- prisma studio",
     "db:backup:testing": "dotenv -e .env.testing -- npx tsx scripts/backup-db.ts",
-    "db:backup:academic": "dotenv -e .env.academic -- npx tsx scripts/backup-db.ts",
     "db:backup:prod": "dotenv -e .env.production -- npx tsx scripts/backup-db.ts"
   },
   "engines": {

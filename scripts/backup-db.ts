@@ -11,7 +11,7 @@
  * identificador del proyecto Supabase, que no es secreto.
  *
  * Sirve para cualquier entorno: vuelca lo que diga el DATABASE_URL que esté cargado.
- *   npm run db:backup:prod        # o :testing, o :academic
+ *   npm run db:backup:prod        # o db:backup:testing
  *
  * El volcado se escribe en `backups/<DB_ENV>-<fecha>.json`, así que el nombre del
  * fichero dice de dónde salió y no se pueden confundir dos backups entre sí.

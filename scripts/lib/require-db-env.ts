@@ -13,16 +13,17 @@
  * no lo declare no debe colarse por defecto.
  */
 
-/** Los cinco entornos. Cada `.env.*` declara el suyo en `DB_ENV`. */
-export type DbEnv = "local" | "test" | "testing" | "academic" | "production";
+/**
+ * Los cuatro entornos. Cada `.env.*` declara el suyo en `DB_ENV`.
+ *
+ * No hay `academic`: la rama `academic` se despliega contra la MISMA base de datos que
+ * testing. Darle un nombre propio aquí sería mentir — un script destructivo lanzado
+ * "contra academic" escribiría en testing, que es un entorno compartido. Un nombre por
+ * base de datos, no por despliegue.
+ */
+export type DbEnv = "local" | "test" | "testing" | "production";
 
-const VALID: readonly DbEnv[] = [
-  "local",
-  "test",
-  "testing",
-  "academic",
-  "production",
-];
+const VALID: readonly DbEnv[] = ["local", "test", "testing", "production"];
 
 function isDbEnv(value: string): value is DbEnv {
   return (VALID as readonly string[]).includes(value);
@@ -45,7 +46,7 @@ function abort(expected: readonly DbEnv[], reason: string): never {
  * Devuelve el entorno detectado, para que el script pueda usarlo (por ejemplo en el
  * nombre de un fichero de salida).
  *
- *   const env = requireDbEnv("testing", "academic");
+ *   const env = requireDbEnv("local", "test");
  */
 export function requireDbEnv(...expected: DbEnv[]): DbEnv {
   const raw = (process.env.DB_ENV ?? "").trim();

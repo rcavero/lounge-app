@@ -360,7 +360,7 @@ async function aplicar(d: Diagnostico) {
   // renombrado se aplica en los tres—, pero impide lanzarlo con un entorno a ciegas.
   const dbEnv =
     modo === "apply"
-      ? requireDbEnv("local", "test", "testing", "academic", "production")
+      ? requireDbEnv("local", "test", "testing", "production")
       : ((process.env.DB_ENV ?? "").trim() || "sin declarar");
 
   console.log(`\n  Entorno (DB_ENV)  : ${dbEnv}`);

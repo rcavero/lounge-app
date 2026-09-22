@@ -32,9 +32,27 @@ Estado de partida, verificado:
 | Rama | Base de datos | Vercel | Redsys | Quién la toca |
 |---|---|---|---|---|
 | `main` | Supabase producción | Production | **producción (real)** | Nadie durante la entrega |
-| `testing` | Supabase testing, esquema `public` | Preview | sandbox | Nadie durante la entrega |
-| `academic` | Supabase testing, esquema **`academic`** | Preview | sandbox | **La única que se toca** |
-| local | Postgres en Docker | — | sandbox | Desarrollo y tests |
+| `testing` | Supabase testing | Preview | sandbox | Nadie durante la entrega |
+| `academic` | **la misma de testing** | Preview | sandbox | **La única rama que se toca** |
+| local | Postgres en Docker (`lounge_dev`) | — | sandbox | Desarrollo |
+| tests | Postgres en Docker (`lounge_test`) | — | sandbox | Vitest y Playwright |
+
+> **`academic` y `testing` comparten base de datos, y eso es deliberado.** El plan original
+> le daba a `academic` su propio esquema (`?schema=academic`) dentro del mismo proyecto
+> Supabase. La puerta de la Fase 0.2 lo tumbó: el pooler de Supavisor en modo transacción
+> reutiliza conexiones entre clientes, el `SET search_path` persiste en el backend, y una
+> conexión de testing acabó heredando el esquema `academic` —vacío— y rompiendo testing con
+> `42P01`. Detalle completo en la tarjeta 03.4 de Linear.
+>
+> Consecuencia de compartir base: **no hay `DB_ENV=academic`**. Hay un nombre de entorno por
+> base de datos, no por despliegue, porque si no un script destructivo lanzado "contra
+> academic" escribiría en testing sin avisar. Para trabajar en local contra esa base se usa
+> `npm run dev:testing`, se llame como se llame la rama que tengas activa.
+>
+> Consecuencia operativa: **`academic` no se siembra**. Nada de `db:seed` contra esa base —
+> crearía un usuario admin con contraseña conocida en un entorno compartido. Los eventos, las
+> reservas y los usuarios (ADMIN y WORKER) los crea Ramón a mano desde testing, y los renueva
+> periódicamente para que el proyecto tenga actividad cuando lo revisen.
 
 - `academic` **no sustituye** a `testing` en Vercel: cada rama genera su propio Preview deployment con su propia URL. Conviven.
 - **Nunca** se mergea `academic` hacia `testing` ni `main` mientras dure la entrega. Al terminar se decide qué se porta, y se porta a mano.
