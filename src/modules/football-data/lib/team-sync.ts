@@ -85,7 +85,7 @@ export function localLogoPath(teamId: string, extension: string): string {
   return `${LOCAL_LOGO_PREFIX}${teamId}.${extension}`;
 }
 
-interface TeamRow {
+export interface TeamRow {
   id: string;
   externalId: number | null;
   name: string;
@@ -103,7 +103,7 @@ interface TeamRow {
  * base de datos, justo el tipo de carga que agotó el pool de conexiones en el
  * incidente del 17/07/2026.
  */
-interface TeamIndex {
+export interface TeamIndex {
   byExternalId: Map<number, TeamRow>;
   /** Solo equipos sin externalId: son los candidatos a emparejar por nombre. */
   byNormalizedName: Map<string, TeamRow>;
@@ -122,6 +122,17 @@ async function loadTeamIndex(): Promise<TeamIndex> {
     },
   });
 
+  return buildTeamIndex(rows);
+}
+
+/**
+ * Construye el índice a partir de las filas ya leídas. Separado de la consulta para
+ * poder probar el emparejado sin base de datos.
+ *
+ * Las filas se indexan tal cual, sin copiarlas: planTeam las muta en memoria para que
+ * un equipo ya emparejado no vuelva a emparejarse en la misma ejecución.
+ */
+export function buildTeamIndex(rows: TeamRow[]): TeamIndex {
   const index: TeamIndex = {
     byExternalId: new Map(),
     byNormalizedName: new Map(),
@@ -154,7 +165,7 @@ function linkRow(index: TeamIndex, row: TeamRow, externalId: number): void {
   index.byExternalId.set(externalId, row);
 }
 
-interface PlannedUpdate {
+export interface PlannedUpdate {
   id: string;
   externalId: number;
   name: string;
@@ -163,7 +174,7 @@ interface PlannedUpdate {
   logoSource: string | null;
 }
 
-interface PlannedCreate extends PlannedUpdate {
+export interface PlannedCreate extends PlannedUpdate {
   league: string;
 }
 
@@ -178,10 +189,12 @@ interface PlannedCreate extends PlannedUpdate {
  * Team.id nunca se modifica: es la clave que referencian Event.homeTeamId y
  * Event.awayTeamId, y cambiarla huerfanizaría los eventos históricos.
  *
- * Devuelve null cuando la fila ya está como debe: escribir en ese caso serían
- * cientos de UPDATE sin efecto en cada ejecución del cron.
+ * Devuelve true si el equipo queda resuelto y false si no se ha podido emparejar y
+ * hay que crearlo. Resolverlo no implica escribir: si la fila ya está como debe, no se
+ * encola ningún update, porque serían cientos de UPDATE sin efecto en cada ejecución
+ * del cron.
  */
-function planTeam(
+export function planTeam(
   apiTeam: EspnTeam,
   index: TeamIndex,
   updates: PlannedUpdate[],
@@ -270,7 +283,7 @@ function planTeam(
 }
 
 /** Encola la creación de un equipo que no ha podido emparejarse con ninguno existente. */
-function planCreate(
+export function planCreate(
   apiTeam: EspnTeam,
   competition: Competition,
   index: TeamIndex,

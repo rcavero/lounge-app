@@ -88,7 +88,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * aparece listado en el mes anterior. El margen cuesta como mucho una petición
  * más y elimina el caso de borde.
  */
-function espnMonths(from: Date, to: Date): string[] {
+export function espnMonths(from: Date, to: Date): string[] {
   const months: string[] = [];
   const cursor = new Date(from.getTime() - DAY_MS);
   const last = new Date(to.getTime() + DAY_MS);
