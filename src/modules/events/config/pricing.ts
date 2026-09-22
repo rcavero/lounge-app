@@ -24,6 +24,17 @@ export function isValidManagementFeeCents(value: unknown): value is number {
   return typeof value === "number" && MANAGEMENT_FEE_OPTIONS_CENTS.includes(value);
 }
 
+/**
+ * Los gastos de gestión acaban en un cobro real, así que nunca se escribe lo que llega
+ * del cliente sin comprobarlo contra la lista de valores admitidos.
+ *
+ * Vive aquí y no en la server action porque en un fichero `"use server"` solo se pueden
+ * exportar funciones asíncronas, y esta tiene que poder testearse.
+ */
+export function safeManagementFeeCents(value: number | undefined): number {
+  return isValidManagementFeeCents(value) ? value : DEFAULT_MANAGEMENT_FEE_CENTS;
+}
+
 /** 150 → 1.5 */
 export function centsToEuros(cents: number): number {
   return cents / 100;
