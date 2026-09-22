@@ -23,6 +23,7 @@ import type { SyncResult, EspnTeam } from "../types";
  * que la query de reconciliación detecta) antes que emparejar mal dos equipos
  * distintos, lo que reasignaría eventos históricos al equipo equivocado.
  */
+// prettier-ignore
 const NAME_STOPWORDS = new Set([
   "fc", "cf", "afc", "ac", "sc", "cd", "ud", "rc", "rcd", "sd",
   "sad", "club", "de", "del", "la", "el", "los", "las",
@@ -146,7 +147,8 @@ async function loadTeamIndex(): Promise<TeamIndex> {
 /** Marca una fila como ya vinculada, para que no vuelva a emparejarse por nombre. */
 function linkRow(index: TeamIndex, row: TeamRow, externalId: number): void {
   for (const key of [normalizeTeamName(row.name), normalizeTeamName(row.shortName)]) {
-    if (key && index.byNormalizedName.get(key) === row) index.byNormalizedName.delete(key);
+    if (key && index.byNormalizedName.get(key) === row)
+      index.byNormalizedName.delete(key);
   }
   row.externalId = externalId;
   index.byExternalId.set(externalId, row);
@@ -182,7 +184,7 @@ interface PlannedCreate extends PlannedUpdate {
 function planTeam(
   apiTeam: EspnTeam,
   index: TeamIndex,
-  updates: PlannedUpdate[]
+  updates: PlannedUpdate[],
 ): boolean {
   const externalId = toIntId(apiTeam.id);
   if (externalId === null) return true; // sin id utilizable: se ignora
@@ -203,7 +205,7 @@ function planTeam(
     // los ~430 escudos con la URL de ESPN y deshacía toda la red de seguridad.
     // La URL remota sigue guardándose, pero en logoSource.
     const isLocal = row.logo?.startsWith(LOCAL_LOGO_PREFIX) ?? false;
-    const nextLogo = isLocal ? row.logo : logo ?? row.logo;
+    const nextLogo = isLocal ? row.logo : (logo ?? row.logo);
     const nextLogoSource = logo ?? row.logoSource;
 
     const unchanged =
@@ -272,7 +274,7 @@ function planCreate(
   apiTeam: EspnTeam,
   competition: Competition,
   index: TeamIndex,
-  creates: PlannedCreate[]
+  creates: PlannedCreate[],
 ): void {
   const externalId = toIntId(apiTeam.id);
   if (externalId === null) return;
@@ -323,7 +325,7 @@ const WRITE_BATCH_SIZE = 50;
 
 async function applyWrites(
   updates: PlannedUpdate[],
-  creates: PlannedCreate[]
+  creates: PlannedCreate[],
 ): Promise<void> {
   for (let i = 0; i < updates.length; i += WRITE_BATCH_SIZE) {
     const batch = updates.slice(i, i + WRITE_BATCH_SIZE);
@@ -338,8 +340,8 @@ async function applyWrites(
             logo: u.logo,
             logoSource: u.logoSource,
           },
-        })
-      )
+        }),
+      ),
     );
   }
 
@@ -375,11 +377,15 @@ export async function syncTeams(): Promise<SyncResult> {
   const responses = await Promise.all(
     ordered.map(async (competition) => {
       try {
-        return { competition, teams: await getCompetitionTeams(competition.code), error: null };
+        return {
+          competition,
+          teams: await getCompetitionTeams(competition.code),
+          error: null,
+        };
       } catch (error) {
         return { competition, teams: [] as EspnTeam[], error };
       }
-    })
+    }),
   );
 
   const updates: PlannedUpdate[] = [];
@@ -439,7 +445,7 @@ export async function syncTeams(): Promise<SyncResult> {
 
   console.log(
     `[sync] Terminado. Creados: ${result.created}, actualizados: ${result.updated}, ` +
-      `sin cambios: ${result.skipped}, errores: ${result.errors.length}`
+      `sin cambios: ${result.skipped}, errores: ${result.errors.length}`,
   );
   return result;
 }
