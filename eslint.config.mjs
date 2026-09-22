@@ -13,6 +13,20 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
   ]),
+  // Cliente generado por Prisma: no es código que escribamos ni que podamos arreglar.
+  globalIgnores(["src/generated/**"]),
+  {
+    name: "tests",
+    files: ["**/*.test.ts", "**/*.test.tsx", "tests/**/*.ts"],
+    rules: {
+      /**
+       * En un test, un `<a href="/eventos/1">` es el dato de entrada del componente
+       * que se está probando, no una navegación real de la aplicación. Sustituirlo por
+       * `<Link>` metería el router de Next en un test de jsdom a cambio de nada.
+       */
+      "@next/next/no-html-link-for-pages": "off",
+    },
+  },
 ]);
 
 export default eslintConfig;
