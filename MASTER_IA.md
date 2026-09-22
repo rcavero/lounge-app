@@ -1,29 +1,42 @@
 # Plan: preparar `lounge-app` como entrega de máster
 
-> **Estado:** plan cerrado, sin implementar.
-> **Fecha:** 21 de septiembre de 2026.
-> **Rama de trabajo:** `academic`. **`main` y `testing` no se tocan** (salvo la Fase −1, que son dos comentarios).
+> **Plan original: 21 de septiembre de 2026.**
+>
+> Las fases **−1, 0.1 y 0.2 están ejecutadas**, y lo que sigue describe **lo que realmente se
+> hizo**, que en varios puntos no fue lo planeado. De la **Fase 1 en adelante** el texto es el
+> plan tal como se concibió, sin tocar.
+>
+> El detalle de cada desvío, con su porqué y su verificación, está en las tarjetas del proyecto
+> **"Máster desarrollo software IA"** en Linear.
+>
+> **Rama de trabajo:** `academic`. **`main` y `testing` no se tocan.**
 
 ---
 
 ## Contexto
 
-`lounge-app` es una aplicación real en producción: reservas de asientos para un bar deportivo en Valencia, con cobro real por Redsys y ~325 reservas de clientes. Hay que entregarla como proyecto de un máster de desarrollo de software con IA, lo que exige tres cosas que hoy **no existen**: suite de tests, documentación profesional y una presentación.
+`lounge-app` es una aplicación real en producción: reservas de asientos para un bar deportivo en Valencia, con cobro real por Redsys. Hay que entregarla como proyecto de un máster de desarrollo de software con IA, lo que exige tres cosas que no existían: suite de tests, documentación profesional y una presentación.
 
-Estado de partida, verificado:
+Estado de partida el 21 de septiembre, verificado entonces:
 
-- **Cero tests, cero CI, cero `data-testid`.** `package.json` solo tiene `dev`, `build`, `start`, `lint` y los `db:*`.
+- **Cero tests, cero CI, cero `data-testid`.** `package.json` solo tenía `dev`, `build`, `start`, `lint` y los `db:*`.
 - La lógica de negocio vive dentro de server actions `"use server"`, mezclada con Prisma, con **duplicaciones literales** (importes, solape de eventos, títulos, resultado del pago).
-- 17 `.md` en la raíz (5.653 líneas), mezcla de documentación viva y planes ya ejecutados. El `README.md` está personalizado pero su bloque de variables sigue diciendo `DATABASE_URL="file:./dev.db"`, obsoleto desde la migración a Supabase.
-- 72 commits desde el 2026-01-27, de los cuales 70 con prefijo convencional.
-- Entorno local: Node **v22.11.0**, npm 11.6, Docker Desktop 29.5 instalado (daemon parado), remoto `github.com/rcavero/lounge-app`, sin `gh` CLI.
+- 17 `.md` en la raíz (5.653 líneas), mezcla de documentación viva y planes ya ejecutados.
+- 72 commits desde el 2026-01-27, 70 de ellos con prefijo convencional.
 
-**Hallazgos que se corrigen en `academic`** y que de paso justifican por qué se escriben los tests:
+**Hallazgos de partida y su estado actual:**
 
-- `src/modules/payments/actions/index.ts`: la comprobación de disponibilidad va **fuera** de la transacción y el `updateMany` de dentro no filtra por `status: "AVAILABLE"`. Dos clientes simultáneos sobre el mismo asiento pasan los dos. **Condición de carrera real sobre dinero, hoy en producción.**
-- `src/app/api/cron/cleanup/route.ts`: la variable `thirtyMinutesAgo` calcula 5 minutos. El comportamiento es correcto, el nombre miente.
-- Ventana de reservas: el código (`event-row.tsx:65-66`) usa **48h–4h**; `README.md` y `CLAUDE.md` dicen 48h–5h.
-- Código muerto sin ningún caller: `seating/components/seat.tsx` y `seat-map.tsx`, `shared/components/header.tsx` y `footer.tsx`, y `createReservation` en `reservations/actions`.
+| Hallazgo | Estado |
+|---|---|
+| `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Abierto.** Bug real en producción |
+| `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | Abierto, se corrige al extraer `domain/expiry.ts` (Fase 2) |
+| Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 7) |
+| Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | Abierto, se borra en la Fase 2 |
+
+**Hallazgos nuevos, aparecidos durante la ejecución:**
+
+- **`npm run lint` falla con 533 errores y 1761 avisos**, y ya fallaba igual en `main` antes de tocar nada. La Fase 6 planea `lint` como job bloqueante de CI: tal cual está, nunca se pondría verde. Hay que decidir entre arreglarlos, acotar la configuración o congelar la deuda con un baseline.
+- **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
 
 ---
 
@@ -37,184 +50,144 @@ Estado de partida, verificado:
 | local | Postgres en Docker (`lounge_dev`) | — | sandbox | Desarrollo |
 | tests | Postgres en Docker (`lounge_test`) | — | sandbox | Vitest y Playwright |
 
-> **`academic` y `testing` comparten base de datos, y eso es deliberado.** El plan original
-> le daba a `academic` su propio esquema (`?schema=academic`) dentro del mismo proyecto
-> Supabase. La puerta de la Fase 0.2 lo tumbó: el pooler de Supavisor en modo transacción
-> reutiliza conexiones entre clientes, el `SET search_path` persiste en el backend, y una
-> conexión de testing acabó heredando el esquema `academic` —vacío— y rompiendo testing con
-> `42P01`. Detalle completo en la tarjeta 03.4 de Linear.
+> **`academic` y `testing` comparten base de datos, y eso es deliberado.** El plan original le
+> daba a `academic` su propio esquema (`?schema=academic`). La puerta de la Fase 0.2 lo tumbó:
+> ver 0.4.
 >
-> Consecuencia de compartir base: **no hay `DB_ENV=academic`**. Hay un nombre de entorno por
-> base de datos, no por despliegue, porque si no un script destructivo lanzado "contra
-> academic" escribiría en testing sin avisar. Para trabajar en local contra esa base se usa
-> `npm run dev:testing`, se llame como se llame la rama que tengas activa.
+> Consecuencia: **no existe `DB_ENV=academic`**. Hay un nombre de entorno por base de datos, no
+> por despliegue, porque si no un script destructivo lanzado "contra academic" escribiría en
+> testing sin avisar. Para trabajar en local contra esa base se usa `npm run dev:testing`, se
+> llame como se llame la rama activa.
 >
 > Consecuencia operativa: **`academic` no se siembra**. Nada de `db:seed` contra esa base —
 > crearía un usuario admin con contraseña conocida en un entorno compartido. Los eventos, las
 > reservas y los usuarios (ADMIN y WORKER) los crea Ramón a mano desde testing, y los renueva
 > periódicamente para que el proyecto tenga actividad cuando lo revisen.
 
-- `academic` **no sustituye** a `testing` en Vercel: cada rama genera su propio Preview deployment con su propia URL. Conviven.
-- **Nunca** se mergea `academic` hacia `testing` ni `main` mientras dure la entrega. Al terminar se decide qué se porta, y se porta a mano.
-- Protección de rama en GitHub para `main` y `testing`: sin push directo, PR obligatorio. Es lo que convierte la regla en algo que no depende de acordarse.
+- `academic` **no sustituye** a `testing` en Vercel: cada rama genera su propio Preview con su propia URL. Conviven.
+- **Nunca** se mergea `academic` hacia `testing` ni `main` mientras dure la entrega.
+- Protección de rama en GitHub para `main` y `testing`.
 - En `academic` **jamás** entran las credenciales reales de CaixaBank, solo sandbox.
-- Vercel **no ejecuta crons en Preview**: en `academic` no se disparan solos, se llaman a mano con `CRON_SECRET`.
+- Vercel **no ejecuta crons en Preview**: en `academic` se llaman a mano con `CRON_SECRET`.
 
 ---
 
-## Fase −1 — Poner en orden `main` y `testing`
+## Fase −1 — Poner en orden `main` y `testing` · EJECUTADA
 
-Los ficheros `.env*` están en `.gitignore`: hay **un solo sistema de ficheros y no tienen rama**. En cuanto se renombre `.env`, la realidad deja de coincidir con las docstrings de las tres ramas a la vez. No se puede "renombrar solo en academic", así que esto va antes que nada.
+Los ficheros `.env*` están gitignorados: hay **un solo sistema de ficheros y no tienen rama**. En cuanto se renombrara `.env`, la realidad dejaría de coincidir con las docstrings de las tres ramas a la vez. No se podía "renombrar solo en academic", así que esto fue lo primero.
 
-El daño real, medido: **dos líneas de comentario en dos ficheros** — `scripts/backup-prod.ts:14` y `scripts/rename-seats.ts:18`. Todo lo demás que menciona `.env` son documentos históricos o lecturas de `process.env.X`, que no dependen del nombre del fichero.
+El daño real, medido antes de actuar: **dos líneas de comentario en dos ficheros**, `scripts/backup-prod.ts:14` y `scripts/rename-seats.ts:18`. Todo lo demás que mencionaba `.env` eran documentos históricos o lecturas de `process.env.X`, que no dependen del nombre del fichero.
 
-**El cambio:** que esas docstrings dejen de afirmar qué contiene cada fichero —que es lo que se queda obsoleto— y apunten al único gate que no miente:
+**Lo que se hizo.** Las docstrings dejaron de afirmar qué contiene cada fichero —que es lo que se queda obsoleto— y pasaron a apuntar al único gate que no miente: la primera línea de salida de esos scripts, que imprime el ref del proyecto Supabase realmente conectado.
 
-```
- *   Cargar explícitamente el entorno de producción (.env.production) y CONFIRMAR
- *   la primera línea de salida: debe imprimir el ref del proyecto de producción.
- *   Si dice "(ref no reconocido)", estás contra otra base de datos: aborta.
-```
+Desvío respecto al borrador: en `rename-seats.ts` **no se nombra ningún fichero**, porque ese script se usa contra los tres entornos. Su docstring ya no afirma nada que un renombrado pueda invalidar.
 
-Commit en `main` → `git cherry-pick` sobre `testing` → push de las dos. **Es la única excepción a "no se tocan", y es un commit de comentarios: cero líneas de código.** Si no se hace, la rama de producción queda documentando algo falso.
+Commit en `main`, cherry-pick sobre `testing`, push de las dos. **Única excepción a "no se tocan", y fue un commit de solo comentarios.**
 
-**Verificación, en este orden:**
+**Verificado:** el diff no contenía ni una línea de código, `npm run build` seguía pasando en `main`, y `db-whoami` contra producción imprimía su ref y sus conteos de siempre.
 
-1. `git diff main~1 main` — solo líneas que empiezan por `*` dentro de bloques `/** */`. Si aparece una línea de código, parar.
-2. `npm run build` en `main` — pasa igual que antes.
-3. `db-whoami` con `.env.production` — imprime el ref de producción y los conteos de siempre (~325 reservas). Ese es el examen que demuestra que producción sigue intacta.
-
-**Los documentos históricos no se tocan.** Los `PLAN_*.md` y `MIGRACION_*.md` que dicen "`.env` apunta a PRODUCCIÓN" se quedan como están en las tres ramas: son el registro de lo que era cierto cuando se escribieron, se leen antes de actuar y no ejecutan nada. En `academic` se mueven a `docs/historico/` **sin editar**, con una nota en el índice de la carpeta.
-
-**Red de seguridad que ya existe y conviene no romper:** los siete scripts que tocan la BD imprimen como primera línea `Proyecto Supabase : <ref>`, extraído con `/postgres\.([a-z0-9]+)/`. Una URL local no casa y sale `(ref no reconocido)` con todos los conteos a cero. El fallo es ruidoso por diseño.
+**Los documentos históricos no se tocaron.** Los `PLAN_*.md` y `MIGRACION_*.md` siguen como estaban: son el registro de lo que era cierto cuando se escribieron.
 
 ---
 
-## Fase 0 — Entornos aislados
+## Fase 0 — Entornos aislados · EJECUTADA
 
-### 0.1 Node
+### 0.1 Node — se fue a la 24, no a la 22
 
-Subir a la **Node 22 LTS actual (22.23.2)**. Verificado que nada se opone: Next 16 exige `>=20.9.0` y Prisma `>=18.18`. El motivo es higiene —la 22.11.0 no lleva los parches recientes—, y como consecuencia se puede usar el Vitest último sin pines raros. Añadir `.nvmrc`, `engines.node` en `package.json`, y subir `@types/node` de `^20` a `^22` (que coincida con el runtime; los tipos de 24 dejarían usar APIs que no existen en tu Node).
+**El plan estaba equivocado en su premisa.** Proponía subir a la Node 22 LTS por higiene. Al preguntar por la configuración de Vercel apareció que el proyecto **llevaba desde el principio en Node 24.x**, mientras la máquina de desarrollo corría 22.11: todo el proyecto se había escrito en una versión mayor distinta de la que sirve a los clientes.
 
-⚠️ Comprobar en Vercel que el proyecto no está fijado a Node 20.x, o chocará con `engines`.
+El ajuste que se iba a aplicar (`engines: ">=22.12.0 <23"`) habría **bajado producción de Node 24 a Node 22** en el siguiente despliegue de `main`. Se detuvo a tiempo.
 
-### 0.2 Renombrar los entornos
+**Lo que se hizo:** alinear local hacia arriba a **24.21.0**, no Vercel hacia abajo. `.nvmrc` con `24.21.0`, `engines.node` a `"24.x"` —que dice literalmente lo mismo que el panel de Vercel— y `@types/node` a `^24`. Un rango abierto como `">=22.12.0"` resolvía al mayor disponible: acertaba por accidente, sin decirlo.
 
-El problema de fondo no es la incantación `set -a && . ./.env.testing && set +a`, es que **`.env` apunta a producción y se carga solo**: `prisma.config.ts` hace `import "dotenv/config"` y Next carga `.env` en cada `next dev`. El caso por defecto es el peligroso. La corrección es invertir el defecto:
+Tras el cambio de versión mayor (ABI 127 → 137) se hizo `npm ci` limpio. Verificado: build, typecheck, los tres entornos y el servidor sirviendo contra la base local.
+
+### 0.2 Los entornos renombrados
+
+El problema de fondo no era la incantación `set -a && . ./.env.testing && set +a`, sino que **`.env` apuntaba a producción y se cargaba solo**: `prisma.config.ts` hace `import "dotenv/config"` y Next lo lee en cada `next dev`. El caso por defecto era el peligroso. Se invirtió:
 
 | Fichero | Apunta a | `DB_ENV` |
 |---|---|---|
-| `.env` | Postgres local de Docker, base `lounge_dev` | `local` |
-| `.env.test` | Postgres local de Docker, base `lounge_test` | `test` |
-| `.env.testing` | Supabase testing, esquema `public` *(no se toca)* | `testing` |
-| `.env.academic` | Supabase testing, esquema `academic` *(nuevo)* | `academic` |
-| `.env.production` | Supabase producción *(el `.env` de hoy, renombrado)* | `production` |
+| `.env` | Docker local, base `lounge_dev` | `local` |
+| `.env.test` | Docker local, base `lounge_test` | `test` |
+| `.env.testing` | Supabase testing *(sin tocar)* | `testing` |
+| `.env.production` | Supabase producción *(el `.env` de antes)* | `production` |
 
-No requiere tocar una línea de código y son ficheros de tu máquina. El peor accidente pasa de "he escrito en la base de datos del bar" a "he escrito en mi Postgres de usar y tirar".
+**Son cuatro, no cinco.** No hay `.env.academic`: comparte base con testing.
 
-**El guard**: cada fichero declara `DB_ENV`, y `scripts/lib/require-db-env.ts` expone `requireDbEnv(esperado)` que aborta si no coincide. Lo llaman solo los scripts destructivos (`rename-seats.ts apply`, `sync-reset.ts`) y el setup de los tests de integración, que exige `DB_ENV=test`. Son diez líneas y sustituyen al guard por expresión regular sobre la URL: más simple y más fiable.
+**El guard**: `scripts/lib/require-db-env.ts` expone `requireDbEnv(...)`, que aborta si el entorno cargado no es uno de los esperados. **Falla cerrado**: sin `DB_ENV` declarado también aborta. Probado con los tres casos.
+
+Lo llama `rename-seats.ts apply`. **`sync-reset.ts` no lo usa a propósito**: su `--confirm <project-ref>` ya obliga a teclear el proyecto concreto al que estás conectado, que es una comprobación más fuerte. Ponerle las dos habría sido sobreingeniería.
+
+`backup-prod.ts` pasó a `backup-db.ts` —sirve para cualquier entorno, el nombre mentía— y el volcado va ahora a `backups/<DB_ENV>-<fecha>.json`.
+
+`db-whoami` imprime ahora el `DB_ENV` autodeclarado primero y el destino real debajo: con una URL local decía "(ref no reconocido)", que era ruido justo en la herramienta que usas para no equivocarte de base.
+
+**`.gitignore`**: no hizo falta añadir nada para los entornos, ya tenía `.env*` con excepción de `.env.example`. Sí se amplió `backups/*.json` a **`backups/*`**: un `pg_dump` se llama `.dump` y la regla antigua no lo cubría — de hecho estuvo a punto de colarse uno en un commit.
 
 ### 0.3 Docker local
 
-Un solo `docker-compose.yml` con `postgres:17-alpine` en el puerto **5433**, volumen persistente, y un `initdb` de una línea que crea la segunda base:
+Un solo `docker-compose.yml` con `postgres:17-alpine` en el puerto **5433**, volumen persistente y un `initdb` de una línea que crea la segunda base. Dos bases en el mismo contenedor: `lounge_dev` para desarrollar y `lounge_test` para los tests, separadas para que la suite no borre los datos de trabajo.
 
-```sql
-CREATE DATABASE lounge_test;
-```
+**Confirmado empíricamente lo que el plan avisaba**: la base local se crea con `prisma migrate deploy` y **tiene la restricción `reservation_total_matches_breakdown`**. Ese `CHECK` vive como SQL crudo dentro de una migración y no está en `schema.prisma`, así que con `db push` no existiría y los tests de dinero pasarían en falso.
 
-Dos bases en el mismo contenedor: `lounge_dev` para desarrollar (persiste) y `lounge_test` para los tests (se trunca en cada test). Así la suite no te borra los datos con los que estabas trabajando.
+### 0.4 La puerta que tumbó el aislamiento por esquema
 
-### 0.4 Lo que haces tú, paso a paso
+El plan daba a `academic` su propio esquema dentro del proyecto Supabase de testing, con una prueba de humo previa para confirmar que el `search_path` se respetaba. **La prueba falló, y falló rompiendo testing.**
 
-**En tu máquina**
+Supavisor en modo transacción (puerto 6543) reutiliza conexiones de backend entre clientes. El `SET search_path` que Prisma emite al conectar con `?schema=academic` **persiste en ese backend**, y el pooler se lo entrega después a un cliente que no pidió ningún esquema. Una conexión de testing acabó con `search_path = {academic}` —un esquema vacío— y testing dejó de responder con `42P01 relation "_prisma_migrations" does not exist`.
 
-1. Instalar Node 22.23.2. `node -v` para confirmar.
-2. Hacer la Fase −1 completa (commit, cherry-pick, push, las tres verificaciones).
-3. `copy .env .env.production` y **comprobar la copia antes de tocar el original**: cargarla y lanzar `db-whoami`; debe imprimir el ref de producción.
-4. Solo entonces, reescribir `.env` con la BD local. `.env.testing` se queda tal cual.
+Detalle que despistó: por `psql` el pool se veía limpio, 20 de 20. Supavisor segrega pools por parámetros de arranque, así que `psql` y Prisma caen en pools distintos. **Hay que medir con el mismo cliente que sufre el problema.**
 
-**En Supabase (proyecto `lounge-app-testing`)**
+**Resolución:** esquema eliminado, `.env.academic` borrado, pool de Prisma saneado con 150 `SET search_path` sobre 25 conexiones en paralelo. Testing verificado 8 de 8 con sus conteos intactos. **Sin pérdida de datos**: el esquema nunca llegó a tener tablas. Producción nunca estuvo en riesgo — es otro proyecto, con su propio pooler.
 
-5. *SQL Editor* → `CREATE SCHEMA IF NOT EXISTS academic;`. Lo creamos a mano en vez de confiárselo a Prisma, para no depender de un comportamiento que habría que verificar.
-6. Crear `.env.academic` copiando `.env.testing` y añadiendo `?schema=academic` a `DATABASE_URL` **y** a `DIRECT_URL` (cuidado con el `&` si la URL ya lleva parámetros). Añadir `DB_ENV=academic`.
-7. **Prueba de humo que decide el plan — hazla antes de construir nada encima.** Cargar `.env.academic` y lanzar `db-whoami`:
-   - **0 en todos los conteos** → el `search_path` se respeta, el esquema está aislado, seguimos.
-   - **Aparecen los datos de testing** → el pooler está ignorando el `search_path`. Es un riesgo real del pooler en modo transacción.
-
-   El plan B **no es** usar la conexión directa para la app: ya te agotó el pool en julio de 2026. Sería un tercer proyecto Supabase, pausando uno si el plan gratuito no deja tener tres activos.
-8. `npm run db:deploy:academic` → crea las tablas dentro del esquema. Relanzar `db-whoami`: 5 migraciones listadas y 0 filas.
-
-**Copia de seguridad previa**
-
-9. Con Docker arrancado, volcar testing entero antes de nada:
-   ```
-   docker run --rm postgres:17-alpine pg_dump "<DIRECT_URL de testing>" -Fc > backups/testing-pre-academic-2026-09-21.dump
-   ```
-   Con `DIRECT_URL` (puerto 5432), no con el pooler: `pg_dump` necesita conexión directa. Comprobar que el fichero no pesa cero. Es un formato estándar que `pg_restore` sabe devolver; el JSON de `backup-db.ts` se queda como instantánea lógica rápida.
-
-**Rama y GitHub**
-
-10. `git switch -c academic testing`, commitear `MASTER_IA.md` ahí (ahora está suelto en `testing`), `git push -u origin academic`.
-11. GitHub → *Settings* → *Branches*: protección para `main` y `testing`, sin push directo, PR obligatorio.
-
-**Vercel**
-
-12. *Settings* → *Environment Variables*: por cada una de `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `CRON_SECRET`, `REDSYS_ENV`, `REDSYS_MERCHANT_CODE`, `REDSYS_TERMINAL`, `REDSYS_SECRET_KEY` → entorno **Preview**, *Custom branch* = `academic`. Sin esto la preview arranca sin base de datos.
-13. **`NEXT_PUBLIC_BASE_URL` se deja sin definir** en academic: `src/lib/base-url.ts` cae a `VERCEL_BRANCH_URL`, que es estable por rama, y así las URLs de vuelta de Redsys apuntan solas al sitio correcto.
-14. `REDSYS_*` solo sandbox.
-15. *Deployment Protection*: confirmar que las previews no están detrás de autenticación de Vercel, o Redsys no puede llamar al webhook y nadie puede abrir el enlace que enseñes.
-
-**Poblar academic**
-
-16. `npm run db:seed:academic` (47 asientos + admin), lanzar el sync de ESPN para traer equipos y escudos, y crear tres eventos a mano para la demo. Mejor esto que un script de restauración: menos código, y de paso demuestra que el sync funciona.
+**Decisión final:** `academic` comparte la base de testing, sin parámetro `schema`. Precisamente por no mezclar esquemas, la filtración no puede repetirse.
 
 ### 0.5 Scripts de `package.json`
 
-**Sin sufijo = local. Con sufijo = remoto y explícito.** Nada remoto es nunca el defecto, y se ve de un vistazo qué comando puede tocar qué.
+**Sin sufijo = local. Con sufijo = remoto y explícito.** Nada remoto es nunca el defecto.
 
-```json
-"dev":                "next dev",
-"dev:testing":        "dotenv -e .env.testing  -- next dev",
-"dev:academic":       "dotenv -e .env.academic -- next dev",
-
-"typecheck":          "tsc --noEmit",
-"format":             "prettier --write .",
-"format:check":       "prettier --check .",
-
-"db:up":              "docker compose up -d --wait",
-"db:down":            "docker compose down",
-"db:migrate":         "prisma migrate dev",
-"db:seed":            "tsx prisma/seed.ts",
-"db:studio":          "prisma studio",
-"db:whoami":          "tsx scripts/db-whoami.ts",
-
-"db:whoami:testing":  "dotenv -e .env.testing    -- tsx scripts/db-whoami.ts",
-"db:whoami:academic": "dotenv -e .env.academic   -- tsx scripts/db-whoami.ts",
-"db:whoami:prod":     "dotenv -e .env.production -- tsx scripts/db-whoami.ts",
-
-"db:deploy:testing":  "dotenv -e .env.testing    -- prisma migrate deploy",
-"db:deploy:academic": "dotenv -e .env.academic   -- prisma migrate deploy",
-"db:deploy:prod":     "dotenv -e .env.production -- prisma migrate deploy",
-
-"db:seed:academic":   "dotenv -e .env.academic   -- tsx prisma/seed.ts",
-"db:studio:academic": "dotenv -e .env.academic   -- prisma studio",
-
-"db:backup:testing":  "dotenv -e .env.testing    -- tsx scripts/backup-db.ts",
-"db:backup:academic": "dotenv -e .env.academic   -- tsx scripts/backup-db.ts",
-"db:backup:prod":     "dotenv -e .env.production -- tsx scripts/backup-db.ts",
-
-"test":               "vitest run --project unit --project ui",
-"test:watch":         "vitest --project unit --project ui",
-"test:coverage":      "vitest run --project unit --project ui --coverage",
-"test:integration":   "dotenv -e .env.test -- vitest run --project integration",
-"e2e":                "dotenv -e .env.test -- playwright test",
-"e2e:ui":             "dotenv -e .env.test -- playwright test --ui",
-"build:e2e":          "dotenv -e .env.test -- npm run build",
-"start:e2e":          "dotenv -e .env.test -- next start -p 3100",
-"ci:local":           "npm run lint && npm run typecheck && npm run test && npm run test:integration"
+```
+dev  dev:testing
+typecheck  lint  build  start
+db:up  db:down                                      → Docker
+db:migrate  db:deploy  db:push  db:seed  db:studio  → local
+db:whoami          + :testing  :prod
+db:deploy:testing    :prod
+db:studio:testing
+db:backup:testing    :prod
 ```
 
-Renombrar `scripts/backup-prod.ts` → `scripts/backup-db.ts`: es agnóstico del entorno (solo lee lo que diga `DATABASE_URL`) y el nombre actual miente.
+No hay variantes `:academic`: serían un segundo nombre para la misma base de datos. Los scripts de test llegan en la Fase 1, junto con Vitest y Playwright.
+
+### 0.6 Las dos fugas de seguridad que aparecieron al auditar
+
+Antes de considerar publicar el repositorio se auditaron los 72 commits. Aparecieron dos cosas, **ninguna introducida por este trabajo**:
+
+1. **El `AUTH_SECRET` de producción, en texto plano**, en `MIGRACION_SUPABASE.md` y `MIGRACION_SUPABASE_3_ENTORNOS.md`, commiteado desde marzo. Por comparación exacta, era **el valor vivo** de testing y producción: permitía forjar una cookie de sesión de administrador sin conocer ninguna contraseña. Y testing y producción **compartían el mismo valor**.
+2. **`backups/dev.db.backup.20260202_232141`**, SQLite con 14 correos y 4 hashes bcrypt, trackeado desde febrero.
+
+El resto salió limpio: sin JWT ni claves de Supabase, sin claves PEM, y todas las URLs de Postgres con `[PASSWORD]` de marcador.
+
+**Resolución.** Una pasada de `git filter-repo`: el secreto sustituido por `***REMOVED***` en todos los commits —conservando los documentos íntegros como registro de decisiones— y el backup SQLite purgado entero. Force-push a las **cuatro** ramas (`main`, `testing`, `academic`, `dev`; `dev` se escapó en el primer intento y lo pilló la verificación). Después se **rotó el `AUTH_SECRET`**, con valores independientes para testing y producción.
+
+**Todos los SHA desde `b46f5ba` (30 de marzo) cambiaron.** Cualquier hash de commit citado en documentos anteriores ya no existe.
+
+Queda un residual anotado: un force-push no borra los objetos de GitHub de inmediato, así que los commits viejos pueden seguir sirviéndose por su SHA directo hasta que pase el recolector. Con el secreto rotado ya no abre ninguna puerta, pero conviene resolverlo antes de hacer público el repositorio.
+
+### 0.7 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| Los tres entornos con destinos distintos | local `lounge_dev` · testing `tdkiretm…` · producción `vxfvfuqm…` |
+| `BASE_URL` de cada despliegue | cada uno devuelve a su propio dominio |
+| `academic`: home, `/admin`, cron sin secreto | 200 · 307 a login · **401** |
+| Acceso público a la preview | sí, sin login de Vercel |
+| **Pago completo en `academic`** | `CONFIRMED`/`COMPLETED`, invariante del dinero OK, recibo con autorización y fecha, asientos en `OCCUPIED` |
+
+Ese último cierra el camino que **no se puede probar en local**, porque Redsys no alcanza `localhost`: navegador → Redsys → notificación firmada → webhook → confirmación y ocupación de asientos en una transacción → recibo.
+
+De paso quedó comprobado que **el recibo lleva funcionando en producción desde principios de septiembre**: 7 de 111 reservas confirmadas lo tienen completo, las demás son anteriores al despliegue de la funcionalidad. Los códigos de autorización reales llegan **alfanuméricos** (`U6N2PG`), no solo numéricos como en el sandbox.
 
 ---
 
