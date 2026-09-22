@@ -208,7 +208,7 @@ Dos detalles que se olvidan y cuestan una tarde:
 - **`process.env.TZ ??= "Europe/Madrid"` al principio del config**, antes de que arranque ningún worker: `monthRange` usa constructores de fecha **locales**, así que sin fijar el huso los tests de informes pasan aquí y fallan en CI (UTC).
 - **Ningún `*.test.ts` bajo `src/app/`**: el App Router escanea ese árbol para descubrir rutas. Los tests de handlers van en `tests/integration/`, importando `{ POST } from "@/app/api/payments/notify/route"`.
 
-Imports explícitos desde `vitest`, sin `globals`. `eslint.config.mjs` necesita un bloque para los ficheros de test. Al `.gitignore`: `/test-results`, `/playwright-report`, `/tests/e2e/.auth`, `/tests/e2e/.artifacts`, `.env.test`, `.env.academic`, `.env.production`.
+Imports explícitos desde `vitest`, sin `globals`. `eslint.config.mjs` necesita un bloque para los ficheros de test. Al `.gitignore` solo hay que añadir los artefactos de test —`/test-results`, `/playwright-report`, `/tests/e2e/.auth`, `/tests/e2e/.artifacts`—: los ficheros de entorno ya los cubre la regla `.env*` que existía.
 
 **Husky + lint-staged**: pre-commit ejecuta `lint-staged` (prettier + eslint sobre lo tocado) y `typecheck`. Nada de correr la suite entera en cada commit.
 
@@ -404,7 +404,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 
 | Paso | Qué | Riesgo |
 |---|---|---|
-| **P0** | Fase −1 y Fase 0 completas: docstrings, Node, renombrado de entornos, esquema `academic`, backup, rama, Vercel, GitHub. | Bajo, pero es donde se toca producción |
+| ~~**P0**~~ | ~~Fase −1 y Fase 0: docstrings, Node, renombrado de entornos, backup, rama, Vercel, GitHub.~~ **Hecho.** | — |
 | **P1** | Andamiaje: devDeps, `vitest.config.ts`, `tests/setup/*`, Docker Compose, scripts, ESLint, y un test trivial que valide la tubería en Windows. **Cero cambios en `src/`.** | Nulo |
 | **P2** | Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales. | Bajo |
 | **P3** | Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar. | Bajo |
@@ -423,7 +423,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 3. **Probar el guard a propósito, una vez**: lanzar la integración con `.env.production` cargado debe **abortar** por `DB_ENV`. Si no aborta, parar todo y arreglarlo antes de seguir.
 4. `npm run test:coverage` — la capa de dominio por encima del umbral.
 5. `npm run e2e` — en verde; revisar el reporte HTML.
-6. CI verde en el primer push a `academic`, y un despliegue de preview vacío en P0 para confirmar que Vercel sigue construyendo antes de acumular cambios.
+6. CI verde en el primer push a `academic`.
 7. `git diff testing...academic -- src/` revisado entero: ni un cambio de comportamiento no intencionado.
 
 ### Lo que hay que verificar a mano, sin excusa
@@ -441,8 +441,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 
 | Riesgo | Por qué existe | Mitigación |
 |---|---|---|
-| El pooler de Supabase ignora el `search_path` | Modo transacción es restrictivo con los parámetros de conexión | **La prueba de humo del paso 7 de la Fase 0**, antes de construir nada encima. Plan B: tercer proyecto Supabase, nunca la conexión directa para la app |
-| Un `migrate` o `TRUNCATE` contra **producción** | Había un defecto implícito que apuntaba a producción | Invertir el defecto (`.env` = local), `DB_ENV` en cada fichero, `requireDbEnv()` en los scripts destructivos, y el entorno siempre en el nombre del script |
+| Un `migrate` o `TRUNCATE` contra **producción** | Hay cuatro entornos y se eligen a mano | **Ya mitigado en la Fase 0**: `.env` apunta a local, cada fichero declara `DB_ENV`, `requireDbEnv()` aborta en los scripts destructivos y el entorno va siempre en el nombre del script. Mantenerlo así al añadir scripts nuevos |
 | El refactor de importes mueve un céntimo | Es dinero, con reservas reales ya cobradas | Caracterización antes de mover; diff literal de la expresión; invariante `totalPrice*100 = (seat+fee)*n`; pago real de prueba antes y después |
 | Se "unifican" los `where` de confirmar y cancelar | Parecen iguales y no lo son | El escenario 8 de integración |
 | **La carrera de asientos es un bug real de producción** | El chequeo va fuera de la transacción | Arreglarlo en `academic` es correcto, pero decidir **aparte** si se porta a `main` como hotfix: afecta a clientes reales |
@@ -450,6 +449,5 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | El `Map` de `rate-limit` filtra entre tests | Estado de módulo compartido en el proceso | `vi.resetModules()` + import dinámico por test |
 | El E2E se cuelga en `/admin/asientos` | `window.alert` nativo bloqueante | `page.on("dialog", …)` **antes** del clic |
 | `src/generated/prisma` no existe en CI | Está gitignoreado | `npx prisma generate` en los dos jobs |
-| Las previews de Vercel están protegidas | Deployment Protection activada por defecto en algunos planes | Comprobarlo en el paso 15 de la Fase 0: si no, Redsys no puede llamar al webhook |
-| Docker Desktop parado | Está instalado pero el daemon no corre | El script hace `docker info` primero y falla con un mensaje claro. En CI no aplica |
+| Docker Desktop parado | Los tests de integración y E2E van contra el contenedor local | `npm run db:up` falla con un mensaje claro si el daemon no corre. En CI no aplica: usa `services: postgres` |
 | Mover 13 `.md` genera un diff enorme | `git mv` masivo | Commit propio y separado |
