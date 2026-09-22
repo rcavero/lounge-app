@@ -31,9 +31,9 @@ Estado de partida, verificado:
 
 | Rama | Base de datos | Vercel | Redsys | Quién la toca |
 |---|---|---|---|---|
-| `main` | Supabase producción | Production | **producción (real)** | Nadie durante la entrega |
-| `testing` | Supabase testing | Preview | sandbox | Nadie durante la entrega |
-| `academic` | **la misma de testing** | Preview | sandbox | **La única rama que se toca** |
+| `main` | Supabase producción | Production → `lounge-app-neon.vercel.app` | **producción (real)** | Nadie durante la entrega |
+| `testing` | Supabase testing | Preview → `lounge-app-titanium.vercel.app` | sandbox | Nadie durante la entrega |
+| `academic` | **la misma de testing** | Preview → `lounge-app-academic.vercel.app` | sandbox | **La única rama que se toca** |
 | local | Postgres en Docker (`lounge_dev`) | — | sandbox | Desarrollo |
 | tests | Postgres en Docker (`lounge_test`) | — | sandbox | Vitest y Playwright |
 
