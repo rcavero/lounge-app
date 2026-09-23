@@ -1,5 +1,9 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import {
+  eventRetentionCutoff,
+  pendingExpiryCutoff,
+} from "@/modules/reservations/domain/expiry";
 
 export async function GET(request: Request) {
   // Verify the request is from Vercel Cron or has the correct secret
@@ -12,19 +16,19 @@ export async function GET(request: Request) {
 
   try {
     const now = new Date();
-    const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
-    const thirtyMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const retentionCutoff = eventRetentionCutoff(now);
+    const pendingCutoff = pendingExpiryCutoff(now);
 
     // Delete events older than 90 days (cascade removes reservations + seatStatuses)
     const deletedEvents = await prisma.event.deleteMany({
-      where: { eventDate: { lt: ninetyDaysAgo } },
+      where: { eventDate: { lt: retentionCutoff } },
     });
 
     // Expire PENDING reservations older than 5 minutes and release their seats
     const expiredReservations = await prisma.reservation.findMany({
       where: {
         status: "PENDING",
-        createdAt: { lt: thirtyMinutesAgo },
+        createdAt: { lt: pendingCutoff },
       },
       select: {
         id: true,
@@ -53,7 +57,7 @@ export async function GET(request: Request) {
       success: true,
       deletedEvents: deletedEvents.count,
       expiredReservations: expiredCount,
-      cutoffDate: ninetyDaysAgo.toISOString(),
+      cutoffDate: retentionCutoff.toISOString(),
     });
   } catch (error) {
     console.error("Cleanup cron error:", error);

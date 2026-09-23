@@ -6,6 +6,7 @@ import type { SeatStatusType } from "@/generated/prisma";
 import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
+import { pendingExpiryCutoff } from "@/modules/reservations/domain/expiry";
 
 async function getOverlappingEventIds(
   excludeEventId: string,
@@ -24,9 +25,9 @@ async function getOverlappingEventIds(
 }
 
 async function expireStaleReservations(eventId: string): Promise<void> {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const expiryCutoff = pendingExpiryCutoff();
   const stale = await prisma.reservation.findMany({
-    where: { eventId, status: "PENDING", createdAt: { lt: fiveMinutesAgo } },
+    where: { eventId, status: "PENDING", createdAt: { lt: expiryCutoff } },
     select: { id: true, seatStatuses: { select: { seatId: true } } },
   });
   for (const reservation of stale) {
