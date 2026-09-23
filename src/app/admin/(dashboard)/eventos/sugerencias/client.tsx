@@ -93,7 +93,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
     try {
       const result = await syncTeamsFromAPI();
       setSyncResult(result);
-    } catch (err) {
+    } catch {
       setError("Error al sincronizar equipos. Inténtalo de nuevo en unos minutos.");
     } finally {
       setIsSyncing(false);
@@ -108,7 +108,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       const code = selectedCompetition || undefined;
       const results = await getMatchSuggestions(code);
       setSuggestions(results);
-    } catch (err) {
+    } catch {
       setError("Error al obtener partidos. Inténtalo de nuevo en unos minutos.");
     } finally {
       setIsLoadingMatches(false);
@@ -138,7 +138,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       } else {
         setError(result.error || "Error al crear el evento");
       }
-    } catch (err) {
+    } catch {
       setError("Error al crear el evento");
     } finally {
       setCreatingMatchId(null);

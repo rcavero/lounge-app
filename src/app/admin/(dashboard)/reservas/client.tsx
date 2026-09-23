@@ -9,7 +9,6 @@ import { EventRowWithBadge } from "@/modules/events/components/event-row-with-ba
 import type {
   EventWithReservationCount,
   ReportMonth,
-  MonthlyReportEvent,
 } from "@/modules/reservations/actions";
 import { getMonthlyReportData } from "@/modules/reservations/actions";
 

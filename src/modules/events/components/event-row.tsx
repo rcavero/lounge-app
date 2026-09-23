@@ -9,6 +9,7 @@ import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
 import { CompetitionEmblem } from "./competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
+import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
 
 interface EventRowProps {
   event: EventWithTeams;
@@ -44,11 +45,18 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
   const eventDate = new Date(event.eventDate);
   const activeScreens = getActiveScreens(event);
   const [tooltip, setTooltip] = useState<string | null>(null);
-  const [isSpanish, setIsSpanish] = useState(true);
+  const isSpanish = useIsSpanish();
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * El reloj se lee UNA vez, al montar, y no en cada render: `Date.now()` en el cuerpo
+   * del componente es impuro (`react-hooks/purity`), y dos renders podían decidir
+   * distinto si el evento está en ventana. Con el inicializador perezoso de `useState`,
+   * lo que se ve al abrir la portada no cambia hasta recargarla.
+   */
+  const [now] = useState(() => Date.now());
+
   useEffect(() => {
-    setIsSpanish(navigator.language.startsWith("es"));
     return () => {
       if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
     };
@@ -63,10 +71,7 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
   const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
   // Availability check
-  // Deuda heredada (MASTER_IA, 1.4), silenciada en P5 para poder commitear este
-  // fichero; se arregla en P6, antes de que el lint de CI sea bloqueante.
-  // eslint-disable-next-line react-hooks/purity
-  const hoursUntilEvent = (eventDate.getTime() - Date.now()) / (1000 * 60 * 60);
+  const hoursUntilEvent = (eventDate.getTime() - now) / (1000 * 60 * 60);
   const isTooEarly = checkAvailability && hoursUntilEvent > 48;
   const isTooLate = checkAvailability && hoursUntilEvent >= 0 && hoursUntilEvent < 4;
   const isLocked = isTooEarly || isTooLate;

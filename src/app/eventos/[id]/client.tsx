@@ -11,6 +11,7 @@ import { formatEuros } from "@/lib/utils";
 import { centsToEuros } from "@/modules/events/config/pricing";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
 import { useReservationStore } from "@/shared/hooks";
+import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
 import { initializePayment } from "@/modules/payments/actions";
 import {
   CUSTOMER_NAME_MAX_LENGTH,
@@ -53,7 +54,7 @@ export function EventReservationClient({
   const [showNameModal, setShowNameModal] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
-  const [isSpanish, setIsSpanish] = useState(true);
+  const isSpanish = useIsSpanish();
   const redsysFormRef = useRef<HTMLFormElement>(null);
 
   // Initialize store with event and seats data
@@ -65,14 +66,6 @@ export function EventReservationClient({
       clearSelection();
     };
   }, [event, seats, setEvent, setSeatsData, clearSelection]);
-
-  // Detect browser language
-  useEffect(() => {
-    // Deuda heredada (MASTER_IA, 1.4), silenciada en P5 para poder commitear este
-    // fichero; se arregla en P6, antes de que el lint de CI sea bloqueante.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIsSpanish(navigator.language.startsWith("es"));
-  }, []);
 
   const eventDate = new Date(event.eventDate);
   const totalPrice = getTotalPrice();
@@ -192,7 +185,6 @@ export function EventReservationClient({
   const awayShort = event.awayTeam?.shortName ?? event.awayTeamName ?? "";
   const homeCode = homeShort.substring(0, 3).toUpperCase();
   const awayCode = awayShort.substring(0, 3).toUpperCase();
-  const matchCode = awayCode ? `${homeCode} vs ${awayCode}` : homeCode;
 
   // Format date: "Mié 15 Ene • 20:00"
   const dayName = format(eventDate, "EEE", { locale: es });
