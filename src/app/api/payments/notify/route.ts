@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const isSuccess = isResponseCodeOk(result.Ds_Response);
 
     console.log(
-      `[Payment notify] orderId=${orderId} response=${result.Ds_Response} success=${isSuccess}`
+      `[Payment notify] orderId=${orderId} response=${result.Ds_Response} success=${isSuccess}`,
     );
 
     const reservation = await prisma.reservation.findFirst({
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const expectedCents = Math.round(Number(reservation.totalPrice) * 100);
     if (Number(result.Ds_Amount) !== expectedCents) {
       console.error(
-        `[Payment notify] IMPORTE DISCREPANTE orderId=${orderId} redsys=${result.Ds_Amount} esperado=${expectedCents}`
+        `[Payment notify] IMPORTE DISCREPANTE orderId=${orderId} redsys=${result.Ds_Amount} esperado=${expectedCents}`,
       );
     }
 

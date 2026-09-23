@@ -10,10 +10,7 @@ import {
   PAY_METHODS,
   generateOrderId,
 } from "@/lib/redsys";
-import {
-  normalizeCustomerName,
-  validateCustomerName,
-} from "../lib/customer-name";
+import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
 export async function initializePayment(data: {
@@ -226,7 +223,7 @@ export async function cancelReservationByOrderId(orderId: string): Promise<void>
 }
 
 export async function getReservationByOrderId(
-  orderId: string
+  orderId: string,
 ): Promise<ReservationTicketData | null> {
   const reservation = await prisma.reservation.findFirst({
     where: { paymentId: orderId },
@@ -249,8 +246,10 @@ export async function getReservationByOrderId(
     id: reservation.id,
     eventId: reservation.eventId,
     customerName: reservation.customerName,
-    homeTeamName: reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
-    awayTeamName: reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
+    homeTeamName:
+      reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
+    awayTeamName:
+      reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
     eventDate: reservation.event.eventDate.toISOString(),
     seats: reservation.seatStatuses.map((ss) => ({
       id: ss.seat.id,

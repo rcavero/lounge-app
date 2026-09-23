@@ -98,9 +98,7 @@ export async function createReservation(data: {
       },
     });
 
-    const unavailableSeats = seatStatuses.filter(
-      (ss) => ss.status !== "AVAILABLE"
-    );
+    const unavailableSeats = seatStatuses.filter((ss) => ss.status !== "AVAILABLE");
 
     if (unavailableSeats.length > 0) {
       return {
@@ -178,7 +176,9 @@ export async function createReservation(data: {
 }
 
 // Get all events with reservation counts
-export async function getEventsWithReservationCount(): Promise<EventWithReservationCount[]> {
+export async function getEventsWithReservationCount(): Promise<
+  EventWithReservationCount[]
+> {
   await requireAuth();
   const events = await prisma.event.findMany({
     where: {
@@ -306,8 +306,18 @@ export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
   // Group events by month
   const monthsMap = new Map<string, { year: number; month: number; count: number }>();
   const monthNames = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
+    "Enero",
+    "Febrero",
+    "Marzo",
+    "Abril",
+    "Mayo",
+    "Junio",
+    "Julio",
+    "Agosto",
+    "Septiembre",
+    "Octubre",
+    "Noviembre",
+    "Diciembre",
   ];
 
   for (const event of events) {
@@ -340,7 +350,10 @@ export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
 }
 
 // Get monthly report data for PDF generation
-export async function getMonthlyReportData(year: number, month: number): Promise<MonthlyReportEvent[]> {
+export async function getMonthlyReportData(
+  year: number,
+  month: number,
+): Promise<MonthlyReportEvent[]> {
   await requireAuth();
   const startDate = new Date(year, month, 1);
   const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);

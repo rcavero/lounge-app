@@ -9,7 +9,7 @@ import { requireAuth } from "@/lib/auth-guard";
 async function getOverlappingEventIds(
   excludeEventId: string,
   eventDate: Date,
-  durationMinutes: number
+  durationMinutes: number,
 ): Promise<string[]> {
   const eventStart = eventDate.getTime();
   const eventEnd = eventStart + durationMinutes * 60 * 1000;
@@ -78,7 +78,11 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
 
   // If event exists, also check overlapping events
   if (event) {
-    const overlappingIds = await getOverlappingEventIds(eventId, event.eventDate, event.durationMinutes);
+    const overlappingIds = await getOverlappingEventIds(
+      eventId,
+      event.eventDate,
+      event.durationMinutes,
+    );
 
     if (overlappingIds.length > 0) {
       const overlappingStatuses = await prisma.seatStatus.findMany({
@@ -127,13 +131,13 @@ export async function initializeSeatsForEvent(eventId: string): Promise<void> {
   });
 }
 
-export async function getSeatsByZone(eventId: string, zone: string): Promise<SeatWithStatus[]> {
+export async function getSeatsByZone(
+  eventId: string,
+  zone: string,
+): Promise<SeatWithStatus[]> {
   const seats = await prisma.seat.findMany({
     where: { zone: zone as "PROJECTOR" | "TV1" | "TV2" },
-    orderBy: [
-      { row: "asc" },
-      { number: "asc" },
-    ],
+    orderBy: [{ row: "asc" }, { number: "asc" }],
   });
 
   const seatStatuses = await prisma.seatStatus.findMany({
@@ -163,7 +167,7 @@ export async function getAllSeats() {
 
 // Update seat positions (admin function)
 export async function updateSeatPositions(
-  positions: { id: string; posX: number; posY: number }[]
+  positions: { id: string; posX: number; posY: number }[],
 ): Promise<void> {
   await requireAuth();
   // Update each seat position
@@ -175,15 +179,15 @@ export async function updateSeatPositions(
           posX: pos.posX,
           posY: pos.posY,
         },
-      })
-    )
+      }),
+    ),
   );
 }
 
 // Block/unblock seats for a specific event
 export async function saveBlockedSeats(
   eventId: string,
-  seatIdsToBlock: string[]
+  seatIdsToBlock: string[],
 ): Promise<{ success: boolean; error?: string }> {
   await requireAuth();
   try {
@@ -236,9 +240,7 @@ export async function getZoneLabels(): Promise<ZoneLabelConfig[]> {
 }
 
 // Update zone labels configuration (admin function)
-export async function updateZoneLabels(
-  labels: ZoneLabelConfig[]
-): Promise<void> {
+export async function updateZoneLabels(labels: ZoneLabelConfig[]): Promise<void> {
   await requireAuth();
   await Promise.all(
     labels.map((label) =>
@@ -257,8 +259,7 @@ export async function updateZoneLabels(
           scaleX: label.scaleX,
           rotation: label.rotation,
         },
-      })
-    )
+      }),
+    ),
   );
 }
-

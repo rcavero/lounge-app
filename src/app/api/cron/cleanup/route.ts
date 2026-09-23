@@ -57,9 +57,6 @@ export async function GET(request: Request) {
     });
   } catch (error) {
     console.error("Cleanup cron error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
   }
 }
