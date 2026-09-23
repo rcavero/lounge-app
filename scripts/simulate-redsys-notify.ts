@@ -20,8 +20,8 @@
  */
 
 import "dotenv/config";
-import { serializeAndSignJSONRequest } from "redsys-easy";
 import { PrismaClient } from "../src/generated/prisma";
+import { signRedsysNotification, toFormBody } from "./lib/redsys-notification";
 
 const TARGET = "http://localhost:3000/api/payments/notify";
 
@@ -91,30 +91,20 @@ async function main() {
 
   const isOk = outcome !== "ko";
 
-  const params = {
-    // El firmante de redsys-easy busca el pedido en DS_MERCHANT_ORDER, mientras que el
-    // verificador lo lee de Ds_Order. Hay que mandar las dos claves: la de más es inocua
-    // porque la firma se calcula sobre la cadena base64 completa.
-    DS_MERCHANT_ORDER: orderId,
-    Ds_Order: orderId,
-    Ds_MerchantCode: merchantCode,
-    Ds_Terminal: terminal,
-    Ds_TransactionType: "0",
-    Ds_Currency: "978",
-    Ds_Amount: amountInCents,
-    Ds_Response: isOk ? "0000" : "0190",
-    Ds_Date: dsDate,
-    Ds_Hour: dsHour,
-    ...(isOk ? { Ds_AuthorisationCode: "123456" } : {}),
-  };
-
-  const signed = serializeAndSignJSONRequest(secretKey, params);
-
-  const body = new URLSearchParams({
-    Ds_SignatureVersion: signed.Ds_SignatureVersion,
-    Ds_MerchantParameters: signed.Ds_MerchantParameters,
-    Ds_Signature: signed.Ds_Signature,
-  });
+  // La firma vive en scripts/lib para que los tests de integración firmen exactamente
+  // lo mismo que este script.
+  const body = toFormBody(
+    signRedsysNotification({
+      secretKey,
+      merchantCode,
+      terminal,
+      orderId,
+      amountCents: amountInCents,
+      ok: isOk,
+      date: dsDate,
+      hour: dsHour,
+    }),
+  );
 
   console.log(`\n  Reserva     : ${reservation.id} (${reservation.status})`);
   console.log(`  Pedido      : ${orderId}`);
