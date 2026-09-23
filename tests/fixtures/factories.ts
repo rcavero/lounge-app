@@ -9,7 +9,11 @@
  * Los defaults son los de un partido corriente: 10 € por asiento, 1,50 € de gastos de
  * gestión, dos horas de duración y mañana a esta hora.
  */
+import bcrypt from "bcryptjs";
+
 import type {
+  AdminRole,
+  AdminUser,
   Event,
   Prisma,
   Reservation,
@@ -161,6 +165,39 @@ export async function makeReservation({
   }
 
   return reservation;
+}
+
+/**
+ * Contraseña de todos los usuarios de test. No protege nada: solo existe en la base de
+ * `lounge_test`, que se vacía en cada test.
+ */
+export const TEST_PASSWORD = "e2e-contrasena-de-usar-y-tirar";
+
+interface MakeAdminInput {
+  role?: AdminRole;
+  email?: string;
+  /** Fijo en el E2E: la cookie de sesión guarda el id y tiene que seguir valiendo tras resembrar. */
+  id?: string;
+}
+
+/**
+ * Un usuario del panel con `TEST_PASSWORD`, hasheada igual que la guarda la app
+ * (`bcrypt`, coste 10), para que el login de verdad la acepte.
+ */
+export async function makeAdmin({
+  role = "ADMIN",
+  email = `${role.toLowerCase()}@lounge.test`,
+  id,
+}: MakeAdminInput = {}): Promise<AdminUser> {
+  return prisma.adminUser.create({
+    data: {
+      ...(id ? { id } : {}),
+      email,
+      name: role === "ADMIN" ? "Admin E2E" : "Worker E2E",
+      role,
+      password: await bcrypt.hash(TEST_PASSWORD, 10),
+    },
+  });
 }
 
 /** Estado y vínculo de cada asiento del evento, indexado por `seatId`. */
