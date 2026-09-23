@@ -32,7 +32,9 @@ export default async function AdminReservationsPage() {
             </Link>
             <div>
               <h1 className="text-white font-semibold text-sm">Administrar Reservas</h1>
-              <p className="text-white/50 text-xs">Selecciona un evento para ver sus reservas</p>
+              <p className="text-white/50 text-xs">
+                Selecciona un evento para ver sus reservas
+              </p>
             </div>
           </div>
         </div>

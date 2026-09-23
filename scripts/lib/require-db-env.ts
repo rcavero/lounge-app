@@ -55,7 +55,7 @@ export function requireDbEnv(...expected: DbEnv[]): DbEnv {
     abort(
       expected,
       "no hay ningún DB_ENV definido, así que no se sabe contra qué base de datos " +
-        "estás trabajando."
+        "estás trabajando.",
     );
   }
 

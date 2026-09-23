@@ -21,23 +21,66 @@ const BASE = "https://site.api.espn.com/apis/site/v2/sports/soccer";
 // name y league DEBEN conservarse idénticos en las 10 competiciones que ya
 // existen: son claves de facto de COMPETITION_EMBLEM y del filtrado de equipos.
 const TARGETS = [
-  { slug: "uefa.champions",   name: "Champions League",      league: "Champions League",      qual: "uefa.champions_qual",   domestic: false },
-  { slug: "uefa.europa",      name: "Europa League",         league: "Europa League",         qual: "uefa.europa_qual",      domestic: false },
-  { slug: "uefa.europa.conf", name: "Conference League",     league: "Conference League",     qual: "uefa.europa.conf_qual", domestic: false },
-  { slug: "esp.1",            name: "La Liga",               league: "La Liga",               domestic: true },
-  { slug: "esp.2",            name: "La Liga 2",             league: "La Liga 2",             domestic: true },
-  { slug: "eng.1",            name: "Premier League",        league: "Premier League",        domestic: true },
-  { slug: "ita.1",            name: "Serie A",               league: "Serie A",               domestic: true },
-  { slug: "ger.1",            name: "Bundesliga",            league: "Bundesliga",            domestic: true },
-  { slug: "fra.1",            name: "Ligue 1",               league: "Ligue 1",               domestic: true },
-  { slug: "por.1",            name: "Primeira Liga",         league: "Primeira Liga",         domestic: true },
-  { slug: "ned.1",            name: "Eredivisie",            league: "Eredivisie",            domestic: true },
-  { slug: "esp.copa_del_rey", name: "Copa del Rey",          league: "Copa del Rey",          domestic: false },
-  { slug: "esp.super_cup",    name: "Supercopa de España",   league: "Supercopa de España",   domestic: false },
-  { slug: "conmebol.america", name: "Copa América",          league: "Copa América",          domestic: false },
-  { slug: "uefa.nations",     name: "Nations League",        league: "Nations League",        domestic: false },
-  { slug: "fifa.world",       name: "World Cup",             league: "World Cup",             domestic: false },
-  { slug: "uefa.euro",        name: "European Championship", league: "European Championship", domestic: false },
+  {
+    slug: "uefa.champions",
+    name: "Champions League",
+    league: "Champions League",
+    qual: "uefa.champions_qual",
+    domestic: false,
+  },
+  {
+    slug: "uefa.europa",
+    name: "Europa League",
+    league: "Europa League",
+    qual: "uefa.europa_qual",
+    domestic: false,
+  },
+  {
+    slug: "uefa.europa.conf",
+    name: "Conference League",
+    league: "Conference League",
+    qual: "uefa.europa.conf_qual",
+    domestic: false,
+  },
+  { slug: "esp.1", name: "La Liga", league: "La Liga", domestic: true },
+  { slug: "esp.2", name: "La Liga 2", league: "La Liga 2", domestic: true },
+  { slug: "eng.1", name: "Premier League", league: "Premier League", domestic: true },
+  { slug: "ita.1", name: "Serie A", league: "Serie A", domestic: true },
+  { slug: "ger.1", name: "Bundesliga", league: "Bundesliga", domestic: true },
+  { slug: "fra.1", name: "Ligue 1", league: "Ligue 1", domestic: true },
+  { slug: "por.1", name: "Primeira Liga", league: "Primeira Liga", domestic: true },
+  { slug: "ned.1", name: "Eredivisie", league: "Eredivisie", domestic: true },
+  {
+    slug: "esp.copa_del_rey",
+    name: "Copa del Rey",
+    league: "Copa del Rey",
+    domestic: false,
+  },
+  {
+    slug: "esp.super_cup",
+    name: "Supercopa de España",
+    league: "Supercopa de España",
+    domestic: false,
+  },
+  {
+    slug: "conmebol.america",
+    name: "Copa América",
+    league: "Copa América",
+    domestic: false,
+  },
+  {
+    slug: "uefa.nations",
+    name: "Nations League",
+    league: "Nations League",
+    domestic: false,
+  },
+  { slug: "fifa.world", name: "World Cup", league: "World Cup", domestic: false },
+  {
+    slug: "uefa.euro",
+    name: "European Championship",
+    league: "European Championship",
+    domestic: false,
+  },
 ];
 
 function windowDates(days = 7) {
@@ -85,7 +128,7 @@ async function probeTeams(slug) {
       "slug".padEnd(20) +
       "partidos".padEnd(10) +
       "equipos".padEnd(9) +
-      "emblema"
+      "emblema",
   );
   console.log("  " + "─".repeat(88));
 
@@ -113,8 +156,8 @@ async function probeTeams(slug) {
     const partidos = t.qual ? `${main.events}+${qualEvents}` : `${main.events}`;
     console.log(
       `  ${t.name.padEnd(24)}${t.slug.padEnd(20)}${String(partidos).padEnd(10)}${String(
-        t.domestic ? teamCount : "-"
-      ).padEnd(9)}${main.emblem ? "sí" : "NO"}`
+        t.domestic ? teamCount : "-",
+      ).padEnd(9)}${main.emblem ? "sí" : "NO"}`,
     );
 
     results.push({ ...t, ...main, qualOk, teamCount });
@@ -123,20 +166,26 @@ async function probeTeams(slug) {
   console.log("  " + "─".repeat(88));
 
   // ── Bloque listo para pegar en competitions.ts ──────────────────────────
-  console.log("\n\n  // ─── Pegar en src/modules/football-data/config/competitions.ts ───\n");
+  console.log(
+    "\n\n  // ─── Pegar en src/modules/football-data/config/competitions.ts ───\n",
+  );
   console.log("export const COMPETITIONS: Competition[] = [");
   for (const r of results) {
     const extra = r.qual && r.qualOk ? `, qualifyingCode: "${r.qual}"` : "";
     console.log(
       `  { code: "${r.slug}", name: "${r.name}", league: "${r.league}",` +
-        ` emblem: "${r.emblem}", isDomestic: ${r.domestic}${extra} },`
+        ` emblem: "${r.emblem}", isDomestic: ${r.domestic}${extra} },`,
     );
   }
   console.log("];");
 
   // ── Hosts de imágenes para next.config.ts ───────────────────────────────
-  const hosts = new Set(results.filter((r) => r.emblem).map((r) => new URL(r.emblem).host));
-  console.log(`\n  // Hosts para next.config.ts images.remotePatterns: ${[...hosts].join(", ")}`);
+  const hosts = new Set(
+    results.filter((r) => r.emblem).map((r) => new URL(r.emblem).host),
+  );
+  console.log(
+    `\n  // Hosts para next.config.ts images.remotePatterns: ${[...hosts].join(", ")}`,
+  );
 
   const sinEmblema = results.filter((r) => !r.emblem);
   if (sinEmblema.length) {

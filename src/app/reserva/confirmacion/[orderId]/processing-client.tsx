@@ -48,10 +48,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
         return;
       }
 
-      if (
-        reservation?.status === "CANCELLED" ||
-        reservation?.status === "EXPIRED"
-      ) {
+      if (reservation?.status === "CANCELLED" || reservation?.status === "EXPIRED") {
         setState({ phase: "failed", eventId: reservation.eventId });
         return;
       }
@@ -92,8 +89,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
               Pago no completado
             </h1>
             <p className="text-white/50 text-sm">
-              No se ha podido confirmar el pago. Los asientos han sido
-              liberados.
+              No se ha podido confirmar el pago. Los asientos han sido liberados.
             </p>
           </div>
 
@@ -129,12 +125,10 @@ export function ProcessingClient({ orderId, merchant }: Props) {
               Estamos confirmando tu pago
             </h1>
             <p className="text-white/50 text-sm">
-              Si has completado el pago, tu reserva se confirmará en unos
-              minutos. Guarda este código de pedido:
+              Si has completado el pago, tu reserva se confirmará en unos minutos. Guarda
+              este código de pedido:
             </p>
-            <p className="text-[#D4AF37] font-mono text-lg font-bold">
-              {orderId}
-            </p>
+            <p className="text-[#D4AF37] font-mono text-lg font-bold">{orderId}</p>
           </div>
 
           <div className="bg-[#1a1a1a] rounded-xl p-4 text-left border border-white/10">
@@ -174,8 +168,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
             Procesando tu pago
           </h1>
           <p className="text-white/50 text-sm">
-            Estamos confirmando tu reserva con el banco. Esto puede tardar unos
-            segundos.
+            Estamos confirmando tu reserva con el banco. Esto puede tardar unos segundos.
             <br />
             No cierres ni recargues esta ventana.
           </p>

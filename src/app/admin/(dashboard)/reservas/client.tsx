@@ -68,7 +68,7 @@ export function ReservasClient({
       doc.text(
         `${event.homeTeam?.shortName ?? event.homeTeamName ?? ""} vs ${event.awayTeam?.shortName ?? event.awayTeamName ?? ""}`,
         14,
-        y
+        y,
       );
       y += 5;
 
@@ -126,7 +126,11 @@ export function ReservasClient({
       doc.setFont("helvetica", "bold");
       doc.setFillColor(245, 245, 245);
       doc.rect(14, y - 3, pageWidth - 28, 6, "F");
-      doc.text(`Subtotal: ${event.reservations.length} reservas, ${subtotalSeats} asientos`, 16, y);
+      doc.text(
+        `Subtotal: ${event.reservations.length} reservas, ${subtotalSeats} asientos`,
+        16,
+        y,
+      );
       doc.text(`${subtotal.toFixed(2)} EUR`, pageWidth - 16, y, {
         align: "right",
       });
@@ -165,7 +169,7 @@ export function ReservasClient({
         `Generado el ${format(new Date(), "dd/MM/yyyy HH:mm")} - Página ${i} de ${pageCount}`,
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 10,
-        { align: "center" }
+        { align: "center" },
       );
     }
 
@@ -224,9 +228,7 @@ export function ReservasClient({
       {isAdmin && reportMonths.length > 0 && (
         <Accordion
           title="Informes de reservas"
-          badge={
-            <FileText className="w-4 h-4 text-white/50" />
-          }
+          badge={<FileText className="w-4 h-4 text-white/50" />}
         >
           <div className="space-y-2 pt-2">
             {reportMonths.map((month) => (

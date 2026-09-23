@@ -7,14 +7,21 @@
  * Prettier volvería a partir 661 líneas que hoy se leen bien, y el primer commit tras
  * adoptarlo sería ilegible.
  *
- * La adopción es gradual: el hook de pre-commit formatea **lo que se toca**, no el
- * repositorio entero. Así el ruido de formato aparece solo en ficheros que ya iban a
- * salir en el diff.
+ * La adopción fue gradual hasta P6: el hook de pre-commit formateaba solo lo que se
+ * tocaba, para que el ruido de formato no se mezclara con cambios reales. Al llegar el
+ * CI, que comprueba el repositorio entero, el resto se formateó en un único commit que
+ * solo formatea (ver `.git-blame-ignore-revs`).
+ *
+ * `endOfLine: "auto"`: en Windows, con `core.autocrlf`, la copia de trabajo tiene CRLF y
+ * el repositorio LF. Con el valor por defecto (`"lf"`), `format:check` marcaba en local
+ * todos los ficheros por el salto de línea; en el runner de Linux no pasaba. Con `auto`
+ * cada fichero conserva el suyo y la comprobación dice lo mismo en las dos máquinas.
  *
  * @type {import("prettier").Config}
  */
 const config = {
   printWidth: 90,
+  endOfLine: "auto",
 };
 
 export default config;

@@ -102,10 +102,7 @@ export default async function PaymentErrorPage({ searchParams }: Props) {
             />
             <ReceiptRow label="Nº de pedido" value={orderId} />
             {reservation.paymentDateTime && (
-              <ReceiptRow
-                label="Fecha / hora"
-                value={reservation.paymentDateTime}
-              />
+              <ReceiptRow label="Fecha / hora" value={reservation.paymentDateTime} />
             )}
             {reservation.paymentResponseCode && (
               <ReceiptRow

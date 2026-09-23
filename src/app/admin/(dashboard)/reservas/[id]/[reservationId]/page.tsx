@@ -55,8 +55,7 @@ export default async function ReservationDetailPage({ params }: Props) {
   const feeTotal = (reservation.managementFeeCents * reservation.numberOfSeats) / 100;
 
   // Format date in Europe/Madrid (server runs in UTC in production)
-  const { formattedDay, dayNumber, monthName, time } =
-    formatEventDateMadrid(eventDate);
+  const { formattedDay, dayNumber, monthName, time } = formatEventDateMadrid(eventDate);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -72,7 +71,9 @@ export default async function ReservationDetailPage({ params }: Props) {
             </Link>
             <div>
               <h1 className="text-white font-semibold text-sm">Detalle de reserva</h1>
-              <p className="text-white/50 text-xs font-mono">{reservation.id.slice(0, 16)}...</p>
+              <p className="text-white/50 text-xs font-mono">
+                {reservation.id.slice(0, 16)}...
+              </p>
             </div>
           </div>
         </div>
@@ -82,7 +83,10 @@ export default async function ReservationDetailPage({ params }: Props) {
         <div className="max-w-lg mx-auto space-y-4">
           {/* Event Info Card */}
           <div className="bg-[#1a1a1a] rounded-2xl p-4 relative">
-            <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
+            <CompetitionEmblem
+              competition={event.competition}
+              className="absolute top-2 left-2"
+            />
             <div className="flex items-center justify-between">
               {/* Home Team */}
               <div className="flex flex-col items-center w-20">
@@ -97,9 +101,7 @@ export default async function ReservationDetailPage({ params }: Props) {
                 <span className="text-white/80 text-xs font-medium">
                   {formattedDay} {dayNumber} {monthName}
                 </span>
-                <span className="text-white text-2xl font-bold">
-                  {time}
-                </span>
+                <span className="text-white text-2xl font-bold">{time}</span>
                 <div className="flex gap-1 mt-1 flex-wrap justify-center">
                   {activeScreens.map((screen) => (
                     <span
@@ -172,9 +174,7 @@ export default async function ReservationDetailPage({ params }: Props) {
               <p className="text-white/50 text-[10px] uppercase tracking-wider mb-1">
                 Códigos de asientos
               </p>
-              <p className="text-white text-sm">
-                {seatCodes}
-              </p>
+              <p className="text-white text-sm">{seatCodes}</p>
             </div>
           </div>
 

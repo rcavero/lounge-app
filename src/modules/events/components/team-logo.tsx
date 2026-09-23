@@ -33,7 +33,9 @@ export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps)
   // Emoji override (deporte manual)
   if (emoji) {
     return (
-      <div className={cn("flex items-center justify-center", sizeClasses[size], className)}>
+      <div
+        className={cn("flex items-center justify-center", sizeClasses[size], className)}
+      >
         <span style={{ fontSize: `${Math.round(sizePx[size] * 0.65)}px`, lineHeight: 1 }}>
           {emoji}
         </span>
@@ -56,7 +58,7 @@ export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps)
         className={cn(
           "relative flex items-center justify-center",
           sizeClasses[size],
-          className
+          className,
         )}
       >
         <Image
@@ -85,7 +87,7 @@ export function TeamLogo({ team, emoji, size = "md", className }: TeamLogoProps)
       className={cn(
         "rounded-full bg-[#2a2a2a] flex items-center justify-center font-bold text-[#D4AF37] text-sm",
         sizeClasses[size],
-        className
+        className,
       )}
     >
       {initials}

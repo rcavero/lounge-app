@@ -59,7 +59,7 @@ export async function POST(request: Request, context: Context) {
 async function handleReturn(
   request: Request,
   context: Context,
-  notification: SignedNotification | null
+  notification: SignedNotification | null,
 ) {
   const { orderId } = await context.params;
   const { searchParams } = new URL(request.url);
@@ -82,7 +82,7 @@ async function handleReturn(
         });
       } else {
         console.error(
-          `[Payment return] orderId de la URL (${orderId}) distinto del firmado (${result.Ds_Order})`
+          `[Payment return] orderId de la URL (${orderId}) distinto del firmado (${result.Ds_Order})`,
         );
       }
     } catch (error) {

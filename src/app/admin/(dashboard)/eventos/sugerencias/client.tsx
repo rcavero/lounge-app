@@ -117,9 +117,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
 
   const toggleScreen = (screenId: string) => {
     setSelectedScreens((prev) =>
-      prev.includes(screenId)
-        ? prev.filter((s) => s !== screenId)
-        : [...prev, screenId]
+      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId],
     );
   };
 
@@ -154,7 +152,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
       acc[s.competition].push(s);
       return acc;
     },
-    {}
+    {},
   );
 
   return (
@@ -173,9 +171,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
               <h1 className="text-white font-semibold text-sm">
                 Sugerencias de Partidos
               </h1>
-              <p className="text-white/50 text-xs">
-                ESPN API
-              </p>
+              <p className="text-white/50 text-xs">ESPN API</p>
             </div>
           </div>
           <Button
@@ -201,8 +197,7 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
             <p className="text-green-400 text-sm">
               Sincronización completada: {syncResult.created} creados,{" "}
               {syncResult.updated} actualizados
-              {syncResult.errors.length > 0 &&
-                `, ${syncResult.errors.length} errores`}
+              {syncResult.errors.length > 0 && `, ${syncResult.errors.length} errores`}
             </p>
           </div>
         )}
@@ -247,156 +242,146 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
         {isLoadingMatches && (
           <div className="text-center py-12">
             <Loader2 className="w-8 h-8 text-[#D4AF37] mx-auto mb-3 animate-spin" />
-            <p className="text-white/50 text-sm">
-              Obteniendo partidos...
-            </p>
+            <p className="text-white/50 text-sm">Obteniendo partidos...</p>
           </div>
         )}
 
         {/* Match suggestions */}
         {!isLoadingMatches && suggestions.length > 0 && (
           <div className="space-y-6">
-            {Object.entries(groupedSuggestions).map(
-              ([competitionName, matches]) => (
-                <div key={competitionName}>
-                  <h2 className="text-white/70 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-2">
-                    {COMPETITION_EMBLEM[competitionName] && (
-                      <Image
-                        src={COMPETITION_EMBLEM[competitionName]}
-                        alt={competitionName}
-                        width={20}
-                        height={20}
-                        className="object-contain"
-                        unoptimized
-                      />
-                    )}
-                    {competitionName}
-                  </h2>
-                  <div className="space-y-2">
-                    {matches.map((match) => {
-                      const isCreated = createdMatches.has(match.externalMatchId);
-                      const isExpanded = expandedMatch === match.externalMatchId;
-                      const isCreating = creatingMatchId === match.externalMatchId;
+            {Object.entries(groupedSuggestions).map(([competitionName, matches]) => (
+              <div key={competitionName}>
+                <h2 className="text-white/70 text-xs font-semibold uppercase tracking-wider mb-2 flex items-center gap-2">
+                  {COMPETITION_EMBLEM[competitionName] && (
+                    <Image
+                      src={COMPETITION_EMBLEM[competitionName]}
+                      alt={competitionName}
+                      width={20}
+                      height={20}
+                      className="object-contain"
+                      unoptimized
+                    />
+                  )}
+                  {competitionName}
+                </h2>
+                <div className="space-y-2">
+                  {matches.map((match) => {
+                    const isCreated = createdMatches.has(match.externalMatchId);
+                    const isExpanded = expandedMatch === match.externalMatchId;
+                    const isCreating = creatingMatchId === match.externalMatchId;
 
-                      return (
-                        <div
-                          key={match.externalMatchId}
-                          className="bg-[#1a1a1a] rounded-lg border border-white/10 overflow-hidden"
-                        >
-                          {/* Match row */}
-                          <div className="flex items-center gap-3 p-3">
-                            <div className="flex items-center gap-2 flex-1 min-w-0">
-                              <TeamCrest
-                                crest={match.homeTeam.crest}
-                                name={match.homeTeam.shortName}
-                                size={32}
-                              />
-                              <span className="text-white text-xs truncate">
-                                {match.homeTeam.shortName}
-                              </span>
-                            </div>
-
-                            <div className="flex flex-col items-center shrink-0">
-                              <span className="text-white/40 text-[10px]">
-                                {formatDate(match.utcDate)}
-                              </span>
-                              <span className="text-white/60 text-xs font-bold">
-                                vs
-                              </span>
-                            </div>
-
-                            <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
-                              <span className="text-white text-xs truncate text-right">
-                                {match.awayTeam.shortName}
-                              </span>
-                              <TeamCrest
-                                crest={match.awayTeam.crest}
-                                name={match.awayTeam.shortName}
-                                size={32}
-                              />
-                            </div>
-
-                            {/* Action button */}
-                            <div className="shrink-0 ml-1">
-                              {isCreated ? (
-                                <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
-                                  <Check className="w-4 h-4 text-green-400" />
-                                </div>
-                              ) : !match.canCreate ? (
-                                <div
-                                  className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center"
-                                  title="Sincroniza equipos primero"
-                                >
-                                  <AlertTriangle className="w-4 h-4 text-yellow-400" />
-                                </div>
-                              ) : (
-                                <button
-                                  onClick={() =>
-                                    setExpandedMatch(
-                                      isExpanded ? null : match.externalMatchId
-                                    )
-                                  }
-                                  className="w-8 h-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center hover:bg-[#D4AF37]/30 transition-colors"
-                                >
-                                  <span className="text-[#D4AF37] text-lg leading-none">
-                                    +
-                                  </span>
-                                </button>
-                              )}
-                            </div>
+                    return (
+                      <div
+                        key={match.externalMatchId}
+                        className="bg-[#1a1a1a] rounded-lg border border-white/10 overflow-hidden"
+                      >
+                        {/* Match row */}
+                        <div className="flex items-center gap-3 p-3">
+                          <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <TeamCrest
+                              crest={match.homeTeam.crest}
+                              name={match.homeTeam.shortName}
+                              size={32}
+                            />
+                            <span className="text-white text-xs truncate">
+                              {match.homeTeam.shortName}
+                            </span>
                           </div>
 
-                          {/* Expanded: screen selector */}
-                          {isExpanded && match.canCreate && (
-                            <div className="border-t border-white/10 p-3 space-y-3">
-                              <p className="text-white/50 text-xs">
-                                Selecciona las pantallas:
-                              </p>
-                              <div className="flex gap-2">
-                                {SCREENS.map((screen) => (
-                                  <button
-                                    key={screen.id}
-                                    type="button"
-                                    onClick={() => toggleScreen(screen.id)}
-                                    className={`flex-1 py-2 px-2 rounded-lg border-2 text-xs font-semibold transition-all ${
-                                      selectedScreens.includes(screen.id)
-                                        ? `${screen.color} text-white`
-                                        : "bg-transparent border-white/20 text-white/50"
-                                    }`}
-                                  >
-                                    <div className="flex items-center justify-center gap-1">
-                                      {selectedScreens.includes(screen.id) && (
-                                        <Check className="w-3 h-3" />
-                                      )}
-                                      {screen.label}
-                                    </div>
-                                  </button>
-                                ))}
+                          <div className="flex flex-col items-center shrink-0">
+                            <span className="text-white/40 text-[10px]">
+                              {formatDate(match.utcDate)}
+                            </span>
+                            <span className="text-white/60 text-xs font-bold">vs</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 flex-1 min-w-0 justify-end">
+                            <span className="text-white text-xs truncate text-right">
+                              {match.awayTeam.shortName}
+                            </span>
+                            <TeamCrest
+                              crest={match.awayTeam.crest}
+                              name={match.awayTeam.shortName}
+                              size={32}
+                            />
+                          </div>
+
+                          {/* Action button */}
+                          <div className="shrink-0 ml-1">
+                            {isCreated ? (
+                              <div className="w-8 h-8 rounded-full bg-green-500/20 flex items-center justify-center">
+                                <Check className="w-4 h-4 text-green-400" />
                               </div>
-                              <Button
-                                size="sm"
-                                onClick={() => handleCreateEvent(match)}
-                                disabled={
-                                  isCreating || selectedScreens.length === 0
-                                }
-                                className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black text-xs"
+                            ) : !match.canCreate ? (
+                              <div
+                                className="w-8 h-8 rounded-full bg-yellow-500/20 flex items-center justify-center"
+                                title="Sincroniza equipos primero"
                               >
-                                {isCreating ? (
-                                  <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                                ) : null}
-                                {isCreating
-                                  ? "Creando..."
-                                  : "Confirmar y crear evento"}
-                              </Button>
-                            </div>
-                          )}
+                                <AlertTriangle className="w-4 h-4 text-yellow-400" />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() =>
+                                  setExpandedMatch(
+                                    isExpanded ? null : match.externalMatchId,
+                                  )
+                                }
+                                className="w-8 h-8 rounded-full bg-[#D4AF37]/20 flex items-center justify-center hover:bg-[#D4AF37]/30 transition-colors"
+                              >
+                                <span className="text-[#D4AF37] text-lg leading-none">
+                                  +
+                                </span>
+                              </button>
+                            )}
+                          </div>
                         </div>
-                      );
-                    })}
-                  </div>
+
+                        {/* Expanded: screen selector */}
+                        {isExpanded && match.canCreate && (
+                          <div className="border-t border-white/10 p-3 space-y-3">
+                            <p className="text-white/50 text-xs">
+                              Selecciona las pantallas:
+                            </p>
+                            <div className="flex gap-2">
+                              {SCREENS.map((screen) => (
+                                <button
+                                  key={screen.id}
+                                  type="button"
+                                  onClick={() => toggleScreen(screen.id)}
+                                  className={`flex-1 py-2 px-2 rounded-lg border-2 text-xs font-semibold transition-all ${
+                                    selectedScreens.includes(screen.id)
+                                      ? `${screen.color} text-white`
+                                      : "bg-transparent border-white/20 text-white/50"
+                                  }`}
+                                >
+                                  <div className="flex items-center justify-center gap-1">
+                                    {selectedScreens.includes(screen.id) && (
+                                      <Check className="w-3 h-3" />
+                                    )}
+                                    {screen.label}
+                                  </div>
+                                </button>
+                              ))}
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => handleCreateEvent(match)}
+                              disabled={isCreating || selectedScreens.length === 0}
+                              className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black text-xs"
+                            >
+                              {isCreating ? (
+                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
+                              ) : null}
+                              {isCreating ? "Creando..." : "Confirmar y crear evento"}
+                            </Button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
-              )
-            )}
+              </div>
+            ))}
           </div>
         )}
 
@@ -408,8 +393,8 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
               Buscar partidos programados
             </h3>
             <p className="text-white/50 text-sm mb-4">
-              Selecciona una competición y pulsa el botón de descarga para ver
-              los próximos partidos.
+              Selecciona una competición y pulsa el botón de descarga para ver los
+              próximos partidos.
             </p>
             <p className="text-white/40 text-xs">
               Asegúrate de sincronizar equipos primero si es la primera vez.

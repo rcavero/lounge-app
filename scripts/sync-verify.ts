@@ -63,7 +63,9 @@ async function snapshot() {
   const teams = await loadTeams();
   writeFileSync(SNAPSHOT, JSON.stringify(teams, null, 2));
   const conEventos = teams.filter((t) => t.events > 0).length;
-  console.log(`\n  Snapshot guardado: ${teams.length} equipos (${conEventos} con eventos asociados)`);
+  console.log(
+    `\n  Snapshot guardado: ${teams.length} equipos (${conEventos} con eventos asociados)`,
+  );
   console.log(`  Fichero: ${SNAPSHOT}\n`);
 }
 
@@ -78,7 +80,9 @@ async function report() {
   console.log("  " + "═".repeat(74));
 
   console.log(`\n  Equipos antes : ${before.length}`);
-  console.log(`  Equipos ahora : ${after.length}   (${after.length - before.length >= 0 ? "+" : ""}${after.length - before.length})`);
+  console.log(
+    `  Equipos ahora : ${after.length}   (${after.length - before.length >= 0 ? "+" : ""}${after.length - before.length})`,
+  );
 
   // ── 1. Huérfanos: sin externalId pero con eventos ───────────────────────
   const huerfanos = after.filter((t) => t.externalId === null && t.events > 0);
@@ -89,7 +93,11 @@ async function report() {
     console.log("     ⚠ Estos no se re-emparejaron y hay que revisarlos a mano:");
     huerfanos
       .sort((a, b) => b.events - a.events)
-      .forEach((t) => console.log(`        · ${t.name.padEnd(30)} liga=${t.league.padEnd(22)} eventos=${t.events}`));
+      .forEach((t) =>
+        console.log(
+          `        · ${t.name.padEnd(30)} liga=${t.league.padEnd(22)} eventos=${t.events}`,
+        ),
+      );
   }
 
   // ── 2. Duplicados por nombre normalizado ────────────────────────────────
@@ -101,14 +109,18 @@ async function report() {
     porNombre.get(key)!.push(t);
   }
   const duplicados = [...porNombre.entries()].filter(([, ts]) => ts.length > 1);
-  console.log(`\n  2) Posibles duplicados (mismo nombre normalizado): ${duplicados.length}`);
+  console.log(
+    `\n  2) Posibles duplicados (mismo nombre normalizado): ${duplicados.length}`,
+  );
   if (duplicados.length === 0) {
     console.log("     ✓ Sin duplicados");
   } else {
     for (const [key, ts] of duplicados) {
       console.log(`     ⚠ "${key}"`);
       ts.forEach((t) =>
-        console.log(`        · id=${t.id.padEnd(24)} ${t.name.padEnd(28)} liga=${t.league.padEnd(20)} extId=${t.externalId ?? "null"} eventos=${t.events}`)
+        console.log(
+          `        · id=${t.id.padEnd(24)} ${t.name.padEnd(28)} liga=${t.league.padEnd(20)} extId=${t.externalId ?? "null"} eventos=${t.events}`,
+        ),
       );
     }
   }
@@ -125,19 +137,23 @@ async function report() {
   for (const [competicion, leaguesList] of Object.entries(COMPETITION_LEAGUES)) {
     const total = leaguesList.reduce((sum, l) => sum + (ligas.get(l) ?? 0), 0);
     if (total === 0) vacios++;
-    console.log(`     ${total === 0 ? "✗" : "✓"} ${competicion.padEnd(24)} ${String(total).padStart(4)} equipos`);
+    console.log(
+      `     ${total === 0 ? "✗" : "✓"} ${competicion.padEnd(24)} ${String(total).padStart(4)} equipos`,
+    );
   }
 
   console.log(`\n  4) Valores de Team.league presentes en BD:`);
   [...ligas.entries()]
     .sort((a, b) => b[1] - a[1])
-    .forEach(([liga, n]) => console.log(`     · ${liga.padEnd(26)} ${String(n).padStart(4)}`));
+    .forEach(([liga, n]) =>
+      console.log(`     · ${liga.padEnd(26)} ${String(n).padStart(4)}`),
+    );
 
   // ── 5. Las sugerencias reales, ¿resuelven contra la BD? ─────────────────
   //     Cierra el círculo: comprueba que los externalId que escribió el sync
   //     son los mismos que devuelve el endpoint de partidos.
   const teamMap = new Map(
-    after.filter((t) => t.externalId !== null).map((t) => [t.externalId!, t.id])
+    after.filter((t) => t.externalId !== null).map((t) => [t.externalId!, t.id]),
   );
 
   const jobs = COMPETITIONS.flatMap((c) => {
@@ -193,7 +209,7 @@ async function report() {
     console.log("  ✓ SIN PROBLEMAS DETECTADOS\n");
   } else {
     console.log(
-      `  ⚠ ${huerfanos.length} huérfanos · ${duplicados.length} duplicados · ${vacios} desplegables vacíos\n`
+      `  ⚠ ${huerfanos.length} huérfanos · ${duplicados.length} duplicados · ${vacios} desplegables vacíos\n`,
     );
   }
 }

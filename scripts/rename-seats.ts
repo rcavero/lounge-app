@@ -149,12 +149,16 @@ function validateList(): string[] {
     if (to !== to.trim()) errors.push(`"${to}" tiene espacios al principio o al final`);
     if (to.length > SEAT_CODE_MAX_LENGTH)
       errors.push(
-        `"${to}" tiene ${to.length} caracteres; el máximo es ${SEAT_CODE_MAX_LENGTH} (se saldría del ticket)`
+        `"${to}" tiene ${to.length} caracteres; el máximo es ${SEAT_CODE_MAX_LENGTH} (se saldría del ticket)`,
       );
     if (!SEAT_CODE_REGEX.test(to))
-      errors.push(`"${to}" usa caracteres no permitidos; sólo se admiten letras, números y _ - / .`);
+      errors.push(
+        `"${to}" usa caracteres no permitidos; sólo se admiten letras, números y _ - / .`,
+      );
     if (to.startsWith(TEMP_PREFIX))
-      errors.push(`"${to}" empieza por "${TEMP_PREFIX}", que está reservado por este script`);
+      errors.push(
+        `"${to}" empieza por "${TEMP_PREFIX}", que está reservado por este script`,
+      );
   }
 
   return errors;
@@ -200,7 +204,7 @@ async function diagnosticar(): Promise<Diagnostico> {
       // El destino sólo puede estar ocupado por un asiento que también se renombra.
       if (codigosLower.has(lower(to)) && !RENAMES.some(([f]) => lower(f) === lower(to))) {
         errors.push(
-          `"${to}" ya lo usa un asiento que no está en el listado: habría colisión con el índice único`
+          `"${to}" ya lo usa un asiento que no está en el listado: habría colisión con el índice único`,
         );
       }
     } else if (!origenExiste && destinoExiste) {
@@ -213,7 +217,7 @@ async function diagnosticar(): Promise<Diagnostico> {
   const zoneLabels = await prisma.zoneLabel.findMany({ select: { zone: true } });
   const zonasExistentes = new Set(zoneLabels.map((z) => z.zone));
   const zoneLabelsPorRenombrar = ZONE_RENAMES.filter(
-    ([from, to]) => zonasExistentes.has(from) && !zonasExistentes.has(to)
+    ([from, to]) => zonasExistentes.has(from) && !zonasExistentes.has(to),
   );
 
   const eventos = await prisma.event.findMany({ select: { id: true, screens: true } });
@@ -227,7 +231,7 @@ async function diagnosticar(): Promise<Diagnostico> {
   else if (pendientes.length > 0 && yaAplicados > 0) {
     estado = "INCONSISTENTE";
     errors.push(
-      `Listado a medias: ${pendientes.length} pendientes y ${yaAplicados} ya aplicados. Revísalo a mano antes de seguir.`
+      `Listado a medias: ${pendientes.length} pendientes y ${yaAplicados} ya aplicados. Revísalo a mano antes de seguir.`,
     );
   } else if (pendientes.length === 0) estado = "YA_APLICADO";
   else estado = "PENDIENTE";
@@ -235,7 +239,7 @@ async function diagnosticar(): Promise<Diagnostico> {
   if (temporalesSueltos.length > 0) {
     estado = "INCONSISTENTE";
     errors.push(
-      `Hay ${temporalesSueltos.length} asiento(s) con código temporal (${temporalesSueltos.join(", ")}). Una ejecución anterior se quedó a medias: hay que arreglarlo a mano.`
+      `Hay ${temporalesSueltos.length} asiento(s) con código temporal (${temporalesSueltos.join(", ")}). Una ejecución anterior se quedó a medias: hay que arreglarlo a mano.`,
     );
   }
 
@@ -269,7 +273,7 @@ function imprimirDiagnostico(d: Diagnostico) {
     console.log(`  Renombrado de asientos (${d.pendientes.length}):\n`);
     const ancho = Math.max(...d.pendientes.map(([f]) => f.length));
     d.pendientes.forEach(([from, to]) =>
-      console.log(`      ${from.padEnd(ancho)}  →  ${to}`)
+      console.log(`      ${from.padEnd(ancho)}  →  ${to}`),
     );
     console.log("");
   }
@@ -288,7 +292,9 @@ function imprimirDiagnostico(d: Diagnostico) {
       const clave = `${e.antes}  →  ${e.despues}`;
       resumen.set(clave, (resumen.get(clave) ?? 0) + 1);
     });
-    console.log(`  Badges de pantalla (Event.screens), ${d.eventosPorRenombrar.length} eventos:\n`);
+    console.log(
+      `  Badges de pantalla (Event.screens), ${d.eventosPorRenombrar.length} eventos:\n`,
+    );
     [...resumen.entries()].forEach(([k, n]) => console.log(`      ${k}   (${n})`));
     console.log("");
   } else {
@@ -339,7 +345,7 @@ async function aplicar(d: Diagnostico) {
     },
     // Son ~2 escrituras por asiento más una por evento: el timeout de 5 s por
     // defecto de las transacciones interactivas se queda corto contra Supabase.
-    { timeout: 120_000, maxWait: 20_000 }
+    { timeout: 120_000, maxWait: 20_000 },
   );
 }
 
@@ -361,7 +367,7 @@ async function aplicar(d: Diagnostico) {
   const dbEnv =
     modo === "apply"
       ? requireDbEnv("local", "test", "testing", "production")
-      : ((process.env.DB_ENV ?? "").trim() || "sin declarar");
+      : (process.env.DB_ENV ?? "").trim() || "sin declarar";
 
   console.log(`\n  Entorno (DB_ENV)  : ${dbEnv}`);
   console.log(`  Proyecto Supabase : ${projectRef(process.env.DATABASE_URL)}`);
@@ -381,7 +387,7 @@ async function aplicar(d: Diagnostico) {
       console.log(
         "  ⚠️  RENAMES está vacío: no hay ningún asiento que renombrar.\n" +
           "      Rellena el listado en este mismo fichero. El renombrado de carteles\n" +
-          "      y badges sí puede aplicarse por su cuenta.\n"
+          "      y badges sí puede aplicarse por su cuenta.\n",
       );
     }
 
@@ -405,11 +411,13 @@ async function aplicar(d: Diagnostico) {
     console.log(
       `  ✓ Aplicado: ${d.pendientes.length} asiento(s), ` +
         `${d.zoneLabelsPorRenombrar.length} cartel(es), ` +
-        `${d.eventosPorRenombrar.length} evento(s).\n`
+        `${d.eventosPorRenombrar.length} evento(s).\n`,
     );
   } catch (error) {
     console.log(`\n  ✗ Falló: ${error instanceof Error ? error.message : error}`);
-    console.log("    La transacción revierte entera: la base de datos queda como estaba.\n");
+    console.log(
+      "    La transacción revierte entera: la base de datos queda como estaba.\n",
+    );
     process.exitCode = 1;
   } finally {
     await prisma.$disconnect();

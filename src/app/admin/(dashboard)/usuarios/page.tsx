@@ -34,10 +34,7 @@ export default async function AdminUsersPage() {
             </div>
           </div>
           <Link href="/admin/usuarios/nuevo">
-            <Button
-              size="sm"
-              className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
-            >
+            <Button size="sm" className="bg-[#D4AF37] hover:bg-[#b8972e] text-black">
               <Plus className="w-4 h-4 mr-1" />
               Añadir usuario
             </Button>
@@ -51,9 +48,7 @@ export default async function AdminUsersPage() {
           <div className="text-center py-16">
             <Users className="w-12 h-12 text-white/30 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No hay usuarios</h3>
-            <p className="text-white/50 mb-6">
-              Crea tu primer usuario para empezar.
-            </p>
+            <p className="text-white/50 mb-6">Crea tu primer usuario para empezar.</p>
             <Link href="/admin/usuarios/nuevo">
               <Button className="bg-[#D4AF37] hover:bg-[#b8972e] text-black">
                 <Plus className="w-4 h-4 mr-2" />

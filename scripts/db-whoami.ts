@@ -66,7 +66,9 @@ function describeTarget(url: string | undefined): string {
     });
     console.log(`  Equipos con externalId: ${withExternalId} de ${teams}`);
   } catch (error) {
-    console.log(`\n  ✗ No se pudo consultar: ${error instanceof Error ? error.message : error}`);
+    console.log(
+      `\n  ✗ No se pudo consultar: ${error instanceof Error ? error.message : error}`,
+    );
     process.exitCode = 1;
   } finally {
     await prisma.$disconnect();

@@ -123,7 +123,7 @@ export async function updateUser(
     password?: string;
     name: string;
     role: AdminRole;
-  }
+  },
 ): Promise<UpdateUserResult> {
   await requireAdmin();
   try {
@@ -162,7 +162,10 @@ export async function updateUser(
     // Only update password if provided
     if (password && password.length > 0) {
       if (password.length < 8) {
-        return { success: false, error: "La contraseña debe tener al menos 8 caracteres" };
+        return {
+          success: false,
+          error: "La contraseña debe tener al menos 8 caracteres",
+        };
       }
       updateData.password = await bcrypt.hash(password, 10);
     }

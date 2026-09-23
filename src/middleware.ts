@@ -16,11 +16,7 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/admin") &&
     !request.nextUrl.pathname.startsWith("/admin/login")
   ) {
-    const session = await getIronSession<SessionData>(
-      request,
-      response,
-      sessionOptions
-    );
+    const session = await getIronSession<SessionData>(request, response, sessionOptions);
 
     if (!session.isLoggedIn) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
@@ -29,11 +25,7 @@ export async function middleware(request: NextRequest) {
 
   // If logged in and visiting /admin/login, redirect to dashboard
   if (request.nextUrl.pathname === "/admin/login") {
-    const session = await getIronSession<SessionData>(
-      request,
-      response,
-      sessionOptions
-    );
+    const session = await getIronSession<SessionData>(request, response, sessionOptions);
 
     if (session.isLoggedIn) {
       return NextResponse.redirect(new URL("/admin", request.url));

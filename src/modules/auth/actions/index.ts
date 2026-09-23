@@ -9,11 +9,10 @@ import { isLoginBlocked, recordFailedLogin, clearLoginAttempts } from "@/lib/rat
 
 export async function login(
   _prevState: { error: string } | null,
-  formData: FormData
+  formData: FormData,
 ): Promise<{ error: string } | null> {
   const headersList = await headers();
-  const ip =
-    headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
+  const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
 
   if (isLoginBlocked(ip)) {
     return { error: "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos." };

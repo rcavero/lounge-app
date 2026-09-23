@@ -4,10 +4,7 @@ import { getAllSeats, getZoneLabels } from "@/modules/seating/actions";
 import { SeatPositionEditor } from "./client";
 
 export default async function AdminSeatsPage() {
-  const [seats, zoneLabels] = await Promise.all([
-    getAllSeats(),
-    getZoneLabels(),
-  ]);
+  const [seats, zoneLabels] = await Promise.all([getAllSeats(), getZoneLabels()]);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -23,7 +20,9 @@ export default async function AdminSeatsPage() {
             </Link>
             <div>
               <h1 className="text-white font-semibold text-sm">Configurar Asientos</h1>
-              <p className="text-white/50 text-xs">Arrastra los asientos para posicionarlos</p>
+              <p className="text-white/50 text-xs">
+                Arrastra los asientos para posicionarlos
+              </p>
             </div>
           </div>
         </div>

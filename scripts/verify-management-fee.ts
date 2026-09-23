@@ -47,7 +47,9 @@ async function precheck() {
 
   console.log(`  ✗ ${bad.length} reserva(s) romperían el CHECK:\n`);
   for (const row of bad) {
-    console.log(`      ${row.id}  asientos=${row.numberOfSeats}  total=${row.totalPrice}`);
+    console.log(
+      `      ${row.id}  asientos=${row.numberOfSeats}  total=${row.totalPrice}`,
+    );
   }
   console.log("");
   process.exitCode = 1;
@@ -69,11 +71,19 @@ async function report() {
     where: { seatPriceCents: 0, numberOfSeats: { gt: 0 } },
   });
 
-  console.log(`\n  Eventos                     : ${events} (${eventsSinGastos} sin gastos de gestión)`);
-  console.log(`  Reservas                    : ${reservas} (${conGastos} con gastos de gestión)`);
+  console.log(
+    `\n  Eventos                     : ${events} (${eventsSinGastos} sin gastos de gestión)`,
+  );
+  console.log(
+    `  Reservas                    : ${reservas} (${conGastos} con gastos de gestión)`,
+  );
   console.log(`  Reservas sin precio unitario: ${sinPrecio}`);
   console.log(`  Total ≠ desglose            : ${divergentes.length}`);
-  console.log(divergentes.length === 0 && sinPrecio === 0 ? "  ✓ Backfill correcto.\n" : "  ✗ Revisar.\n");
+  console.log(
+    divergentes.length === 0 && sinPrecio === 0
+      ? "  ✓ Backfill correcto.\n"
+      : "  ✗ Revisar.\n",
+  );
 
   if (divergentes.length > 0 || sinPrecio > 0) process.exitCode = 1;
 }

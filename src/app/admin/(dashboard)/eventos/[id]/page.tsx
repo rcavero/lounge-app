@@ -8,10 +8,7 @@ interface EditEventPageProps {
 
 export default async function EditEventPage({ params }: EditEventPageProps) {
   const { id } = await params;
-  const [event, teams] = await Promise.all([
-    getEventById(id),
-    getAllTeams(),
-  ]);
+  const [event, teams] = await Promise.all([getEventById(id), getAllTeams()]);
 
   if (!event) {
     notFound();

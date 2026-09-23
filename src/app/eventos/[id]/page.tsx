@@ -1,6 +1,10 @@
 import { notFound } from "next/navigation";
 import { getEventById } from "@/modules/events/actions";
-import { getSeatsForEvent, initializeSeatsForEvent, getZoneLabels } from "@/modules/seating/actions";
+import {
+  getSeatsForEvent,
+  initializeSeatsForEvent,
+  getZoneLabels,
+} from "@/modules/seating/actions";
 import { EventReservationClient } from "./client";
 
 interface EventPageProps {
@@ -24,11 +28,5 @@ export default async function EventPage({ params }: EventPageProps) {
     getZoneLabels(),
   ]);
 
-  return (
-    <EventReservationClient
-      event={event}
-      seats={seats}
-      zoneLabels={zoneLabels}
-    />
-  );
+  return <EventReservationClient event={event} seats={seats} zoneLabels={zoneLabels} />;
 }

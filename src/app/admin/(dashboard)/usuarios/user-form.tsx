@@ -2,7 +2,12 @@
 
 import { useState } from "react";
 import { Eye, EyeOff, Trash2, Save, UserPlus } from "lucide-react";
-import { createUser, updateUser, deleteUser, type AdminUserData } from "@/modules/users/actions";
+import {
+  createUser,
+  updateUser,
+  deleteUser,
+  type AdminUserData,
+} from "@/modules/users/actions";
 import type { AdminRole } from "@/modules/auth/types";
 
 interface UserFormProps {
@@ -138,7 +143,10 @@ export function UserForm({ mode, user }: UserFormProps) {
         {/* Password */}
         <div>
           <label htmlFor="password" className="block text-white/70 text-sm mb-2">
-            Contraseña {mode === "edit" && <span className="text-white/40">(dejar vacío para mantener)</span>}
+            Contraseña{" "}
+            {mode === "edit" && (
+              <span className="text-white/40">(dejar vacío para mantener)</span>
+            )}
           </label>
           <div className="relative">
             <input
@@ -154,7 +162,11 @@ export function UserForm({ mode, user }: UserFormProps) {
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-white/50 hover:text-white transition-colors"
             >
-              {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              {showPassword ? (
+                <EyeOff className="w-5 h-5" />
+              ) : (
+                <Eye className="w-5 h-5" />
+              )}
             </button>
           </div>
           {password.length > 0 && password.length < 8 && (

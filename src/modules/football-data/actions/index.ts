@@ -27,7 +27,7 @@ export async function syncTeamsFromAPI(): Promise<SyncResult> {
  * en paralelo: las 17 (más sus fases previas) tardan ~1 s en total.
  */
 export async function getMatchSuggestions(
-  competitionCode?: string
+  competitionCode?: string,
 ): Promise<MatchSuggestion[]> {
   await requireAuth();
 
@@ -81,9 +81,7 @@ export async function getMatchSuggestions(
   // exactamente cómo se manifestó el 400 de ESPN del 17/09/2026. El catch de
   // client.tsx ya muestra el banner de error.
   if (rejected > 0 && rejected === settled.length) {
-    throw new Error(
-      `ESPN no respondió a ninguna de las ${settled.length} peticiones`
-    );
+    throw new Error(`ESPN no respondió a ninguna de las ${settled.length} peticiones`);
   }
 
   // Orden de competición según el array de configuración, luego por fecha.
@@ -104,7 +102,7 @@ export async function getMatchSuggestions(
  */
 async function ensureTeam(
   team: MatchSuggestion["homeTeam"],
-  league: string
+  league: string,
 ): Promise<string> {
   if (team.dbTeamId) {
     const existing = await prisma.team.findUnique({ where: { id: team.dbTeamId } });
@@ -143,7 +141,7 @@ async function ensureTeam(
  */
 export async function createEventFromSuggestion(
   suggestion: MatchSuggestion,
-  screens: string[]
+  screens: string[],
 ): Promise<{ success: boolean; eventId?: string; error?: string }> {
   await requireAuth();
 

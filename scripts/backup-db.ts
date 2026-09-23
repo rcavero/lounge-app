@@ -93,7 +93,7 @@ function stamp(): string {
     const data: Record<string, unknown[]> = {};
     for (const table of TABLES) {
       data[table] = await prisma.$queryRawUnsafe<unknown[]>(
-        `SELECT * FROM "${table}" ORDER BY "id"`
+        `SELECT * FROM "${table}" ORDER BY "id"`,
       );
     }
 

@@ -13,7 +13,11 @@ interface FloorPlanViewProps {
 // Base horizontal padding in pixels for each label type
 const BASE_PADDING = 12; // px (equivalent to px-3)
 
-export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: FloorPlanViewProps) {
+export function FloorPlanView({
+  seats,
+  highlightedSeats = [],
+  zoneLabels,
+}: FloorPlanViewProps) {
   const labels = zoneLabels || DEFAULT_ZONE_LABEL_POSITIONS;
 
   return (
@@ -43,8 +47,8 @@ export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: Floo
           const colors = isTV1
             ? { bg: "#7f1d1d", border: "#b91c1c" }
             : isTV2
-            ? { bg: "#1e3a5f", border: "#3b82f6" }
-            : { bg: "#92700c", border: "#D4AF37" };
+              ? { bg: "#1e3a5f", border: "#3b82f6" }
+              : { bg: "#92700c", border: "#D4AF37" };
 
           return (
             <div
@@ -80,7 +84,7 @@ export function FloorPlanView({ seats, highlightedSeats = [], zoneLabels }: Floo
                 isHighlighted && "bg-[#D4AF37] border-[#b8972e]",
                 !isHighlighted && isAvailable && "bg-[#22c55e] border-[#16a34a]",
                 !isHighlighted && isOccupied && "bg-[#ef4444] border-[#dc2626]",
-                !isHighlighted && isBlocked && "bg-[#6b7280] border-[#4b5563]"
+                !isHighlighted && isBlocked && "bg-[#6b7280] border-[#4b5563]",
               )}
               style={{
                 left: `${seat.posX}%`,
