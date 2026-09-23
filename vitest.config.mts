@@ -102,7 +102,7 @@ export default defineConfig({
     ],
     coverage: {
       provider: "v8",
-      reporter: ["text", "html", "lcov"],
+      reporter: ["text-summary", "html", "lcov", "json-summary"],
       include: ["src/**/*.{ts,tsx}"],
       exclude: [
         // Cliente generado por Prisma: no es código nuestro.
@@ -111,6 +111,32 @@ export default defineConfig({
         // Solo declaraciones de tipos: no hay nada que ejecutar.
         "src/**/types/**",
       ],
+      /**
+       * Umbrales SOLO sobre las capas que no son interfaz: dominio, `lib/` y `config/`.
+       * Nunca sobre `app/` ni `components/`: un porcentaje global obliga a probar JSX
+       * decorativo, y la cobertura acaba siendo una cifra que se persigue en vez de una
+       * red de seguridad. La interfaz la cubren los tests de componentes donde decide
+       * algo, y el E2E.
+       *
+       * Se miden con la suite ENTERA (`npm run test:coverage`, que necesita Docker): hay
+       * código de `lib/` que solo ejercita la integración, como `receipt.ts` y
+       * `apply-payment-outcome.ts`, que escriben en la base. En CI corre en el job `db`.
+       *
+       * Valores del 23 de septiembre de 2026, al fijarlos: dominio y config al 100 % de
+       * líneas; `lib/` al 97 % de líneas y 96 % de ramas. Lo que falta son ramas que
+       * dependen del entorno (producción o no) en `prisma.ts` y `redsys.ts`. Los
+       * umbrales dejan margen para un cambio pequeño sin test, no para uno grande.
+       */
+      thresholds: {
+        "src/modules/**/domain/**": {
+          lines: 95,
+          statements: 95,
+          functions: 95,
+          branches: 90,
+        },
+        "src/**/config/**": { lines: 95, statements: 95, functions: 95, branches: 90 },
+        "src/**/lib/**": { lines: 90, statements: 90, functions: 90, branches: 90 },
+      },
     },
   },
 });
