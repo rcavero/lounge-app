@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio) **y P5** (E2E con Playwright). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright) **y P6** (CI y cobertura). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -40,7 +40,7 @@ Estado de partida el 21 de septiembre, verificado entonces:
 
 **Hallazgos nuevos, aparecidos durante la ejecución:**
 
-- **`npm run lint` fallaba con 533 errores y 1761 avisos**, igual en `main`. **Resuelto en 1.4**: estaban todos en el cliente generado por Prisma, que nunca debió entrar en el lint. La deuda real son 3 errores.
+- **`npm run lint` fallaba con 533 errores y 1761 avisos**, igual en `main`. **Resuelto en 1.4**: estaban todos en el cliente generado por Prisma, que nunca debió entrar en el lint. La deuda real eran 3 errores, **arreglados en P6**: `npm run lint` está a cero.
 - **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
 - **Una tercera, que la auditoría de 0.6 no vio**: `prisma/seed.ts` crea un admin con el email real y la contraseña `12345678`, en claro y en todo el historial. **Abierta (RCA-275, urgente)**: hay que comprobar que ninguna cuenta viva la usa **antes de publicar el repositorio**. Ver P2.4.
 - **Un pago que llega después de expirar la reserva se cobra sin asientos.** Bug de producción que sacó a la luz la integración. **Abierto (RCA-276, alta)**. Ver P3.4.
@@ -590,6 +590,55 @@ Esta capa cubre lo que las otras dos no ven: la **ocupación en el evento solapa
 
 ---
 
+## Paso P6 — CI y cobertura · EJECUTADO
+
+La 3.5 de este documento. En Linear, «09 · Fase 6». De `cb13a09` a `030d333`.
+
+### P6.1 Qué quedó
+
+- **`.github/workflows/ci.yml`**, con dos jobs en cada push y cada PR:
+  - `static`: sin base de datos; lint, tipos, formato, unitarios y componentes. **1 min 22 s**.
+  - `db`: Postgres 17 como servicio del runner; migraciones, la suite entera con cobertura y umbrales, y el E2E con Chromium. Sube los informes de cobertura y de Playwright como artefactos, también cuando falla. **2 min 52 s**.
+- **Verde a la primera ejecución**, con las mismas cifras que en local: 319 tests en `static`, 450 más los 20 E2E en `db`.
+- **Umbrales de cobertura solo sobre dominio, `lib/` y `config/`**: 95 % de líneas, sentencias y funciones en dominio y config, 90 % en `lib/`, y 90 % de ramas en las tres. Se comprobó en los dos sentidos: con la suite completa pasan, y quitando solo los tests nuevos del cliente de ESPN, `lib/` cae al 81 % y el comando falla nombrando la capa y el umbral.
+- **Lint a cero, sin exclusiones.** Los tres errores heredados de la 1.4 están arreglados, y los dos `eslint-disable` de P5 ya no existen (RCA-273).
+- **Cero secretos reales en CI.** La base es un contenedor efímero; Redsys usa el sandbox público, que ya cargaba `tests/setup/env.ts`; `AUTH_SECRET` se genera en cada ejecución. El workflow no conoce ninguna URL de producción ni de testing, y solo tiene permiso de lectura sobre el repositorio.
+
+### P6.2 Los tres errores de lint
+
+Los dos `set-state-in-effect` y un tercer componente, `event-row`, repetían el mismo patrón: un `useEffect` que al montar hacía `setIsSpanish(navigator.language…)`. Ahora los tres usan un hook compartido, `useIsSpanish`, con `useSyncExternalStore`, que es la forma que da React de leer un valor que solo existe en el navegador. **Se comporta igual**: en el servidor y al hidratar vale "español", que era el valor inicial, y justo después lee el idioma. El `purity` de `event-row` (`Date.now()` en el render) pasa a leerse una vez al montar. La única diferencia observable es que un re-render ya no vuelve a leer el reloj.
+
+El banner de la portada no tenía ningún test; ahora tiene 4. Una mutación que deja el hook siempre en español la detectan ese test y el de `event-row`.
+
+### P6.3 Qué se desvió del plan
+
+1. **Un commit de formato de todo el repositorio** (`cb13a09`, 51 ficheros). El `format:check` de CI no podía pasar con la adopción gradual que eligió la Fase 1. **Decisión de Ramón.** Se comprobó con el comparador de AST de P5. Solo apareció una diferencia aparente: Prettier quita las comillas que sobran en las claves de objeto (`"Bundesliga":` pasa a `Bundesliga:`), que en JavaScript es la misma propiedad. El comparador aprendió esa equivalencia, y se probó que sigue detectando una clave renombrada. El commit está en `.git-blame-ignore-revs`.
+2. **`endOfLine: "auto"` en Prettier.** En Windows, con `core.autocrlf`, `format:check` marcaba todos los ficheros por el salto de línea, y en el runner de Linux no. Ahora dice lo mismo en las dos máquinas.
+3. **La cobertura se mide en el job `db`, no en `static`.** Parte de `lib/` solo la ejercita la integración (`receipt.ts` y `apply-payment-outcome.ts` escriben en la base), y sin base no llegaría al umbral.
+4. **22 tests nuevos para llegar al umbral de `lib/`, en vez de excluir ficheros.** Los huecos estaban justo donde el código habla con la red, con la base y con la cookie: el cliente HTTP de ESPN (reintentos, timeouts, las dos formas de decir "no existe"), `requireAuth` y `requireAdmin`, las banderas de la cookie de sesión, y el sync de equipos contra la base. De estos últimos, el más valioso es que **una segunda ejecución sin cambios no escribe nada**, porque lo contrario serían cientos de `UPDATE` cada noche en el cron. `lib/` pasó del 72 % al 97 % de líneas.
+5. **Las acciones oficiales, en versiones actuales.** La primera ejecución avisó de que `checkout`, `setup-node`, `cache` y `upload-artifact` en v4 corren sobre Node 20, ya obsoleto. Se subieron a la última versión mayor de cada una, comprobada en su página de releases.
+6. **Protección de rama: no aplica a `academic`.** El plan pedía `static` bloqueante siempre y `db` bloqueante en PR. Pero a `academic` se empuja directamente, sin PRs, y la protección de `main` y `testing` no se toca. Queda anotado para cuando haya un flujo de PR.
+7. **Insignia de cobertura, pendiente del README (Fase 7).** Sin un servicio externo, como Codecov, que exigiría subir la cobertura de un repositorio privado a un tercero, la única insignia posible sería una cifra escrita a mano que envejecería mal. La insignia de CI sí está puesta.
+
+### P6.4 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| CI #1 (`346d8f9`), primera ejecución | verde: `static` 1 min 22 s, `db` 2 min 52 s |
+| CI #2 (`030d333`), con las acciones actualizadas | verde, 2 min 33 s, sin avisos de Node 20 |
+| `npm run lint` | 0 errores y 0 avisos |
+| `npm run typecheck` | limpio |
+| `npm run format:check` | todo el repositorio |
+| `npm test` (unit + ui) | 319, en verde |
+| `npm run test:coverage` (unit + ui + integración) | 450, en verde y con los umbrales cumplidos |
+| `npm run e2e` | 20, en verde |
+| `npm run build` | limpio, las mismas 24 rutas |
+| Unicode oculto en los 67 ficheros tocados | ninguno |
+
+Queda **una nota informativa** en cada ejecución: `ubuntu-latest` pasará a Ubuntu 26 a partir del 19 de octubre de 2026. No pide ningún cambio ahora; si ese día algo falla, se fija la versión del runner.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -794,7 +843,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P3**~~ | ~~Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar.~~ **Hecho.** Ver P3 | — | 06 · Fase 3 |
 | ~~**P4**~~ | ~~Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto.~~ **Hecho.** Ver P4 | — | 07 · Fase 4 |
 | ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
-| **P6** | Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre. | Bajo | 09 · Fase 6 |
+| ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
 
 **La documentación (Fase 4 de este documento, «10 · Fase 7» en Linear) y la presentación (Fase 5, «11 · Fase 8») van en paralelo a partir de P3**: no dependen del refactor, y conviene escribirlas mientras el contexto está fresco en lugar de dejarlas para el final, que es cuando se entregan a medias. La carrera de asientos es «12» en Linear.
 
