@@ -2,7 +2,6 @@
 
 import prisma from "@/lib/prisma";
 import type { SeatWithStatus } from "../types";
-import type { SeatStatusType } from "@/generated/prisma";
 import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants";
 import { requireAuth } from "@/lib/auth-guard";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
@@ -118,30 +117,6 @@ export async function initializeSeatsForEvent(eventId: string): Promise<void> {
       status: "AVAILABLE" as const,
     })),
   });
-}
-
-export async function getSeatsByZone(
-  eventId: string,
-  zone: string,
-): Promise<SeatWithStatus[]> {
-  const seats = await prisma.seat.findMany({
-    where: { zone: zone as "PROJECTOR" | "TV1" | "TV2" },
-    orderBy: [{ row: "asc" }, { number: "asc" }],
-  });
-
-  const seatStatuses = await prisma.seatStatus.findMany({
-    where: {
-      eventId,
-      seatId: { in: seats.map((s) => s.id) },
-    },
-  });
-
-  const statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
-
-  return seats.map((seat) => ({
-    ...seat,
-    status: (statusMap.get(seat.id) || "AVAILABLE") as SeatStatusType,
-  }));
 }
 
 // Get all seats (for admin purposes)
