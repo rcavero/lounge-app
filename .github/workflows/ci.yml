@@ -1,0 +1,149 @@
+# CI de lounge-app. Estrategia completa en MASTER_IA.md → 3.5 y Paso P6.
+#
+# Dos jobs:
+#   static  rápido y sin base de datos: lint, tipos, formato, unitarios y componentes.
+#   db      con Postgres de usar y tirar: integración con cobertura y umbrales, y E2E.
+#
+# CERO secretos reales. Todo lo que hay aquí es público o se genera en el runner:
+# - La base es un contenedor efímero del propio runner, nunca Supabase.
+# - Redsys usa el sandbox genérico y público que documenta el propio Redsys; esos
+#   valores ya viven en tests/setup/env.ts, que los carga como valores por defecto.
+# - AUTH_SECRET se genera aleatorio en cada ejecución.
+# Nada de este workflow puede tocar producción ni testing: no conoce sus URLs.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# Un push nuevo a la misma rama cancela la ejecución anterior, que ya no importa.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+# El workflow solo lee el código. Sin permisos de escritura sobre el repositorio.
+permissions:
+  contents: read
+
+env:
+  # `prisma.config.ts` exige estas dos variables incluso para `prisma generate`, que no
+  # se conecta a nada. Apuntan al Postgres del job `db`; el job `static` no lo usa.
+  DATABASE_URL: postgresql://lounge:lounge@localhost:5432/lounge_test?schema=public
+  DIRECT_URL: postgresql://lounge:lounge@localhost:5432/lounge_test?schema=public
+
+jobs:
+  static:
+    name: static (lint, tipos, formato, unitarios)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+
+      # src/generated/prisma está gitignorado: sin este paso, tsc y eslint fallan con
+      # "cannot find module '@/generated/prisma'".
+      - run: npx prisma generate
+
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run format:check
+      - run: npm test
+
+  db:
+    name: db (integración con cobertura y E2E)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: lounge
+          POSTGRES_PASSWORD: lounge
+          POSTGRES_DB: lounge_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U lounge -d lounge_test"
+          --health-interval 2s
+          --health-timeout 3s
+          --health-retries 30
+
+    env:
+      # La puerta de los tests (requireDbEnv("test")): sin esto, abortan antes de
+      # escribir nada. Es lo mismo que declara .env.test en local.
+      DB_ENV: test
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: AUTH_SECRET aleatorio, solo para esta ejecución
+        run: echo "AUTH_SECRET=$(openssl rand -hex 32)" >> "$GITHUB_ENV"
+
+      # Con `migrate deploy` y no con `db push`: el CHECK de importes vive como SQL en
+      # una migración y no en schema.prisma. El globalSetup de la integración lo repite;
+      # aquí va explícito para que un fallo de migración se vea como tal.
+      - run: npx prisma migrate deploy
+
+      # Unitarios, componentes e integración, con los umbrales de cobertura de
+      # vitest.config.mts. Se mide aquí porque parte de lib/ solo la ejercita la
+      # integración.
+      - run: npm run test:coverage
+
+      - name: Informe de cobertura
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cobertura
+          path: coverage/
+          retention-days: 14
+
+      - name: Versión de Playwright, para la caché del navegador
+        id: playwright
+        run: echo "version=$(npx playwright --version | cut -d' ' -f2)" >> "$GITHUB_OUTPUT"
+
+      - name: Caché de Chromium
+        id: browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright.outputs.version }}
+
+      # Solo Chromium: el proyecto no promete soporte en otros navegadores.
+      - name: Instalar Chromium
+        if: steps.browsers.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps chromium
+
+      # Con la caché, el navegador ya está, pero las librerías del sistema no.
+      - name: Dependencias de sistema de Chromium
+        if: steps.browsers.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # El webServer de playwright.config.ts construye la app y la levanta en el 3100.
+      # Con CI=true no reutiliza ningún servidor y prohíbe los test.only.
+      - run: npm run e2e
+
+      - name: Informe de Playwright
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 14
