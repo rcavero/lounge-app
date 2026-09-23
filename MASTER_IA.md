@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización) **y P3** (tests de integración). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración) **y P4** (extracción de dominio). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -34,9 +34,9 @@ Estado de partida el 21 de septiembre, verificado entonces:
 | Hallazgo | Estado |
 |---|---|
 | `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Abierto.** Bug real en producción |
-| `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | Abierto, se corrige al extraer `domain/expiry.ts` (P4) |
+| `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | **Resuelto en P4**: el plazo vive en `reservations/domain/expiry.ts`, con nombre, y vale lo mismo |
 | Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 4). Desde P2, un test fija las dos fronteras al minuto |
-| Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | Abierto, se borra en P4 |
+| Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | **Resuelto en P4**, junto con `getSeatsByZone` |
 
 **Hallazgos nuevos, aparecidos durante la ejecución:**
 
@@ -424,7 +424,93 @@ La puerta se probó **sin poder hacer daño aunque fallara**: `DATABASE_URL` y `
 
 ---
 
+## Paso P4 — Extracción de capa de dominio · EJECUTADO
+
+La Fase 2 de este documento: las reglas de negocio salen de las server actions a módulos `domain/*.ts` planos, y las actions quedan como adaptadores. En Linear, «07 · Fase 4». 13 commits, de `bfc423c` a `15b9b3a`. **Es el primer paso que cambia `src/`, y no cambia ningún comportamiento**: todos los tests de P2 y P3 pasan igual antes y después de cada commit.
+
+### P4.1 Los módulos
+
+| Módulo | Qué sustituye | Tests unitarios |
+|---|---|---|
+| `events/domain/overlap.ts` | Las dos copias del solape (`payments/actions` y `seating/actions`) | 17 |
+| `reservations/domain/expiry.ts` | Los plazos escritos a mano; muere `thirtyMinutesAgo`, que calculaba 5 minutos | 7 |
+| `seating/domain/availability.ts` | "Libre aquí pero vendido en un solapado = ocupado, salvo `BLOCKED`" | 10 |
+| `reservations/domain/report-months.ts` | El agrupado por mes y el rango del informe, en hora local | 10 |
+| `events/domain/title.ts` | El bloque copiado en `createEvent` y `updateEvent` | 11 |
+| 💰 `payments/domain/amount.ts` | La fórmula del importe en `initializePayment`, el webhook y el store del cliente | 17 |
+| 💰 `payments/domain/outcome.ts` + `lib/apply-payment-outcome.ts` | La transacción del resultado del pago, que estaba en cuatro sitios | 4 |
+| — | Primer test del store del cliente (`use-reservation-store`) | 5 |
+
+**81 tests unitarios nuevos**: `npm test` suma **297**. Y 27 de integración escritos **antes** de mover nada (`bfc423c`), porque el alta de eventos y los informes no tenían ninguno: la integración suma **127**.
+
+Borrados: `createReservation` —una server action viva que creaba reservas `CONFIRMED` sin pasar por la pasarela—, `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, los tipos que solo usaban ellos, y `getSeatsByZone`, que el plan no listaba: una server action sin llamadas y sin `requireAuth`.
+
+### P4.2 Cómo se hizo
+
+- **Un commit de formato primero** (`fa9ee45`), con los cinco ficheros que iba a tocar la extracción, para que cada diff de P4 se pudiera revisar línea a línea. Que era solo formato se comprobó con el compilador de TypeScript: el árbol sintáctico es el mismo antes y después.
+- **Las expresiones se movieron sin reescribir.** En las de dinero, el mensaje del commit cita cada expresión que sale y entra. La única diferencia de fondo en todo P4: `applyOverlapOccupancy` devuelve un mapa nuevo en vez de mutar el de entrada.
+- **El dominio no conoce Prisma.** Donde hace falta la base de datos, entra como función: `resolveEventNaming` recibe `findTeam`, y así los dos `await` siguen en secuencia, como exige el plan.
+- **El total del carrito sale de la misma función que el importe cobrado.** Un test compara cliente y servidor en 1.155 combinaciones.
+
+### P4.3 Qué se desvió del plan
+
+1. **El código muerto se borró antes que el dinero**, no al final: no toca importes, y así todo lo seguro salió en un único push antes del pago de "antes".
+2. **`outcome.ts` no tiene el "CONFIRMED + KO = no hacer nada" que pedía la 3.1.** Contradecía la trampa 2: el webhook no tiene esa guarda, y meterla en el dominio le habría cambiado el comportamiento. El dominio decide **qué** se escribe; **si** se escribe lo decide cada caller.
+3. **`overlappingEventIds` no excluye el propio evento.** Lo hace la consulta, igual que el filtro de estado, y un test documenta que un evento se solapa consigo mismo.
+4. **Dos tests unitarios estaban mal planteados**, y los corrigió la ejecución, no el código. Uno suponía que una ventana de duración cero no se solapa con nada, y sí se solapa si cae dentro. El otro ponía `23.45 * 100` como ejemplo de descuadre en coma flotante, y da exactamente 2345; el ejemplo bueno es `19.99`.
+
+### P4.4 Cómo se comprobó que los tests sirven
+
+**Módulos sin dinero: 10 mutaciones, las 10 mueren en las dos capas**, en los unitarios y en la integración. Lo segundo importa: demuestra que los callers usan de verdad el dominio y no una copia olvidada.
+
+**Módulos de dinero: 8 mutaciones, 6 mueren.** Las dos que sobreviven lo hacen por un motivo concreto:
+
+| Mutación | Resultado |
+|---|---|
+| Importe sin gastos de gestión | 6 unitarios y 17 de integración |
+| Importe a Redsys con decimales | 3 y 6 |
+| OK deja los asientos `RESERVED` · KO no suelta el vínculo · OK sin `confirmedAt` | 1 y 1-2 cada una |
+| Cancelar sin la guarda de `CONFIRMED` | 1 de integración |
+| Céntimos esperados con `floor` en lugar de `round` | 1 unitario; **sobrevive en integración** |
+| Unificar los dos `where` de confirmar y cancelar | **sobrevive** |
+
+- **El `floor`** solo lo distingue un importe como 19,99 €. Con gastos en pasos de 50 céntimos, todo total real es múltiplo de 0,50 €, exacto en binario, y ahí `floor` y `round` coinciden. El redondeo sigue siendo lo correcto, pero hoy no lo exige ningún dato posible.
+- **Unificar los `where`** confirma con una mutación lo que P3.3 había razonado: en secuencia tocan las mismas filas. Se mantienen separados porque un refactor no cambia comportamiento, ni siquiera el que solo aparece con concurrencia.
+
+### P4.5 La puerta: pago real antes y después
+
+Las tres extracciones de dinero se commitearon en local y **no se empujaron hasta tener el pago de "antes"**. Dos pagos reales en el TPV de pruebas desde la preview de `academic`, 2 asientos del mismo partido cada uno:
+
+| | Antes (`4747e0c`) | Después (`15b9b3a`) |
+|---|---|---|
+| Estado | `CONFIRMED` / `COMPLETED` | `CONFIRMED` / `COMPLETED` |
+| `totalPrice` · `seatPriceCents` · `managementFeeCents` | 23 € · 1000 · 150 | 23 € · 1000 · 150 |
+| Asientos | 2 `OCCUPIED` | 2 `OCCUPIED` |
+| Recibo | autorización de 6 cifras, respuesta `0000` | autorización de 6 cifras, respuesta `0000` |
+| `verify-management-fee.ts report` | 64 reservas, 0 descuadradas | 65 reservas, 0 descuadradas |
+
+El recibo con código de autorización demuestra que en los dos casos **la notificación firmada de Redsys llegó al webhook de la preview**, así que el "después" ejercitó el camino que cambió, `applyPaymentOutcome`, y no solo el respaldo de la página. Las lecturas en testing fueron de solo lectura, con un script que aborta si `DB_ENV` no es `testing`.
+
+### P4.6 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` (unit + ui) | 297, en verde |
+| `npm run test:integration`, dos veces seguidas | 127 y 127, en verde |
+| `npm run typecheck` | limpio |
+| `npm run lint` | los 3 errores y 5 avisos heredados; el sexto que apareció a mitad de P4 era mío y está corregido (`4747e0c`) |
+| `npm run build` | limpio, las mismas 24 rutas |
+| Puerta RCA-237 | pasada |
+
+**Queda sin verificar a mano**: que el cron sigue expirando a los 5 minutos en el despliegue real (punto 3 de "Lo que hay que verificar a mano"). Los tests lo fijan en las dos capas, pero la verificación en vivo exige esperar al cron nocturno o dejar caducar una reserva a propósito.
+
+Linear se quedó sin cupo de issues del plan gratuito a mitad de P4. El bug del título `"Velada vs "`, que el plan mandaba abrir aparte, está anotado en la tarjeta de su paso (RCA-230).
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
+
+> **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
 
 Patrón único: **crear `src/modules/<módulo>/domain/*.ts` como módulos planos (sin `"use server"`, sin Prisma, sin `next/*`), mover ahí la regla, y dejar la server action como adaptador fino**. El reloj entra como parámetro `now: Date` con valor por defecto, en lugar de llamar a `new Date()` dentro.
 
@@ -472,7 +558,7 @@ Borrados, en commits aparte tras `grep` confirmatorio: **`createReservation`** (
 
 ### 3.1 Unitarios (`src/**/*.test.ts`, colocados junto al código)
 
-> **Hechos en P2:** el 2, el 4, el 6 y del 7 `toSuggestion`, `espnMonths`, `rate-limit` y `base-url`. Quedan el 1, el 3, el 5 y el resto del 7, que necesitan que P4 cree primero las funciones puras.
+> **Hechos en P2:** el 2, el 4, el 6 y del 7 `toSuggestion`, `espnMonths`, `rate-limit` y `base-url`. **Hechos en P4:** el 1, el 3, el 5 (sin el "CONFIRMED + ko", ver P4.3) y el resto del 7.
 
 Por riesgo, empezando por el dinero:
 
@@ -624,7 +710,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P1**~~ | ~~Andamiaje: devDeps, config de Vitest, `tests/setup/*`, scripts, ESLint, y un test que valide la tubería en Windows. **Cero cambios en `src/`.**~~ **Hecho.** Ver Fase 1 | — | 04 · Fase 1 |
 | ~~**P2**~~ | ~~Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales.~~ **Hecho.** Ver P2 | — | 05 · Fase 2 |
 | ~~**P3**~~ | ~~Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar.~~ **Hecho.** Ver P3 | — | 06 · Fase 3 |
-| **P4** | Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto. | Alto en los dos últimos | 07 · Fase 4 |
+| ~~**P4**~~ | ~~Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto.~~ **Hecho.** Ver P4 | — | 07 · Fase 4 |
 | **P5** | E2E: los `data-testid` en un commit aislado, luego config y escenarios, luego el job de CI. | Bajo | 08 · Fase 5 |
 | **P6** | Umbrales de cobertura y cierre. | Bajo | 09 · Fase 6 |
 
@@ -644,8 +730,8 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 
 ### Lo que hay que verificar a mano, sin excusa
 
-1. **Un pago real en el TPV de pruebas, antes y después** de las dos extracciones de dinero. Comparar `totalPrice`, `seatPriceCents` y `managementFeeCents` de las dos reservas, y que `verify-management-fee.ts report` siga dando lo mismo.
-2. Que el recibo sigue imprimiendo el código de autorización tras extraer `apply-payment-outcome`.
+1. ~~**Un pago real en el TPV de pruebas, antes y después** de las dos extracciones de dinero. Comparar `totalPrice`, `seatPriceCents` y `managementFeeCents` de las dos reservas, y que `verify-management-fee.ts report` siga dando lo mismo.~~ **Hecho en P4.5.**
+2. ~~Que el recibo sigue imprimiendo el código de autorización tras extraer `apply-payment-outcome`.~~ **Hecho en P4.5.**
 3. Que `cleanup` sigue expirando a los **5** minutos y no a los 30: el paso que renombra la variable mentirosa es justo donde podría colarse el error.
 4. Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.
 5. Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.
