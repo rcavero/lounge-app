@@ -3,6 +3,11 @@
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "@/modules/events/types";
 import { requireAuth } from "@/lib/auth-guard";
+import {
+  groupEventsByMonth,
+  monthRange,
+  type ReportMonth,
+} from "../domain/report-months";
 
 export interface ReservationResult {
   success: boolean;
@@ -40,12 +45,8 @@ export interface EventWithReservationCount extends EventWithTeams {
   };
 }
 
-export interface ReportMonth {
-  year: number;
-  month: number;
-  label: string;
-  eventCount: number;
-}
+// Vive en el dominio; se reexporta porque la página de reservas la importa de aquí.
+export type { ReportMonth } from "../domain/report-months";
 
 export interface MonthlyReportEvent {
   id: string;
@@ -303,50 +304,7 @@ export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
     },
   });
 
-  // Group events by month
-  const monthsMap = new Map<string, { year: number; month: number; count: number }>();
-  const monthNames = [
-    "Enero",
-    "Febrero",
-    "Marzo",
-    "Abril",
-    "Mayo",
-    "Junio",
-    "Julio",
-    "Agosto",
-    "Septiembre",
-    "Octubre",
-    "Noviembre",
-    "Diciembre",
-  ];
-
-  for (const event of events) {
-    const date = new Date(event.eventDate);
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const key = `${year}-${month}`;
-
-    if (monthsMap.has(key)) {
-      monthsMap.get(key)!.count++;
-    } else {
-      monthsMap.set(key, { year, month, count: 1 });
-    }
-  }
-
-  // Convert to array and sort by date descending
-  const months: ReportMonth[] = Array.from(monthsMap.values()).map((m) => ({
-    year: m.year,
-    month: m.month,
-    label: `${monthNames[m.month]} ${m.year}`,
-    eventCount: m.count,
-  }));
-
-  months.sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.month - a.month;
-  });
-
-  return months;
+  return groupEventsByMonth(events.map((event) => event.eventDate));
 }
 
 // Get monthly report data for PDF generation
@@ -355,8 +313,7 @@ export async function getMonthlyReportData(
   month: number,
 ): Promise<MonthlyReportEvent[]> {
   await requireAuth();
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+  const { startDate, endDate } = monthRange(year, month);
 
   const events = await prisma.event.findMany({
     where: {
