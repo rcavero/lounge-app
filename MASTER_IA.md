@@ -814,8 +814,8 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 
 1. ~~**Un pago real en el TPV de pruebas, antes y después** de las dos extracciones de dinero. Comparar `totalPrice`, `seatPriceCents` y `managementFeeCents` de las dos reservas, y que `verify-management-fee.ts report` siga dando lo mismo.~~ **Hecho en P4.5.**
 2. ~~Que el recibo sigue imprimiendo el código de autorización tras extraer `apply-payment-outcome`.~~ **Hecho en P4.5.**
-3. Que `cleanup` sigue expirando a los **5** minutos y no a los 30: el paso que renombra la variable mentirosa es justo donde podría colarse el error.
-4. Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.
+3. ~~Que `cleanup` sigue expirando a los **5** minutos y no a los 30: el paso que renombra la variable mentirosa es justo donde podría colarse el error.~~ **Hecho el 23 de septiembre**, por el otro camino que usa el mismo plazo: el cron de Vercel solo corre en el despliegue de producción, pero la página del evento caduca las pendientes al abrirse, con la misma `pendingExpiryCutoff`. Ramón abandonó un pago en la pasarela de la preview de `academic`, sin pagar ni cancelar, y el asiento siguió ocupado a los 3-4 minutos y quedó libre a los 5.
+4. ~~Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.~~ **Hecho el 23 de septiembre**, en la preview de `academic`.
 5. ~~Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.~~ **Hecho en P5.5.**
 6. Que `db:whoami:prod` sigue imprimiendo lo mismo al final de todo que al principio.
 
