@@ -9,7 +9,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { requireAuth } from "@/lib/auth-guard";
-import { prisma } from "@/lib/prisma";
 import {
   getAvailableReportMonths,
   getMonthlyReportData,
