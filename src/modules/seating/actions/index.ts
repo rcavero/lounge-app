@@ -7,6 +7,7 @@ import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants
 import { requireAuth } from "@/lib/auth-guard";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { pendingExpiryCutoff } from "@/modules/reservations/domain/expiry";
+import { applyOverlapOccupancy, effectiveSeatStatus } from "../domain/availability";
 
 async function getOverlappingEventIds(
   excludeEventId: string,
@@ -67,7 +68,7 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
     where: { eventId },
   });
 
-  const statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
+  let statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
 
   // If event exists, also check overlapping events
   if (event) {
@@ -87,18 +88,13 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
 
       // Mark as OCCUPIED any seat that is taken in an overlapping event
       // but only if it's currently AVAILABLE in this event (don't override BLOCKED)
-      for (const os of overlappingStatuses) {
-        const currentStatus = statusMap.get(os.seatId) || "AVAILABLE";
-        if (currentStatus === "AVAILABLE") {
-          statusMap.set(os.seatId, "OCCUPIED");
-        }
-      }
+      statusMap = applyOverlapOccupancy(statusMap, overlappingStatuses);
     }
   }
 
   return seats.map((seat) => ({
     ...seat,
-    status: (statusMap.get(seat.id) || "AVAILABLE") as SeatStatusType,
+    status: effectiveSeatStatus(statusMap, seat.id),
   }));
 }
 
