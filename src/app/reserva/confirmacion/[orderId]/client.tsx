@@ -88,8 +88,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
       //   · desglose de gastos de gestión: 9 mm (solo si el evento los cobra)
       //   · nombre del cliente: 6 mm, que es justo lo que avanza su bloque
       const nameHeight = hasName ? 6 : 0;
-      const ticketHeight =
-        98 + seatsHeight + qrSize + (hasFee ? 9 : 0) + nameHeight;
+      const ticketHeight = 98 + seatsHeight + qrSize + (hasFee ? 9 : 0) + nameHeight;
 
       const doc = new jsPDF({
         unit: "mm",
@@ -161,7 +160,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         // nombre más largo del máximo, se recorta en vez de desbordar los 80 mm.
         const [nameLine] = doc.splitTextToSize(
           reservation.customerName,
-          ticketWidth - margin * 2
+          ticketWidth - margin * 2,
         );
         doc.text(nameLine, ticketWidth / 2, yPos, { align: "center" });
       }
@@ -194,7 +193,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         `${reservation.totalSeats} asiento${reservation.totalSeats !== 1 ? "s" : ""}`,
         ticketWidth / 2,
         yPos,
-        { align: "center" }
+        { align: "center" },
       );
 
       yPos += 7;
@@ -219,7 +218,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           `Importe de la reserva: ${seatPrice}€ x ${seats} = ${seatTotal}€`,
           ticketWidth / 2,
           yPos,
-          { align: "center" }
+          { align: "center" },
         );
 
         yPos += 4;
@@ -227,7 +226,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           `Gastos de gestión: ${fee}€ x ${seats} = ${feeTotal}€`,
           ticketWidth / 2,
           yPos,
-          { align: "center" }
+          { align: "center" },
         );
       }
 
@@ -320,7 +319,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
 
       const rowsHeight = layout.reduce(
         (total, row) => total + (row.inline ? 5 : 5 + row.lines.length * 4),
-        0
+        0,
       );
       const receiptHeight = 52 + rowsHeight;
 
@@ -441,17 +440,13 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
 
           <div className="border-t border-white/10 pt-3 flex items-center justify-between">
             <div>
-              <p className="text-white/40 text-xs uppercase tracking-wider">
-                Asientos
-              </p>
+              <p className="text-white/40 text-xs uppercase tracking-wider">Asientos</p>
               <p className="text-white text-sm">
                 {reservation.seats.map((s) => s.code).join(", ")}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-white/40 text-xs uppercase tracking-wider">
-                Total
-              </p>
+              <p className="text-white/40 text-xs uppercase tracking-wider">Total</p>
               <p className="text-[#D4AF37] text-lg font-bold">
                 {formatEuros(reservation.totalPrice)}€
               </p>
@@ -471,9 +466,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
               </div>
               <div className="flex items-center justify-end gap-3 text-xs">
                 <span className="text-white/40">Gastos de gestión</span>
-                <span className="text-white tabular-nums">
-                  {formatEuros(feeTotal)}€
-                </span>
+                <span className="text-white tabular-nums">{formatEuros(feeTotal)}€</span>
               </div>
             </div>
           )}
@@ -491,18 +484,12 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           <ReceiptRow label="Comercio" value={merchant.name} />
           <ReceiptRow label="FUC" value={merchant.fuc} />
           <ReceiptRow label="URL" value={merchant.url} />
-          <ReceiptRow
-            label="Importe"
-            value={`${formatEuros(reservation.totalPrice)}€`}
-          />
+          <ReceiptRow label="Importe" value={`${formatEuros(reservation.totalPrice)}€`} />
           <ReceiptRow
             label="Cód. autorización"
             value={reservation.authorisationCode ?? "—"}
           />
-          <ReceiptRow
-            label="Fecha / hora"
-            value={reservation.paymentDateTime ?? "—"}
-          />
+          <ReceiptRow label="Fecha / hora" value={reservation.paymentDateTime ?? "—"} />
           <ReceiptRow label="Nº de pedido" value={orderId} />
           <ReceiptRow label="Producto" value={merchant.productDescription} />
         </div>

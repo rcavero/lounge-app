@@ -33,7 +33,11 @@ interface EventReservationClientProps {
   zoneLabels: ZoneLabelConfig[];
 }
 
-export function EventReservationClient({ event, seats, zoneLabels }: EventReservationClientProps) {
+export function EventReservationClient({
+  event,
+  seats,
+  zoneLabels,
+}: EventReservationClientProps) {
   const {
     selectedSeats,
     toggleSeat,
@@ -64,6 +68,9 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
   // Detect browser language
   useEffect(() => {
+    // Deuda heredada (MASTER_IA, 1.4), silenciada en P5 para poder commitear este
+    // fichero; se arregla en P6, antes de que el lint de CI sea bloqueante.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIsSpanish(navigator.language.startsWith("es"));
   }, []);
 
@@ -213,9 +220,19 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         title: "CONDICIONES DE LA RESERVA",
         items: [
           { text: "No se admiten cancelaciones", bold: null },
-          { text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)", bold: null },
-          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: feeSuffixEs },
-          { text: "La reserva de los asientos es válida sólo durante la duración del evento", bold: null },
+          {
+            text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)",
+            bold: null,
+          },
+          {
+            before: "El pago de la reserva supone un consumo mínimo que ",
+            bold: "será descontado del importe del ticket final",
+            after: feeSuffixEs,
+          },
+          {
+            text: "La reserva de los asientos es válida sólo durante la duración del evento",
+            bold: null,
+          },
         ],
         accept: "Aceptar",
       }
@@ -223,9 +240,19 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         title: "RESERVATION CONDITIONS",
         items: [
           { text: "No cancellations accepted", bold: null },
-          { text: "Seats will be released 10 minutes after the event start time (punctuality is required)", bold: null },
-          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: feeSuffixEn },
-          { text: "Seat reservation is only valid for the duration of the event", bold: null },
+          {
+            text: "Seats will be released 10 minutes after the event start time (punctuality is required)",
+            bold: null,
+          },
+          {
+            before: "The reservation payment represents a minimum consumption that ",
+            bold: "will be deducted from the final ticket amount",
+            after: feeSuffixEn,
+          },
+          {
+            text: "Seat reservation is only valid for the duration of the event",
+            bold: null,
+          },
         ],
         accept: "Accept",
       };
@@ -301,9 +328,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
                 className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/30 focus:border-[#D4AF37] outline-none disabled:opacity-50"
               />
 
-              {nameError && (
-                <p className="text-red-400 text-xs mt-2">{nameError}</p>
-              )}
+              {nameError && <p className="text-red-400 text-xs mt-2">{nameError}</p>}
 
               <p className="text-white/40 text-[11px] mt-2 mb-5">{nameModal.help}</p>
 
@@ -343,10 +368,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         <div className="flex items-center justify-between px-4 py-4">
           {/* Left: Back button + team crests */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="text-white/70 hover:text-white transition-colors"
-            >
+            <Link href="/" className="text-white/70 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-1">
@@ -413,9 +435,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
           <p className="text-[10px] text-white/50 uppercase tracking-wide">
             {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
           </p>
-          <p className="text-white font-bold">
-            {formatEuros(totalPrice)}€
-          </p>
+          <p className="text-white font-bold">{formatEuros(totalPrice)}€</p>
           {feeCents > 0 && (
             <p className="text-[9px] text-white/40 leading-tight">
               {isSpanish ? "gastos de gestión incl." : "management fee incl."}

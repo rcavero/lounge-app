@@ -71,7 +71,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
 
   const toggleScreen = (screenId: string) => {
     setSelectedScreens((prev) =>
-      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId]
+      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId],
     );
   };
 
@@ -141,7 +141,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
               screens: selectedScreens,
               competition,
               durationMinutes,
-            }
+            },
       );
 
       if (result.success) {
@@ -210,7 +210,9 @@ export function NewEventForm({ teams }: NewEventFormProps) {
           {homeTeamName.trim() && (
             <div className="flex items-center justify-center gap-3 p-3 bg-[#1a1a1a] rounded-xl">
               <span className="text-3xl">{sportEmoji}</span>
-              <span className="text-white text-sm font-medium">{homeTeamName.trim()}</span>
+              <span className="text-white text-sm font-medium">
+                {homeTeamName.trim()}
+              </span>
             </div>
           )}
         </div>
@@ -218,7 +220,9 @@ export function NewEventForm({ teams }: NewEventFormProps) {
         // Other manual sports: two text inputs
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium">Participante Local</label>
+            <label className="text-white/70 text-xs font-medium">
+              Participante Local
+            </label>
             <input
               type="text"
               value={homeTeamName}
@@ -234,7 +238,9 @@ export function NewEventForm({ teams }: NewEventFormProps) {
             )}
           </div>
           <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium">Participante Visitante</label>
+            <label className="text-white/70 text-xs font-medium">
+              Participante Visitante
+            </label>
             <input
               type="text"
               value={awayTeamName}
@@ -302,35 +308,41 @@ export function NewEventForm({ teams }: NewEventFormProps) {
       )}
 
       {/* Match Preview */}
-      {isMotor ? null : isManual ? (
-        homeTeamName.trim() && awayTeamName.trim() && (
-          <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-            <div className="flex flex-col items-center">
-              <span className="text-3xl">{sportEmoji}</span>
-              <span className="text-white/70 text-xs mt-1">{homeTeamName.trim()}</span>
-            </div>
-            <span className="text-white/50 text-lg font-bold">vs</span>
-            <div className="flex flex-col items-center">
-              <span className="text-3xl">{sportEmoji}</span>
-              <span className="text-white/70 text-xs mt-1">{awayTeamName.trim()}</span>
-            </div>
-          </div>
-        )
-      ) : (
-        homeTeam && awayTeam && (
-          <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-            <div className="flex flex-col items-center">
-              <TeamLogo team={homeTeam} size="lg" />
-              <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
-            </div>
-            <span className="text-white/50 text-lg font-bold">vs</span>
-            <div className="flex flex-col items-center">
-              <TeamLogo team={awayTeam} size="lg" />
-              <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
-            </div>
-          </div>
-        )
-      )}
+      {isMotor
+        ? null
+        : isManual
+          ? homeTeamName.trim() &&
+            awayTeamName.trim() && (
+              <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center">
+                  <span className="text-3xl">{sportEmoji}</span>
+                  <span className="text-white/70 text-xs mt-1">
+                    {homeTeamName.trim()}
+                  </span>
+                </div>
+                <span className="text-white/50 text-lg font-bold">vs</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-3xl">{sportEmoji}</span>
+                  <span className="text-white/70 text-xs mt-1">
+                    {awayTeamName.trim()}
+                  </span>
+                </div>
+              </div>
+            )
+          : homeTeam &&
+            awayTeam && (
+              <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center">
+                  <TeamLogo team={homeTeam} size="lg" />
+                  <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
+                </div>
+                <span className="text-white/50 text-lg font-bold">vs</span>
+                <div className="flex flex-col items-center">
+                  <TeamLogo team={awayTeam} size="lg" />
+                  <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
+                </div>
+              </div>
+            )}
 
       {/* Date and Time */}
       <div className="grid grid-cols-2 gap-4">

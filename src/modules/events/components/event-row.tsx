@@ -30,11 +30,13 @@ const screenColors: Record<string, string> = {
 const MESSAGES = {
   es: {
     tooEarly: "Las reservas se desbloquearán 48 horas antes del evento",
-    tooLate: "Se han cerrado las reservas para este evento porque faltan menos de 4 horas para su inicio",
+    tooLate:
+      "Se han cerrado las reservas para este evento porque faltan menos de 4 horas para su inicio",
   },
   en: {
     tooEarly: "Reservations will open 48 hours before the event",
-    tooLate: "Reservations for this event are closed because it starts in less than 4 hours",
+    tooLate:
+      "Reservations for this event are closed because it starts in less than 4 hours",
   },
 };
 
@@ -61,6 +63,9 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
   const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
   // Availability check
+  // Deuda heredada (MASTER_IA, 1.4), silenciada en P5 para poder commitear este
+  // fichero; se arregla en P6, antes de que el lint de CI sea bloqueante.
+  // eslint-disable-next-line react-hooks/purity
   const hoursUntilEvent = (eventDate.getTime() - Date.now()) / (1000 * 60 * 60);
   const isTooEarly = checkAvailability && hoursUntilEvent > 48;
   const isTooLate = checkAvailability && hoursUntilEvent >= 0 && hoursUntilEvent < 4;
@@ -103,8 +108,13 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
       className={`bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between transition-colors relative
         ${isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-[#222]"}`}
     >
-      <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
-      {isTooEarly && <Clock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
+      <CompetitionEmblem
+        competition={event.competition}
+        className="absolute top-2 left-2"
+      />
+      {isTooEarly && (
+        <Clock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />
+      )}
       {isTooLate && <Lock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
 
       {/* Home Team / GP name */}

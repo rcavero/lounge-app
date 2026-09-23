@@ -26,7 +26,9 @@ export default async function AdminDashboardPage() {
                 </div>
                 <div>
                   <h2 className="text-white font-semibold text-sm">Configurar eventos</h2>
-                  <p className="text-white/50 text-xs">Crear, editar o eliminar eventos</p>
+                  <p className="text-white/50 text-xs">
+                    Crear, editar o eliminar eventos
+                  </p>
                 </div>
               </Link>
             )}
@@ -40,7 +42,9 @@ export default async function AdminDashboardPage() {
               </div>
               <div>
                 <h2 className="text-white font-semibold text-sm">Administrar reservas</h2>
-                <p className="text-white/50 text-xs">Ver y gestionar reservas por evento</p>
+                <p className="text-white/50 text-xs">
+                  Ver y gestionar reservas por evento
+                </p>
               </div>
             </Link>
 
@@ -54,8 +58,12 @@ export default async function AdminDashboardPage() {
                     <Armchair className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <h2 className="text-white font-semibold text-sm">Configurar asientos</h2>
-                    <p className="text-white/50 text-xs">Posicionar asientos en el mapa del local</p>
+                    <h2 className="text-white font-semibold text-sm">
+                      Configurar asientos
+                    </h2>
+                    <p className="text-white/50 text-xs">
+                      Posicionar asientos en el mapa del local
+                    </p>
                   </div>
                 </Link>
 
@@ -67,7 +75,9 @@ export default async function AdminDashboardPage() {
                     <Users className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <h2 className="text-white font-semibold text-sm">Administrar usuarios</h2>
+                    <h2 className="text-white font-semibold text-sm">
+                      Administrar usuarios
+                    </h2>
                     <p className="text-white/50 text-xs">Gestionar usuarios y permisos</p>
                   </div>
                 </Link>

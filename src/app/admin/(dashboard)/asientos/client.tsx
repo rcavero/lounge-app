@@ -8,7 +8,7 @@ import { updateSeatPositions, updateZoneLabels } from "@/modules/seating/actions
 import {
   DEFAULT_SEAT_POSITIONS,
   DEFAULT_ZONE_LABEL_POSITIONS,
-  type ZoneLabelConfig
+  type ZoneLabelConfig,
 } from "@/modules/seating/constants";
 import type { Seat } from "@/generated/prisma";
 
@@ -71,22 +71,26 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
           prev.map((pos) =>
             pos.id === draggingSeat
               ? { ...pos, x: Math.round(clampedX), y: Math.round(clampedY) }
-              : pos
-          )
+              : pos,
+          ),
         );
         setHasChanges(true);
       } else if (draggingLabel) {
         setLabels((prev) =>
           prev.map((label) =>
             label.zone === draggingLabel
-              ? { ...label, posX: Math.round(clampedX * 10) / 10, posY: Math.round(clampedY * 10) / 10 }
-              : label
-          )
+              ? {
+                  ...label,
+                  posX: Math.round(clampedX * 10) / 10,
+                  posY: Math.round(clampedY * 10) / 10,
+                }
+              : label,
+          ),
         );
         setHasChanges(true);
       }
     },
-    [draggingSeat, draggingLabel]
+    [draggingSeat, draggingLabel],
   );
 
   const handleMouseUp = useCallback(() => {
@@ -122,22 +126,26 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
           prev.map((pos) =>
             pos.id === draggingSeat
               ? { ...pos, x: Math.round(clampedX), y: Math.round(clampedY) }
-              : pos
-          )
+              : pos,
+          ),
         );
         setHasChanges(true);
       } else if (draggingLabel) {
         setLabels((prev) =>
           prev.map((label) =>
             label.zone === draggingLabel
-              ? { ...label, posX: Math.round(clampedX * 10) / 10, posY: Math.round(clampedY * 10) / 10 }
-              : label
-          )
+              ? {
+                  ...label,
+                  posX: Math.round(clampedX * 10) / 10,
+                  posY: Math.round(clampedY * 10) / 10,
+                }
+              : label,
+          ),
         );
         setHasChanges(true);
       }
     },
-    [draggingSeat, draggingLabel]
+    [draggingSeat, draggingLabel],
   );
 
   const handleTouchEnd = useCallback(() => {
@@ -154,7 +162,7 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
             id: pos.id,
             posX: pos.x,
             posY: pos.y,
-          }))
+          })),
         ),
         updateZoneLabels(labels),
       ]);
@@ -182,7 +190,6 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
     setLabels(DEFAULT_ZONE_LABEL_POSITIONS);
     setHasChanges(true); // Mark as changed so user can save the reset
   };
-
 
   return (
     <div className="space-y-4">
@@ -246,15 +253,15 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
             const colors = isTV1
               ? { bg: "#7f1d1d", border: "#b91c1c" }
               : isTV2
-              ? { bg: "#1e3a5f", border: "#3b82f6" }
-              : { bg: "#92700c", border: "#D4AF37" };
+                ? { bg: "#1e3a5f", border: "#3b82f6" }
+                : { bg: "#92700c", border: "#D4AF37" };
 
             return (
               <div
                 key={label.zone}
                 className={cn(
                   "absolute text-[9px] font-bold z-30 cursor-grab active:cursor-grabbing select-none whitespace-nowrap text-white py-1 rounded-full border-2",
-                  isDragging && "ring-2 ring-white"
+                  isDragging && "ring-2 ring-white",
                 )}
                 style={{
                   left: `${label.posX}%`,
@@ -280,7 +287,7 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
               key={seat.id}
               className={cn(
                 "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 z-20 cursor-grab active:cursor-grabbing bg-[#22c55e] border-[#16a34a]",
-                draggingSeat === seat.id && "scale-125 ring-2 ring-white"
+                draggingSeat === seat.id && "scale-125 ring-2 ring-white",
               )}
               style={{
                 left: `${seat.x}%`,
@@ -304,7 +311,8 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
 
       {/* Instructions */}
       <div className="text-center text-xs text-white/40 mt-4">
-        Arrastra los asientos para cambiar su posición. Los cambios se aplicarán a todos los eventos.
+        Arrastra los asientos para cambiar su posición. Los cambios se aplicarán a todos
+        los eventos.
       </div>
     </div>
   );

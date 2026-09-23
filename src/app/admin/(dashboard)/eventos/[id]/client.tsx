@@ -72,12 +72,16 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   // Common state
   const [eventDate, setEventDate] = useState<string>(formatDateForInput(event.eventDate));
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
-  const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
+  const [selectedScreens, setSelectedScreens] = useState<string[]>(
+    getInitialScreens(event),
+  );
   const [pricePerSeat, setPricePerSeat] = useState<number>(event.pricePerSeat ?? 10);
   const [managementFeeCents, setManagementFeeCents] = useState<number>(
-    event.managementFeeCents
+    event.managementFeeCents,
   );
-  const [durationMinutes, setDurationMinutes] = useState<number>(event.durationMinutes ?? 120);
+  const [durationMinutes, setDurationMinutes] = useState<number>(
+    event.durationMinutes ?? 120,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -107,7 +111,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
 
   const toggleScreen = (screenId: string) => {
     setSelectedScreens((prev) =>
-      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId]
+      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId],
     );
   };
 
@@ -190,7 +194,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               pricePerSeat,
               managementFeeCents,
               durationMinutes,
-            }
+            },
       );
 
       if (result.success) {
@@ -281,7 +285,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             {homeTeamName.trim() && (
               <div className="flex items-center justify-center gap-3 p-3 bg-[#1a1a1a] rounded-xl">
                 <span className="text-3xl">{sportEmoji}</span>
-                <span className="text-white text-sm font-medium">{homeTeamName.trim()}</span>
+                <span className="text-white text-sm font-medium">
+                  {homeTeamName.trim()}
+                </span>
               </div>
             )}
           </div>
@@ -289,7 +295,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           // Other manual sports: two text inputs
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium">Participante Local</label>
+              <label className="text-white/70 text-xs font-medium">
+                Participante Local
+              </label>
               <input
                 type="text"
                 value={homeTeamName}
@@ -305,7 +313,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium">Participante Visitante</label>
+              <label className="text-white/70 text-xs font-medium">
+                Participante Visitante
+              </label>
               <input
                 type="text"
                 value={awayTeamName}
@@ -347,7 +357,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium">Equipo Visitante</label>
+              <label className="text-white/70 text-xs font-medium">
+                Equipo Visitante
+              </label>
               <select
                 value={awayTeamId}
                 onChange={(e) => setAwayTeamId(e.target.value)}
@@ -371,35 +383,45 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         )}
 
         {/* Match Preview */}
-        {isMotor ? null : isManual ? (
-          homeTeamName.trim() && awayTeamName.trim() && (
-            <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-              <div className="flex flex-col items-center">
-                <span className="text-3xl">{sportEmoji}</span>
-                <span className="text-white/70 text-xs mt-1">{homeTeamName.trim()}</span>
-              </div>
-              <span className="text-white/50 text-lg font-bold">vs</span>
-              <div className="flex flex-col items-center">
-                <span className="text-3xl">{sportEmoji}</span>
-                <span className="text-white/70 text-xs mt-1">{awayTeamName.trim()}</span>
-              </div>
-            </div>
-          )
-        ) : (
-          homeTeam && awayTeam && (
-            <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-              <div className="flex flex-col items-center">
-                <TeamLogo team={homeTeam} size="lg" />
-                <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
-              </div>
-              <span className="text-white/50 text-lg font-bold">vs</span>
-              <div className="flex flex-col items-center">
-                <TeamLogo team={awayTeam} size="lg" />
-                <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
-              </div>
-            </div>
-          )
-        )}
+        {isMotor
+          ? null
+          : isManual
+            ? homeTeamName.trim() &&
+              awayTeamName.trim() && (
+                <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <span className="text-3xl">{sportEmoji}</span>
+                    <span className="text-white/70 text-xs mt-1">
+                      {homeTeamName.trim()}
+                    </span>
+                  </div>
+                  <span className="text-white/50 text-lg font-bold">vs</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-3xl">{sportEmoji}</span>
+                    <span className="text-white/70 text-xs mt-1">
+                      {awayTeamName.trim()}
+                    </span>
+                  </div>
+                </div>
+              )
+            : homeTeam &&
+              awayTeam && (
+                <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <TeamLogo team={homeTeam} size="lg" />
+                    <span className="text-white/70 text-xs mt-1">
+                      {homeTeam.shortName}
+                    </span>
+                  </div>
+                  <span className="text-white/50 text-lg font-bold">vs</span>
+                  <div className="flex flex-col items-center">
+                    <TeamLogo team={awayTeam} size="lg" />
+                    <span className="text-white/70 text-xs mt-1">
+                      {awayTeam.shortName}
+                    </span>
+                  </div>
+                </div>
+              )}
 
         {/* Date and Time */}
         <div className="grid grid-cols-2 gap-4">
@@ -461,8 +483,8 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             ))}
           </select>
           <p className="text-white/40 text-[11px]">
-            No se descuentan en consumiciones. Se aplican solo a las reservas nuevas: las ya
-            pagadas conservan su importe.
+            No se descuentan en consumiciones. Se aplican solo a las reservas nuevas: las
+            ya pagadas conservan su importe.
           </p>
         </div>
 
@@ -558,8 +580,8 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             </div>
 
             <p className="text-white/70 text-sm mb-6">
-              ¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer y
-              se eliminarán todas las reservas asociadas.
+              ¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede
+              deshacer y se eliminarán todas las reservas asociadas.
             </p>
 
             <div className="flex gap-3">

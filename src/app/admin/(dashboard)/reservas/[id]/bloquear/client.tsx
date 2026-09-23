@@ -7,7 +7,10 @@ import { ArrowLeft, Save } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { saveBlockedSeats } from "@/modules/seating/actions";
-import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "@/modules/seating/constants";
+import {
+  DEFAULT_ZONE_LABEL_POSITIONS,
+  type ZoneLabelConfig,
+} from "@/modules/seating/constants";
 import type { SeatWithStatus } from "@/modules/seating/types";
 
 const BASE_PADDING = 12;
@@ -24,7 +27,7 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
 
   // Pre-select currently blocked seats
   const [blockedSeats, setBlockedSeats] = useState<string[]>(
-    seats.filter((s) => s.status === "BLOCKED").map((s) => s.id)
+    seats.filter((s) => s.status === "BLOCKED").map((s) => s.id),
   );
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,7 +35,7 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
   const toggleSeat = (seatId: string, currentStatus: string) => {
     if (currentStatus === "OCCUPIED" || currentStatus === "RESERVED") return;
     setBlockedSeats((prev) =>
-      prev.includes(seatId) ? prev.filter((id) => id !== seatId) : [...prev, seatId]
+      prev.includes(seatId) ? prev.filter((id) => id !== seatId) : [...prev, seatId],
     );
   };
 
@@ -98,8 +101,8 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
             const colors = isTV1
               ? { bg: "#7f1d1d", border: "#b91c1c" }
               : isTV2
-              ? { bg: "#1e3a5f", border: "#3b82f6" }
-              : { bg: "#92700c", border: "#D4AF37" };
+                ? { bg: "#1e3a5f", border: "#3b82f6" }
+                : { bg: "#92700c", border: "#D4AF37" };
 
             return (
               <div
@@ -122,7 +125,8 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
 
           {/* Seats */}
           {seats.map((seat) => {
-            const isUnavailable = seat.status === "OCCUPIED" || seat.status === "RESERVED";
+            const isUnavailable =
+              seat.status === "OCCUPIED" || seat.status === "RESERVED";
             const isBlocked = blockedSeats.includes(seat.id);
 
             return (
@@ -133,8 +137,12 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
                 className={cn(
                   "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 transition-all z-20",
                   isUnavailable && "bg-[#ef4444] border-[#dc2626] cursor-not-allowed",
-                  !isUnavailable && isBlocked && "bg-[#6b7280] border-[#4b5563] hover:scale-125 cursor-pointer",
-                  !isUnavailable && !isBlocked && "bg-[#22c55e] border-[#16a34a] hover:scale-125 cursor-pointer"
+                  !isUnavailable &&
+                    isBlocked &&
+                    "bg-[#6b7280] border-[#4b5563] hover:scale-125 cursor-pointer",
+                  !isUnavailable &&
+                    !isBlocked &&
+                    "bg-[#22c55e] border-[#16a34a] hover:scale-125 cursor-pointer",
                 )}
                 style={{ left: `${seat.posX}%`, top: `${seat.posY}%` }}
                 title={`${seat.code} — ${isUnavailable ? "Ocupado" : isBlocked ? "Bloqueado" : "Disponible"}`}

@@ -14,7 +14,12 @@ interface FloorPlanMapProps {
 // Base horizontal padding in pixels for each label type
 const BASE_PADDING = 12; // px (equivalent to px-3)
 
-export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }: FloorPlanMapProps) {
+export function FloorPlanMap({
+  seats,
+  selectedSeats,
+  onSeatSelect,
+  zoneLabels,
+}: FloorPlanMapProps) {
   const labels = zoneLabels || DEFAULT_ZONE_LABEL_POSITIONS;
 
   return (
@@ -44,8 +49,8 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
           const colors = isTV1
             ? { bg: "#7f1d1d", border: "#b91c1c" }
             : isTV2
-            ? { bg: "#1e3a5f", border: "#3b82f6" }
-            : { bg: "#92700c", border: "#D4AF37" };
+              ? { bg: "#1e3a5f", border: "#3b82f6" }
+              : { bg: "#92700c", border: "#D4AF37" };
 
           return (
             <div
@@ -70,7 +75,10 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
         {seats.map((seat) => {
           const isSelected = selectedSeats.includes(seat.id);
           const isAvailable = seat.status === "AVAILABLE";
-          const isUnavailable = seat.status === "RESERVED" || seat.status === "OCCUPIED" || seat.status === "BLOCKED";
+          const isUnavailable =
+            seat.status === "RESERVED" ||
+            seat.status === "OCCUPIED" ||
+            seat.status === "BLOCKED";
 
           return (
             <button
@@ -83,9 +91,11 @@ export function FloorPlanMap({ seats, selectedSeats, onSeatSelect, zoneLabels }:
               disabled={!isAvailable && !isSelected}
               className={cn(
                 "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 transition-all z-20",
-                isAvailable && !isSelected && "bg-[#22c55e] border-[#16a34a] hover:scale-125 cursor-pointer",
+                isAvailable &&
+                  !isSelected &&
+                  "bg-[#22c55e] border-[#16a34a] hover:scale-125 cursor-pointer",
                 isSelected && "bg-[#3b82f6] border-[#2563eb] scale-110",
-                isUnavailable && "bg-[#ef4444] border-[#dc2626] cursor-not-allowed"
+                isUnavailable && "bg-[#ef4444] border-[#dc2626] cursor-not-allowed",
               )}
               style={{
                 left: `${seat.posX}%`,
