@@ -15,6 +15,8 @@ const eslintConfig = defineConfig([
   ]),
   // Cliente generado por Prisma: no es código que escribamos ni que podamos arreglar.
   globalIgnores(["src/generated/**"]),
+  // Informes que generan las herramientas de test: HTML y JS que no escribimos.
+  globalIgnores(["coverage/**", "playwright-report/**", "test-results/**"]),
   {
     name: "tests",
     files: ["**/*.test.ts", "**/*.test.tsx", "tests/**/*.ts"],
