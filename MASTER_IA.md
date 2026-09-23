@@ -586,7 +586,7 @@ Esta capa cubre lo que las otras dos no ven: la **ocupación en el evento solapa
 | `npm run build` | limpio, las mismas 24 rutas |
 | Unicode oculto en los 28 ficheros tocados | ninguno |
 
-**Queda a mano** el punto 5 de "Lo que hay que verificar a mano": que el plano de `/admin/asientos` no se ha movido ni un píxel tras los `data-testid`. Los atributos no cambian el AST más allá de sí mismos, pero la comprobación la pedía el plan con los ojos.
+**Verificado a mano el 23 de septiembre** (punto 5 de "Lo que hay que verificar a mano"): Ramón abrió `/admin/asientos` en la preview de `academic` con los `data-testid` ya desplegados, y los 47 asientos siguen en sus posiciones habituales.
 
 ---
 
@@ -816,7 +816,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 2. ~~Que el recibo sigue imprimiendo el código de autorización tras extraer `apply-payment-outcome`.~~ **Hecho en P4.5.**
 3. Que `cleanup` sigue expirando a los **5** minutos y no a los 30: el paso que renombra la variable mentirosa es justo donde podría colarse el error.
 4. Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.
-5. Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.
+5. ~~Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.~~ **Hecho en P5.5.**
 6. Que `db:whoami:prod` sigue imprimiendo lo mismo al final de todo que al principio.
 
 ---
