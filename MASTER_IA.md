@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración) **y P4** (extracción de dominio). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio) **y P5** (E2E con Playwright). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -253,6 +253,8 @@ src/modules/events/components/event-row.tsx:64   react-hooks/purity
 ```
 
 No se tocan aquí, que esta fase no cambia `src/`. El tercero lo arregla sola la extracción de dominio (P4), al meter el reloj como parámetro en lugar de llamar a `new Date()` dentro del render.
+
+> **Corrección posterior (P5):** P4 no tocó `event-row.tsx`, así que el tercero no se arregló. En P5, el primero y el tercero se silenciaron con `eslint-disable-next-line` para poder commitear esos ficheros; los tres se arreglan en P6, antes del lint bloqueante (RCA-273). Ver P5.3.
 
 **Consecuencia: el `lint` bloqueante de CI (3.5) vuelve a ser viable**, sin baseline ni deuda congelada.
 
@@ -508,6 +510,86 @@ Linear se quedó sin cupo de issues del plan gratuito a mitad de P4, así que el
 
 ---
 
+## Paso P5 — E2E con Playwright · EJECUTADO
+
+La 3.4 de este documento. En Linear, «08 · Fase 5». Seis commits, de `92f9cb6` a `075b2d5`. **El job de CI no entra aquí**: en Linear vive en «09 · Fase 6», y va con él.
+
+### P5.1 Qué quedó cubierto
+
+**20 tests**: los 4 del setup y 16 de escenario, en 8 specs. `npm run e2e` los pasa en unos 15 segundos con el servidor ya construido, y la build añade un par de minutos.
+
+| Escenario | Spec | Proyecto |
+|---|---|---|
+| 1. Compra completa, con comprobación en BD, y ocupación en el evento solapado | `public/purchase.spec.ts` | `public` (Pixel 7) |
+| 2. Pago rechazado: `CANCELLED` y asientos libres | `public/payment-rejected.spec.ts` | `public` |
+| 3. Webhook firmado, OK y firma corrupta, sin navegador | `public/webhook.spec.ts` | `public` |
+| 4. Login, rate limit por IP y roles | `admin/auth.spec.ts` | `admin` (escritorio) |
+| 5. Alta de fútbol y de Fórmula 1, y cambio de gastos de gestión visto en el plano público | `admin/events.spec.ts` | `admin` |
+| 6. Bloquear y desbloquear tres asientos | `admin/seat-blocking.spec.ts` | `admin` |
+| 7. Ticket, recibo e informe mensual en PDF (`@slow`) | `public/ticket-pdf.spec.ts`, `admin/report-pdf.spec.ts` | los dos |
+
+Soporte en `tests/e2e/support/`: `db.ts` (siembra), `auth.ts` (login por rol), `redsys.ts` (los dos caminos de la pasarela), `flows.ts` (pasos del flujo público) y `pdf.ts`. Y `makeAdmin` en las factories, la que P3 aplazó.
+
+### P5.2 Los `data-testid`
+
+Tres commits, como pedía el plan, para que ninguno mezcle cosas:
+
+1. **`92f9cb6`, solo formato**, de los 9 componentes que iban a llevar atributos. Esta vez el comparador de AST de P4 no bastaba: Prettier pone y quita paréntesis alrededor del JSX y reparte el texto en varias líneas. El nuevo aplica la regla de React para el texto JSX (se recortan las líneas y se unen con un espacio), que es lo que ve el navegador. **Antes de fiarse de él, se le metieron cuatro cambios a propósito**, uno de ellos un solo espacio en un texto visible, y los detectó todos.
+2. **`5684239`, los atributos del plan.** Mismo AST que antes ignorando solo los `data-*`; sin ignorarlos, los 10 ficheros difieren, así que la comparación sí los ve.
+3. **`55d46db`, los del formulario de evento**, que el plan no preveía (ver P5.3).
+
+`data-seat-state` vale `AVAILABLE`, `RESERVED`, `OCCUPIED`, `BLOCKED` o `SELECTED`, en el plano público y en el de bloqueo.
+
+### P5.3 Qué se desvió del plan
+
+1. **Dos errores de lint silenciados.** Dos de los tres errores heredados (1.4) están en `event-row.tsx` y en la página del evento, y el hook de pre-commit no deja commitear un fichero con errores: P5 no podía tocarlos. **Decisión de Ramón: silenciarlos con `eslint-disable-next-line` y su motivo, y arreglarlos antes del lint bloqueante de CI** (RCA-273). La 1.4 decía que el de `event-row` lo arreglaría P4, y no fue así, porque P4 no tocó ese componente.
+2. **Más `data-testid` en el formulario de evento.** Ningún `<label>` está asociado a su campo, así que los selects y las fechas no tienen nombre accesible y solo se encontrarían por posición. Es el caso que el criterio del plan reserva para un `data-testid`. Asociar los labels sería lo correcto para accesibilidad, pero cambia el DOM de producción y no es de esta fase.
+3. **Una puerta más: el canario.** `requireDbEnv("test")` protege el proceso de Playwright, pero quien escribe al pagar es el servidor Next, y ese puede estar leyendo otra base: Next carga `.env.production` al arrancar, y en local `reuseExistingServer` aprovecha cualquier servidor que ya esté en el 3100. El setup siembra un evento con un id único y aborta si la portada no lo muestra. **Se probó a propósito** con un servidor contra `lounge_dev`: el canario falla y no corre ningún escenario.
+4. **Cada spec resiembra**, en vez de sembrar una vez en el setup. Los escenarios compran, bloquean y crean eventos, y así ninguno depende del orden. Los ids son fijos: la cookie de iron-session guarda el `adminId`, y el `storageState` del setup tiene que seguir valiendo tras resembrar.
+5. **`"a"` no da error: deshabilita PAGAR.** El plan esperaba un mensaje; la app no deja ni pulsar. El error se prueba con un carácter fuera de la lista blanca (`"Ana <3"`).
+6. **Los PDF que se abren en otra pestaña no se esperan como pestaña.** En Chromium headless no hay visor de PDF: abrir uno lo descarga, y la pestaña no termina de cargar nunca. `support/pdf.ts` sustituye `window.open` por uno que apunta la URL, y el blob se lee desde la página que lo creó.
+7. **El editor del plano (`/admin/asientos`) no tiene escenario.** Guardar exige arrastrar asientos, y el plan lo mencionaba solo por el `window.alert`. `save-positions` queda puesto para cuando se escriba.
+8. **`retries: 0`, también en CI.** Un test que pasa a la segunda es un test inestable, y un reintento automático lo esconde.
+
+### P5.4 Cómo se comprobó que los tests sirven
+
+Las mismas dos preguntas de siempre, en una capa donde cada mutación exige reconstruir la app.
+
+**El propio test, primero.** La primera versión del rate limit pasaba en falso: la aserción del bucle veía el mensaje de error del intento **anterior**, y algún clic se perdía mientras el anterior seguía pendiente. Ahora cada intento espera la respuesta de la server action.
+
+**Después, la app.** 10 mutaciones en 4 builds, agrupadas para que ninguna tape a otra. **Mueren las 10**, y cada una en el test que le toca:
+
+| Mutación | Test que cae |
+|---|---|
+| La portada abre la ventana a 80 h en vez de a 48 | la portada bloquea los eventos fuera de ventana |
+| El OK deja los asientos `RESERVED` | el webhook OK (y la compra) |
+| El KO no libera los asientos | pago rechazado |
+| Guardar bloqueos no bloquea | bloquear y desbloquear |
+| El panel enseña «Configurar eventos» a un WORKER | WORKER solo ve reservas |
+| Un asiento vendido en el evento solapado sale libre | la compra, en su último paso |
+| El rate limit deja 6 intentos en vez de 5 | 5 fallos bloquean la IP |
+| El carrito ignora los gastos de gestión | cambiar los gastos cambia el precio (y la compra) |
+| `createEvent` crea 46 `SeatStatus` en vez de 47 | las dos altas |
+| Se firma un céntimo de más para el banco | la compra |
+
+Esta capa cubre lo que las otras dos no ven: la **ocupación en el evento solapado** solo la había probado la integración con la función de dominio, y aquí cae con el plano que ve el cliente; y el **importe firmado para Redsys** sale del cuerpo del POST que el navegador manda a la pasarela.
+
+### P5.5 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run e2e`, dos veces seguidas, con build limpia | 20 y 20, en verde |
+| `npm test` (unit + ui) | 297, en verde |
+| `npm run test:integration`, dos veces seguidas | 127 y 127, en verde |
+| `npm run typecheck` | limpio |
+| `npm run lint` | 1 error y 5 avisos: los heredados, con dos errores silenciados (P5.3) |
+| `npm run build` | limpio, las mismas 24 rutas |
+| Unicode oculto en los 28 ficheros tocados | ninguno |
+
+**Queda a mano** el punto 5 de "Lo que hay que verificar a mano": que el plano de `/admin/asientos` no se ha movido ni un píxel tras los `data-testid`. Los atributos no cambian el AST más allá de sí mismos, pero la comprobación la pedía el plan con los ojos.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -572,7 +654,7 @@ Por riesgo, empezando por el dinero:
 
 ### 3.2 Componentes (`src/**/*.test.tsx`, jsdom)
 
-> **Hecho en P2**, con los selectores por `title` que hay hoy. Cuando lleguen los `data-testid` (P5), estos tests pueden pasar a usarlos.
+> **Hecho en P2**, con los selectores por `title` que había entonces. Los `data-testid` llegaron en P5; pasar estos tests a usarlos es opcional, porque los `title` no han cambiado.
 
 Dos ficheros, solo donde la UI *decide* algo:
 
@@ -711,8 +793,8 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P2**~~ | ~~Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales.~~ **Hecho.** Ver P2 | — | 05 · Fase 2 |
 | ~~**P3**~~ | ~~Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar.~~ **Hecho.** Ver P3 | — | 06 · Fase 3 |
 | ~~**P4**~~ | ~~Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto.~~ **Hecho.** Ver P4 | — | 07 · Fase 4 |
-| **P5** | E2E: los `data-testid` en un commit aislado, luego config y escenarios, luego el job de CI. | Bajo | 08 · Fase 5 |
-| **P6** | Umbrales de cobertura y cierre. | Bajo | 09 · Fase 6 |
+| ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
+| **P6** | Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre. | Bajo | 09 · Fase 6 |
 
 **La documentación (Fase 4 de este documento, «10 · Fase 7» en Linear) y la presentación (Fase 5, «11 · Fase 8») van en paralelo a partir de P3**: no dependen del refactor, y conviene escribirlas mientras el contexto está fresco en lugar de dejarlas para el final, que es cuando se entregan a medias. La carrera de asientos es «12» en Linear.
 
