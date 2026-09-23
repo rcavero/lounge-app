@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { processRedirectNotification, isResponseCodeOk } from "@/lib/redsys";
 import prisma from "@/lib/prisma";
 import { recordPaymentReceipt } from "@/modules/payments/lib/receipt";
+import { expectedCentsFromTotalPrice } from "@/modules/payments/domain/amount";
 
 export async function POST(request: Request) {
   try {
@@ -52,7 +53,7 @@ export async function POST(request: Request) {
     // Desde que los eventos llevan gastos de gestión el importe ya no es un múltiplo del
     // precio del asiento. Esto es solo una traza de auditoría: no altera el flujo, porque
     // el importe va firmado y una discrepancia significaría un problema mucho mayor.
-    const expectedCents = Math.round(Number(reservation.totalPrice) * 100);
+    const expectedCents = expectedCentsFromTotalPrice(Number(reservation.totalPrice));
     if (Number(result.Ds_Amount) !== expectedCents) {
       console.error(
         `[Payment notify] IMPORTE DISCREPANTE orderId=${orderId} redsys=${result.Ds_Amount} esperado=${expectedCents}`,

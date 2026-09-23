@@ -11,6 +11,7 @@ import {
   generateOrderId,
 } from "@/lib/redsys";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
+import { computeReservationAmount, toRedsysAmount } from "../domain/amount";
 import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
@@ -42,8 +43,8 @@ export async function initializePayment(data: {
   // Importes unitarios de la BD, nunca del cliente. Se trabaja en céntimos enteros:
   // Redsys exige el importe como entero de céntimos y así el desglose que se guarda
   // en la reserva no depende de ninguna división.
-  const seatPriceCents = event.pricePerSeat * 100;
-  const managementFeeCents = event.managementFeeCents;
+  const { seatPriceCents, managementFeeCents, totalCents, totalPrice } =
+    computeReservationAmount(event, seatIds.length);
 
   // Verify all selected seats are available in this event
   const seatStatuses = await prisma.seatStatus.findMany({
@@ -89,8 +90,6 @@ export async function initializePayment(data: {
     }
   }
 
-  const totalCents = (seatPriceCents + managementFeeCents) * seatIds.length;
-  const totalPrice = totalCents / 100;
   const orderId = generateOrderId();
 
   // Create PENDING reservation and mark seats as RESERVED atomically
@@ -120,7 +119,7 @@ export async function initializePayment(data: {
   });
 
   // Build Redsys signed redirect form
-  const amountInCents = String(totalCents);
+  const amountInCents = toRedsysAmount(totalCents);
   // Las vueltas de Redsys NO apuntan directamente a las páginas: pasan por una ruta
   // propia que acepta GET y POST. Las páginas son `page.tsx` y en el App Router un POST
   // contra ellas devuelve 405; si CaixaBank activa el envío de parámetros en las URLs de
