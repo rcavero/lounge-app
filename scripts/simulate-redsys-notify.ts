@@ -34,7 +34,9 @@ async function main() {
   }
 
   if (process.env.REDSYS_ENV === "production") {
-    console.error("✗ REDSYS_ENV=production. Este script no se ejecuta contra producción.");
+    console.error(
+      "✗ REDSYS_ENV=production. Este script no se ejecuta contra producción.",
+    );
     process.exit(1);
   }
 
@@ -67,10 +69,14 @@ async function main() {
   // Simular un KO sobre una reserva ya confirmada la cancela de verdad y libera sus
   // asientos, y el enlace reserva-asientos no se puede reconstruir. Para probar el
   // recibo casi siempre se quiere "ok"; el "ko" hay que pedirlo a conciencia.
-  if (outcome === "ko" && reservation.status === "CONFIRMED" && !process.argv.includes("--force")) {
+  if (
+    outcome === "ko" &&
+    reservation.status === "CONFIRMED" &&
+    !process.argv.includes("--force")
+  ) {
     console.error(
       `✗ La reserva ${reservation.id} está CONFIRMED. Un "ko" la cancelaría y liberaría\n` +
-        `  sus asientos de forma irreversible. Añade --force si es lo que quieres.`
+        `  sus asientos de forma irreversible. Añade --force si es lo que quieres.`,
     );
     process.exit(1);
   }
