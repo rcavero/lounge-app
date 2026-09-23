@@ -10,6 +10,7 @@ import {
   PAY_METHODS,
   generateOrderId,
 } from "@/lib/redsys";
+import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
@@ -59,9 +60,6 @@ export async function initializePayment(data: {
   }
 
   // Verify selected seats are not taken in overlapping events
-  const eventStart = event.eventDate.getTime();
-  const eventEnd = eventStart + event.durationMinutes * 60 * 1000;
-
   const overlappingCandidates = await prisma.event.findMany({
     where: {
       id: { not: eventId },
@@ -70,13 +68,7 @@ export async function initializePayment(data: {
     select: { id: true, eventDate: true, durationMinutes: true },
   });
 
-  const overlappingIds = overlappingCandidates
-    .filter((e) => {
-      const start = e.eventDate.getTime();
-      const end = start + e.durationMinutes * 60 * 1000;
-      return eventStart < end && start < eventEnd;
-    })
-    .map((e) => e.id);
+  const overlappingIds = overlappingEventIds(event, overlappingCandidates);
 
   if (overlappingIds.length > 0) {
     const takenInOverlap = await prisma.seatStatus.findMany({
