@@ -245,6 +245,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="flex items-center gap-2">
             <CompetitionEmblem competition={competition} className="shrink-0" />
             <select
+              data-testid="event-competition"
               value={competition}
               onChange={(e) => handleCompetitionChange(e.target.value)}
               className={INPUT_CLASS}
@@ -276,6 +277,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Gran Premio</label>
             <input
+              data-testid="event-grand-prix"
               type="text"
               value={homeTeamName}
               onChange={(e) => setHomeTeamName(e.target.value)}
@@ -299,6 +301,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
                 Participante Local
               </label>
               <input
+                data-testid="event-home-name"
                 type="text"
                 value={homeTeamName}
                 onChange={(e) => setHomeTeamName(e.target.value)}
@@ -317,6 +320,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
                 Participante Visitante
               </label>
               <input
+                data-testid="event-away-name"
                 type="text"
                 value={awayTeamName}
                 onChange={(e) => setAwayTeamName(e.target.value)}
@@ -337,6 +341,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             <div className="space-y-2">
               <label className="text-white/70 text-xs font-medium">Equipo Local</label>
               <select
+                data-testid="event-home-team"
                 value={homeTeamId}
                 onChange={(e) => setHomeTeamId(e.target.value)}
                 className={INPUT_CLASS}
@@ -361,6 +366,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
                 Equipo Visitante
               </label>
               <select
+                data-testid="event-away-team"
                 value={awayTeamId}
                 onChange={(e) => setAwayTeamId(e.target.value)}
                 className={INPUT_CLASS}
@@ -428,6 +434,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Fecha</label>
             <input
+              data-testid="event-date"
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
@@ -437,6 +444,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Hora</label>
             <input
+              data-testid="event-time"
               type="time"
               value={eventTime}
               onChange={(e) => setEventTime(e.target.value)}
@@ -472,6 +480,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             Gastos de gestión por asiento
           </label>
           <select
+            data-testid="event-fee"
             value={managementFeeCents}
             onChange={(e) => setManagementFeeCents(Number(e.target.value))}
             className={INPUT_CLASS}
