@@ -3,6 +3,7 @@ import { processRedirectNotification, isResponseCodeOk } from "@/lib/redsys";
 import prisma from "@/lib/prisma";
 import { recordPaymentReceipt } from "@/modules/payments/lib/receipt";
 import { expectedCentsFromTotalPrice } from "@/modules/payments/domain/amount";
+import { applyPaymentOutcome } from "@/modules/payments/lib/apply-payment-outcome";
 
 export async function POST(request: Request) {
   try {
@@ -60,38 +61,20 @@ export async function POST(request: Request) {
       );
     }
 
+    // Sin filtro de estado, a diferencia de las páginas de vuelta: ver domain/outcome.ts.
     if (isSuccess) {
-      await prisma.$transaction(async (tx) => {
-        await tx.reservation.update({
-          where: { id: reservation.id },
-          data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
-            confirmedAt: new Date(),
-          },
-        });
-
-        await tx.seatStatus.updateMany({
-          where: { reservationId: reservation.id },
-          data: { status: "OCCUPIED" },
-        });
-      });
+      await applyPaymentOutcome({ outcome: "ok", reservationId: reservation.id });
 
       console.log(`[Payment notify] Reservation ${reservation.id} confirmed`);
     } else {
       const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
 
-      await prisma.$transaction(async (tx) => {
-        await tx.reservation.update({
-          where: { id: reservation.id },
-          data: { status: "CANCELLED", paymentStatus: "FAILED" },
-        });
-
-        // Release seats back to available
-        await tx.seatStatus.updateMany({
-          where: { seatId: { in: seatIds }, eventId: reservation.eventId },
-          data: { status: "AVAILABLE", reservationId: null },
-        });
+      // Release seats back to available
+      await applyPaymentOutcome({
+        outcome: "ko",
+        reservationId: reservation.id,
+        eventId: reservation.eventId,
+        seatIds,
       });
 
       console.log(`[Payment notify] Reservation ${reservation.id} cancelled`);

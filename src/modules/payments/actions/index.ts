@@ -12,6 +12,7 @@ import {
 } from "@/lib/redsys";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { computeReservationAmount, toRedsysAmount } from "../domain/amount";
+import { applyPaymentOutcome } from "../lib/apply-payment-outcome";
 import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
@@ -163,21 +164,7 @@ export async function confirmReservationByOrderId(orderId: string): Promise<void
 
   if (!reservation) return;
 
-  await prisma.$transaction(async (tx) => {
-    await tx.reservation.update({
-      where: { id: reservation.id },
-      data: {
-        status: "CONFIRMED",
-        paymentStatus: "COMPLETED",
-        confirmedAt: new Date(),
-      },
-    });
-
-    await tx.seatStatus.updateMany({
-      where: { reservationId: reservation.id },
-      data: { status: "OCCUPIED" },
-    });
-  });
+  await applyPaymentOutcome({ outcome: "ok", reservationId: reservation.id });
 
   console.log(`[Payment] Reservation ${reservation.id} confirmed from success page`);
 }
@@ -198,16 +185,11 @@ export async function cancelReservationByOrderId(orderId: string): Promise<void>
 
   const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
 
-  await prisma.$transaction(async (tx) => {
-    await tx.reservation.update({
-      where: { id: reservation.id },
-      data: { status: "CANCELLED", paymentStatus: "FAILED" },
-    });
-
-    await tx.seatStatus.updateMany({
-      where: { seatId: { in: seatIds }, eventId: reservation.eventId },
-      data: { status: "AVAILABLE", reservationId: null },
-    });
+  await applyPaymentOutcome({
+    outcome: "ko",
+    reservationId: reservation.id,
+    eventId: reservation.eventId,
+    seatIds,
   });
 
   console.log(`[Payment] Reservation ${reservation.id} cancelled from error page`);
