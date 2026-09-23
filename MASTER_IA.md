@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y el paso P2** (tests de caracterización). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización) **y P3** (tests de integración). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -43,6 +43,8 @@ Estado de partida el 21 de septiembre, verificado entonces:
 - **`npm run lint` fallaba con 533 errores y 1761 avisos**, igual en `main`. **Resuelto en 1.4**: estaban todos en el cliente generado por Prisma, que nunca debió entrar en el lint. La deuda real son 3 errores.
 - **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
 - **Una tercera, que la auditoría de 0.6 no vio**: `prisma/seed.ts` crea un admin con el email real y la contraseña `12345678`, en claro y en todo el historial. **Abierta (RCA-275, urgente)**: hay que comprobar que ninguna cuenta viva la usa **antes de publicar el repositorio**. Ver P2.4.
+- **Un pago que llega después de expirar la reserva se cobra sin asientos.** Bug de producción que sacó a la luz la integración. **Abierto (RCA-276, alta)**. Ver P3.4.
+- **`initializePayment` no comprueba en servidor la ventana de reserva ni el estado del evento**: la ventana solo la aplica la portada, y por enlace directo se puede comprar un partido que empieza en una hora. **Abierto (RCA-277, media)**. Ver P3.4.
 
 ---
 
@@ -352,6 +354,76 @@ El test de nombres necesita caracteres invisibles y marcas bidireccionales. Escr
 
 ---
 
+## Paso P3 — Tests de integración · EJECUTADO
+
+Los caminos del dinero contra un PostgreSQL de verdad (`lounge_test` en Docker), **todavía sin refactorizar**: esto es lo que la extracción de dominio (P4) no puede cambiar. Ejecuta la 3.3 de este documento; en Linear, «06 · Fase 3». 8 commits, de `4326db7` a `c3be79f`. **`src/` no se tocó.**
+
+### P3.1 Qué quedó cubierto
+
+| Fichero | Qué prueba | Tests |
+|---|---|---|
+| `payments-initialize.test.ts` | Escenarios 1 a 6: camino feliz, asientos no disponibles, solape, entradas inválidas sin escrituras, congelación del desglose y el `CHECK` | 32 |
+| `payments-confirm-cancel.test.ts` | Escenarios 7 y 8: el respaldo local de confirmar y cancelar | 12 |
+| `payments-notify.test.ts` | Escenarios 9 y 10: webhook, recibo, y además la ruta de retorno `/api/payments/return/[orderId]` | 19 |
+| `seating.test.ts` | Escenario 11: bloqueos, expiración al leer, el plano con eventos solapados | 18 |
+| `cron-cleanup.test.ts` | Escenario 12: autorización, expiración y borrado en cascada | 12 |
+
+**93 tests nuevos**; con los 7 del andamiaje de la Fase 1, la integración suma **100 en unos 6 s**.
+
+Cosas que se miden en filas, no en valores devueltos:
+
+- **Lo que va firmado hacia el banco.** Se decodifica `Ds_MerchantParameters` y se compara con lo guardado: `DS_MERCHANT_AMOUNT` es el mismo total en céntimos, `DS_MERCHANT_ORDER` es el `paymentId`, y las URL de vuelta apuntan a la ruta de retorno. Incluye un importe no redondo (3 × 10,50 € = `"3150"`) y un evento sin gastos de gestión.
+- **"Cero escrituras"** se comprueba con una foto de reservas y `SeatStatus` antes y después, no contando filas: un `RESERVED` que se colara en un asiento libre también rompe la foto.
+- **Las notificaciones se firman de verdad** con el sandbox y la ruta las verifica igual que en producción. Una firma con otra clave, o unos parámetros de OK pegados a la firma de un KO, devuelven 200 y no tocan nada.
+
+### P3.2 Qué se desvió del plan
+
+1. **La firma de notificaciones se extrajo ya** a `scripts/lib/redsys-notification.ts` (`33c27f8`). El plan lo tenía para el E2E (3.4), pero la integración la necesitaba antes. El script `simulate-redsys-notify.ts` la usa ahora, y se comprobó que **la firma sale idéntica byte a byte** a la de antes, en OK y en KO. Va precedido de un commit solo de formato (`4326db7`), como en P2.
+2. **El reloj se congela, pero solo `Date`.** `freezeClock()` fija `Date` en `TEST_NOW`, así que "hace 6 minutos" significa lo mismo para la factory y para el código que expira. Los temporizadores siguen siendo reales, porque Prisma los necesita. Consecuencia útil: con el reloj congelado, `generateOrderId()` es determinista y el test comprueba el `paymentId` exacto.
+3. **Sin `makeAdmin`.** Ningún test de P3 hace login: `requireAuth` se mockea, y que la action lo exige se comprueba con ese mock. La factory llega en P5, con el primer test que la use.
+4. **Se añadió la ruta de retorno**, que no estaba entre los 12 escenarios: es la que anota el recibo desde el navegador, y la que compara el pedido de la URL con el firmado. Tiene cuatro tests.
+
+### P3.3 El plan se equivocaba en una de las «tres trampas»
+
+La trampa 1 de la Fase 2 decía que los `where` de confirmar y cancelar no se podían unificar porque cancelar liberaba también un `SeatStatus` cuyo `reservationId` ya fuera nulo. **No es así, y un test lo demuestra**: cancelar saca la lista de `seatId` de la relación `reservation.seatStatuses`, que va precisamente por `reservationId`. Un asiento sin vínculo no entra en la lista y se queda `RESERVED`.
+
+En secuencia, los dos `where` tocan las mismas filas. Solo se distinguen con concurrencia: si entre leer la reserva y abrir la transacción otra reserva se queda el asiento, cancelar por `seatId` se lo quitaría. El test que el plan pedía se escribió al revés, como `COMPORTAMIENTO ACTUAL`, y la trampa está corregida más abajo. Es un buen ejemplo de por qué la integración va antes del refactor: la regla venía de leer el código, no de ejecutarlo.
+
+### P3.4 Hallazgos
+
+- **RCA-276, alta — un pago que llega después de expirar la reserva se cobra sin asientos.** Una reserva `PENDING` caduca a los 5 minutos, y la expira `getSeatsForEvent` en cuanto alguien abre la página del evento, soltando el vínculo con los asientos. Si el cliente tarda más que eso en la pasarela y paga, el webhook —que actúa sin filtro de estado— confirma la reserva, pero ocupar los asientos va por `reservationId` y ya no hay ninguno. **Se cobra, los asientos siguen a la venta y el ticket sale vacío.** Bug de producción; como la carrera de asientos, arreglarlo en `main` es una decisión aparte.
+- **RCA-277, media — `initializePayment` confía en el cliente.** No comprueba la ventana de 48 h – 4 h ni el estado del evento, y la página `/eventos/[id]` tampoco: **por enlace directo se compra un partido que empieza en una hora, o uno cancelado.** Además, un asiento repetido se cobra dos veces y uno inexistente se cobra sin apartar nada, aunque esos dos solo los alcanza quien manipula la llamada y solo le perjudican a él.
+- **Comportamientos actuales, fijados como tales**: un KO del webhook sobre una reserva `CONFIRMED` la cancela; un KO también anota recibo, sin código de autorización; y un pedido desconocido responde `{ ok: true }` en JSON en lugar del `OK` en texto que manda el resto de la ruta. Redsys solo mira el 200.
+
+### P3.5 Cómo se comprobó que los tests sirven
+
+Trece mutaciones sobre `src/`, aplicadas de una en una por un script que ejecuta el fichero afectado y restaura con `git checkout`. **Las trece matan al menos un test.**
+
+| Mutación | Tests que fallan |
+|---|---|
+| Importe sin gastos de gestión | 17 |
+| Sin validar el nombre | 4 |
+| Confirmar sin la guarda de `PENDING` | 3 |
+| Solape con `<=` (dos partidos pegados se solapan) | 2 |
+| El KO del webhook no libera los asientos | 2 |
+| Cancelar pisa una reserva `CONFIRMED` · recibo sin el cerrojo de `paymentDateTime` · ruta de retorno sin comparar el pedido firmado · expirar a los 30 minutos · bloquear pisa `RESERVED`/`OCCUPIED` · el solapado pisa un `BLOCKED` · el cron borra a los 89 días · el cron sin comprobar que hay secreto | 1 cada una |
+
+La última **sobrevivió en la primera pasada**. El test ponía `CRON_SECRET=""` y mandaba `Bearer ` con espacio final, pero las cabeceras HTTP se recortan y ese espacio no llega nunca: el test pasaba por otro motivo. El caso peligroso de verdad es la variable **sin definir**, donde la cadena esperada sería literalmente `Bearer undefined`. Se reescribió así, y ahora muere.
+
+### P3.6 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm run test:integration`, **dos veces seguidas** | 100 y 100, en verde |
+| **Puerta RCA-225**: integración con `.env.production` cargado | **aborta** con `el entorno cargado es "production"`, código de salida 1, antes de migrar ni conectar |
+| `npm test` (unit + ui) | 216, en verde |
+| `npm run typecheck` · `eslint` sobre lo nuevo | limpios |
+| Caracteres ocultos en los ficheros de P3 | 0 |
+
+La puerta se probó **sin poder hacer daño aunque fallara**: `DATABASE_URL` y `DIRECT_URL` se fijaron antes en la shell a un puerto local inexistente, y `dotenv-cli` no pisa lo ya definido. De producción solo entró `DB_ENV`, que era lo que se probaba.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 Patrón único: **crear `src/modules/<módulo>/domain/*.ts` como módulos planos (sin `"use server"`, sin Prisma, sin `next/*`), mover ahí la regla, y dejar la server action como adaptador fino**. El reloj entra como parámetro `now: Date` con valor por defecto, en lugar de llamar a `new Date()` dentro.
@@ -370,7 +442,7 @@ No es preferencia de estilo: **en un fichero `"use server"` todo lo exportado ti
 
 ### Tres trampas que hay que respetar al pie de la letra
 
-1. **Los `where` de confirmar y cancelar son distintos a propósito y NO se unifican.** Confirmar usa `where: { reservationId }`; cancelar usa `where: { seatId: { in }, eventId }`. Unificarlos parece más limpio y cambia el comportamiento: dejaría de tocar un `SeatStatus` cuyo `reservationId` ya fuera nulo.
+1. **Los `where` de confirmar y cancelar son distintos y NO se unifican en P4.** Confirmar usa `where: { reservationId }`; cancelar usa `where: { seatId: { in }, eventId }`. ~~Unificarlos cambia el comportamiento: dejaría de tocar un `SeatStatus` cuyo `reservationId` ya fuera nulo.~~ **Corregido en P3 (ver P3.3):** ese motivo era falso, porque los `seatId` de cancelar salen de la propia relación por `reservationId`. En secuencia tocan las mismas filas y solo difieren con concurrencia. Se mantienen igual porque un refactor no cambia comportamiento, ni siquiera el que solo se ve en una carrera.
 2. **Las guardas de estado se quedan en cada caller.** Son tres y son diferentes: `confirmReservationByOrderId` solo actúa sobre `PENDING`; `cancelReservationByOrderId` sale si ya está `CONFIRMED` (el pago manda); el webhook actúa **sin filtro de estado**.
 3. **`recordPaymentReceipt` se queda fuera de la transacción**, como hoy: si falla el recibo, la reserva tiene que confirmarse igual.
 
@@ -423,6 +495,8 @@ Dos ficheros, solo donde la UI *decide* algo:
 
 ### 3.3 Integración (`tests/integration/`, Postgres real)
 
+> **Hecho en P3**, con los desvíos de P3.2. El escenario 8 se escribió al revés de lo que dice aquí (ver P3.3).
+
 Base `lounge_test` del Docker local; en CI, `services: postgres` de GitHub Actions.
 
 **El esquema se crea con `prisma migrate deploy`, no con `db push`.** El `CHECK` de importes vive como SQL crudo en `prisma/migrations/20260825120000_add_management_fee/migration.sql:34` y **no está en `schema.prisma`**: con `db push` la restricción no existiría y los tests que la verifican pasarían en falso. Como efecto colateral gratis, `deploy` comprueba que las 5 migraciones aplican limpiamente sobre una BD virgen.
@@ -459,7 +533,7 @@ Base `lounge_test` del Docker local; en CI, `services: postgres` de GitHub Actio
 **Redsys.** Se descarta una ruta stub en el servidor bajo flag de entorno: añadiría a producción un endpoint capaz de confirmar reservas cuya única protección es una variable bien puesta. Quedan dos mecanismos, y hacen falta los dos porque cubren caminos distintos:
 
 1. **`page.route()` sobre el host de Redsys** (camino del navegador). El handler responde un **303** hacia la `URLOK`/`URLKO` que la propia app acaba de firmar. Detalle que no es obvio: **el `orderId` no viaja en la URL**, sino dentro de `Ds_MerchantParameters`, un JSON en base64 en el cuerpo del POST. Reutilizar las URLs firmadas en vez de reconstruirlas hace que el test sobreviva a un cambio de formato.
-2. **Notificación firmada de verdad contra `/api/payments/notify`** (camino servidor-servidor). Se extrae `signNotification()` de `scripts/simulate-redsys-notify.ts` a un módulo importable; el script sigue funcionando igual.
+2. **Notificación firmada de verdad contra `/api/payments/notify`** (camino servidor-servidor). ~~Se extrae `signNotification()` de `scripts/simulate-redsys-notify.ts` a un módulo importable; el script sigue funcionando igual.~~ **Hecho en P3**: `signRedsysNotification()` en `scripts/lib/redsys-notification.ts`.
 
 ⚠️ Con `REDSYS_ENV=""` la página de confirmación **autoconfirma**, lo que simplifica el escenario "ok" pero **enmascara el camino real de producción**. Por eso están separados: el de navegador pasa por la autoconfirmación, el de webhook no navega a la confirmación.
 
@@ -549,7 +623,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P0**~~ | ~~Fase −1 y Fase 0: docstrings, Node, renombrado de entornos, backup, rama, Vercel, GitHub.~~ **Hecho.** | — | 01 a 03 |
 | ~~**P1**~~ | ~~Andamiaje: devDeps, config de Vitest, `tests/setup/*`, scripts, ESLint, y un test que valide la tubería en Windows. **Cero cambios en `src/`.**~~ **Hecho.** Ver Fase 1 | — | 04 · Fase 1 |
 | ~~**P2**~~ | ~~Tests de caracterización sobre lo que ya es puro. Después, las exportaciones triviales.~~ **Hecho.** Ver P2 | — | 05 · Fase 2 |
-| **P3** | Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar. | Bajo | 06 · Fase 3 |
+| ~~**P3**~~ | ~~Integración con BD real, **todavía sin refactor**: aquí se captura el comportamiento que P4 no puede cambiar.~~ **Hecho.** Ver P3 | — | 06 · Fase 3 |
 | **P4** | Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto. | Alto en los dos últimos | 07 · Fase 4 |
 | **P5** | E2E: los `data-testid` en un commit aislado, luego config y escenarios, luego el job de CI. | Bajo | 08 · Fase 5 |
 | **P6** | Umbrales de cobertura y cierre. | Bajo | 09 · Fase 6 |
