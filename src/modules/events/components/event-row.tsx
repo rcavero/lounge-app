@@ -142,7 +142,10 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
       {/* Tooltip */}
       {tooltip && (
         <div className="absolute inset-0 flex items-center justify-center z-10 rounded-2xl">
-          <div className="bg-[#111] text-white text-xs rounded-lg px-4 py-2.5 text-center max-w-[85%] shadow-xl">
+          <div
+            data-testid="event-row-tooltip"
+            className="bg-[#111] text-white text-xs rounded-lg px-4 py-2.5 text-center max-w-[85%] shadow-xl"
+          >
             {tooltip}
           </div>
         </div>
@@ -152,14 +155,26 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
 
   if (isLocked) {
     return (
-      <div className="relative" onClick={handleLockedClick}>
+      <div
+        data-testid="event-row"
+        data-event-id={event.id}
+        data-locked="true"
+        className="relative"
+        onClick={handleLockedClick}
+      >
         {cardContent}
       </div>
     );
   }
 
   return (
-    <Link href={href || `/eventos/${event.id}`} className="block">
+    <Link
+      data-testid="event-row"
+      data-event-id={event.id}
+      data-locked="false"
+      href={href || `/eventos/${event.id}`}
+      className="block"
+    >
       {cardContent}
     </Link>
   );

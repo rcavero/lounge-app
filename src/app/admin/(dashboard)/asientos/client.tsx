@@ -209,6 +209,7 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
             Resetear
           </Button>
           <Button
+            data-testid="save-positions"
             size="sm"
             onClick={handleSave}
             disabled={!hasChanges || isSaving}

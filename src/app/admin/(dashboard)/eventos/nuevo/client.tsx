@@ -422,6 +422,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
 
       {/* Submit Button */}
       <Button
+        data-testid="event-submit"
         type="submit"
         disabled={isSaving}
         className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"

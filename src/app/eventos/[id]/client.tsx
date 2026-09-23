@@ -287,6 +287,7 @@ export function EventReservationClient({
               ))}
             </ul>
             <Button
+              data-testid="conditions-accept"
               onClick={() => setShowConditions(false)}
               className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
             >
@@ -298,7 +299,10 @@ export function EventReservationClient({
 
       {/* Name modal - se abre al pulsar RESERVAR, antes de ir a la pasarela */}
       {showNameModal && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5">
+        <div
+          data-testid="name-modal"
+          className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5"
+        >
           <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
             <h2 className="text-white font-bold text-sm tracking-widest text-center mb-2">
               {nameModal.title}
@@ -313,6 +317,7 @@ export function EventReservationClient({
             {/* El <form> es lo que hace que Enter funcione en el teclado del movil */}
             <form onSubmit={handleReserve}>
               <input
+                data-testid="customer-name-input"
                 type="text"
                 autoFocus
                 autoComplete="name"
@@ -328,11 +333,16 @@ export function EventReservationClient({
                 className="w-full bg-black border border-white/10 rounded-lg px-3 py-2 text-white placeholder:text-white/30 focus:border-[#D4AF37] outline-none disabled:opacity-50"
               />
 
-              {nameError && <p className="text-red-400 text-xs mt-2">{nameError}</p>}
+              {nameError && (
+                <p data-testid="name-error" className="text-red-400 text-xs mt-2">
+                  {nameError}
+                </p>
+              )}
 
               <p className="text-white/40 text-[11px] mt-2 mb-5">{nameModal.help}</p>
 
               <Button
+                data-testid="pay-button"
                 type="submit"
                 disabled={
                   isProcessing ||
@@ -420,6 +430,7 @@ export function EventReservationClient({
 
           {/* Right: Reserve button */}
           <Button
+            data-testid="reserve-button"
             disabled={selectedSeats.length === 0}
             onClick={openNameModal}
             className="bg-[#D4AF37] hover:bg-[#C5A028] text-black font-semibold px-5 py-1 text-base"
@@ -435,7 +446,9 @@ export function EventReservationClient({
           <p className="text-[10px] text-white/50 uppercase tracking-wide">
             {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
           </p>
-          <p className="text-white font-bold">{formatEuros(totalPrice)}€</p>
+          <p data-testid="selection-total" className="text-white font-bold">
+            {formatEuros(totalPrice)}€
+          </p>
           {feeCents > 0 && (
             <p className="text-[9px] text-white/40 leading-tight">
               {isSpanish ? "gastos de gestión incl." : "management fee incl."}

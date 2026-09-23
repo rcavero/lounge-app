@@ -18,6 +18,7 @@ export default async function AdminDashboardPage() {
             {/* Workers only see Reservas */}
             {isAdmin && (
               <Link
+                data-testid="dashboard-events"
                 href="/admin/eventos"
                 className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
               >
@@ -34,6 +35,7 @@ export default async function AdminDashboardPage() {
             )}
 
             <Link
+              data-testid="dashboard-reservations"
               href="/admin/reservas"
               className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
             >
@@ -51,6 +53,7 @@ export default async function AdminDashboardPage() {
             {isAdmin && (
               <>
                 <Link
+                  data-testid="dashboard-seats"
                   href="/admin/asientos"
                   className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
                 >
@@ -68,6 +71,7 @@ export default async function AdminDashboardPage() {
                 </Link>
 
                 <Link
+                  data-testid="dashboard-users"
                   href="/admin/usuarios"
                   className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
                 >

@@ -545,6 +545,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         {/* Action Buttons */}
         <div className="space-y-3">
           <Button
+            data-testid="event-submit"
             type="submit"
             disabled={isSaving}
             className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"

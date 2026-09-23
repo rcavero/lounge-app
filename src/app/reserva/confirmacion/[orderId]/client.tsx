@@ -417,7 +417,10 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         </div>
 
         {/* Summary card */}
-        <div className="bg-[#1a1a1a] rounded-2xl p-4 space-y-3 border border-white/10">
+        <div
+          data-testid="ticket"
+          className="bg-[#1a1a1a] rounded-2xl p-4 space-y-3 border border-white/10"
+        >
           <div className="text-center">
             <p className="text-white font-semibold">
               {reservation.homeTeamName}{" "}
@@ -441,13 +444,13 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           <div className="border-t border-white/10 pt-3 flex items-center justify-between">
             <div>
               <p className="text-white/40 text-xs uppercase tracking-wider">Asientos</p>
-              <p className="text-white text-sm">
+              <p data-testid="ticket-seats" className="text-white text-sm">
                 {reservation.seats.map((s) => s.code).join(", ")}
               </p>
             </div>
             <div className="text-right">
               <p className="text-white/40 text-xs uppercase tracking-wider">Total</p>
-              <p className="text-[#D4AF37] text-lg font-bold">
+              <p data-testid="ticket-total" className="text-[#D4AF37] text-lg font-bold">
                 {formatEuros(reservation.totalPrice)}€
               </p>
             </div>
@@ -497,6 +500,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         {/* Actions */}
         <div className="space-y-3">
           <Button
+            data-testid="ticket-pdf"
             onClick={() => handleDownloadTicket({ openInNewTab: true })}
             disabled={isGenerating}
             className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
@@ -515,6 +519,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           </Button>
 
           <Button
+            data-testid="receipt-pdf"
             onClick={() => handleDownloadReceipt()}
             disabled={isGeneratingReceipt}
             className="w-full bg-[#1a1a1a] hover:bg-[#242424] text-white border border-white/15"

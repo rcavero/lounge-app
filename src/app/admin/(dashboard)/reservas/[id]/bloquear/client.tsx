@@ -63,6 +63,7 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
           Volver
         </Link>
         <Button
+          data-testid="save-blocks"
           onClick={handleSave}
           disabled={isSaving}
           className="bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
@@ -132,6 +133,11 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
             return (
               <button
                 key={seat.id}
+                data-testid="block-seat"
+                data-seat-code={seat.code}
+                data-seat-state={
+                  isUnavailable ? seat.status : isBlocked ? "BLOCKED" : "AVAILABLE"
+                }
                 onClick={() => toggleSeat(seat.id, seat.status)}
                 disabled={isUnavailable}
                 className={cn(

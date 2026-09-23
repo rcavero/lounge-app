@@ -83,6 +83,9 @@ export function FloorPlanMap({
           return (
             <button
               key={seat.id}
+              data-testid="seat"
+              data-seat-code={seat.code}
+              data-seat-state={isSelected ? "SELECTED" : seat.status}
               onClick={() => {
                 if (isAvailable || isSelected) {
                   onSeatSelect(seat.id);
