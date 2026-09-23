@@ -39,7 +39,7 @@ export type TeamLookup = (id: string) => Promise<{ shortName: string } | null>;
  *
  * ⚠️ Deporte manual sin visitante: el título queda `"Velada vs "`, con espacio final.
  * Es el comportamiento de siempre y hay un test que lo fija; no se arregla dentro de un
- * refactor. Anotado en RCA-230.
+ * refactor. Tarjeta: RCA-279.
  */
 export async function resolveEventNaming(
   data: EventNamingInput,

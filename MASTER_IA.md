@@ -504,7 +504,7 @@ El recibo con código de autorización demuestra que en los dos casos **la notif
 
 **Queda sin verificar a mano**: que el cron sigue expirando a los 5 minutos en el despliegue real (punto 3 de "Lo que hay que verificar a mano"). Los tests lo fijan en las dos capas, pero la verificación en vivo exige esperar al cron nocturno o dejar caducar una reserva a propósito.
 
-Linear se quedó sin cupo de issues del plan gratuito a mitad de P4. El bug del título `"Velada vs "`, que el plan mandaba abrir aparte, está anotado en la tarjeta de su paso (RCA-230).
+Linear se quedó sin cupo de issues del plan gratuito a mitad de P4, así que el bug del título `"Velada vs "`, que el plan mandaba abrir aparte, se anotó primero en la tarjeta de su paso (RCA-230). Al liberar cupo se abrió su propia tarjeta: RCA-279.
 
 ---
 
