@@ -1,5 +1,7 @@
 # The Lounge Beerhouse
 
+[![CI](https://github.com/rcavero/lounge-app/actions/workflows/ci.yml/badge.svg?branch=academic)](https://github.com/rcavero/lounge-app/actions/workflows/ci.yml?query=branch%3Aacademic)
+
 Aplicación web para gestionar reservas de asientos en un bar deportivo en Valencia. Los clientes reservan asientos para ver eventos deportivos; los administradores gestionan eventos, reservas, asientos y usuarios.
 
 ## Stack Tecnológico
