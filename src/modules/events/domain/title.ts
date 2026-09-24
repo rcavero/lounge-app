@@ -37,9 +37,8 @@ export type TeamLookup = (id: string) => Promise<{ shortName: string } | null>;
  * Los dos equipos se buscan **uno detrás de otro**, no con `Promise.all`: así estaba, y
  * si el primero lanza (por ejemplo, porque `homeTeamId` no viene), el segundo ni se pide.
  *
- * ⚠️ Deporte manual sin visitante: el título queda `"Velada vs "`, con espacio final.
- * Es el comportamiento de siempre y hay un test que lo fija; no se arregla dentro de un
- * refactor. Tarjeta: RCA-279.
+ * Deporte manual con un solo nombre: el título es ese nombre. Sin ninguno, la
+ * competición, como en motor. Antes quedaba `"Velada vs "` o `" vs "` (RCA-279).
  */
 export async function resolveEventNaming(
   data: EventNamingInput,
@@ -60,7 +59,7 @@ export async function resolveEventNaming(
     } else {
       const home = data.homeTeamName?.trim() || "";
       const away = data.awayTeamName?.trim() || "";
-      title = `${home} vs ${away}`;
+      title = [home, away].filter(Boolean).join(" vs ") || data.competition || "Evento";
       homeTeamNameFinal = home || null;
       awayTeamNameFinal = away || null;
     }

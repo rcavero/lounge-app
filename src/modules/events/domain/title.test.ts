@@ -85,20 +85,34 @@ describe("resolveEventNaming — deporte manual", () => {
     expect(lookup).not.toHaveBeenCalled();
   });
 
-  it("COMPORTAMIENTO ACTUAL: sin visitante, el título acaba en «vs » con espacio", async () => {
+  // Estos tres dejaban antes «Velada vs », « vs Real Madrid» y « vs » (RCA-279).
+  it("sin visitante, el título es solo el local", async () => {
     const naming = await resolveEventNaming(
       { competition: "Boxeo", homeTeamName: "Velada" },
       findTeam,
     );
 
-    expect(naming).toMatchObject({ title: "Velada vs ", awayTeamName: null });
+    expect(naming).toMatchObject({ title: "Velada", awayTeamName: null });
   });
 
-  it("COMPORTAMIENTO ACTUAL: sin ningún nombre, el título es « vs »", async () => {
+  it("sin local, el título es solo el visitante", async () => {
+    const naming = await resolveEventNaming(
+      { competition: "Baloncesto", awayTeamName: "  Real Madrid " },
+      findTeam,
+    );
+
+    expect(naming).toMatchObject({
+      title: "Real Madrid",
+      homeTeamName: null,
+      awayTeamName: "Real Madrid",
+    });
+  });
+
+  it("sin ningún nombre, el título es la competición", async () => {
     const naming = await resolveEventNaming({ competition: "Tenis" }, findTeam);
 
     expect(naming).toMatchObject({
-      title: " vs ",
+      title: "Tenis",
       homeTeamName: null,
       awayTeamName: null,
     });

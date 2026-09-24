@@ -138,9 +138,8 @@ describe.each(Object.entries(paths))("%s — título y participantes", (_name, r
     });
   });
 
-  it("COMPORTAMIENTO ACTUAL: deporte manual sin visitante deja el título «Boxeo vs »", async () => {
-    // Con espacio final. Documentado en el plan desde el principio; no se arregla dentro
-    // de un refactor porque sería colar un cambio observable.
+  it("deporte manual sin visitante: el título es solo el local", async () => {
+    // Antes quedaba «Velada vs », con espacio final (RCA-279).
     const { event } = await run({
       ...BASE,
       competition: "Boxeo",
@@ -148,7 +147,7 @@ describe.each(Object.entries(paths))("%s — título y participantes", (_name, r
     });
 
     expect(event).toMatchObject({
-      title: "Velada vs ",
+      title: "Velada",
       homeTeamName: "Velada",
       awayTeamName: null,
     });
