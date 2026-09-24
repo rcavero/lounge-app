@@ -6,6 +6,7 @@ import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants
 import { requireAuth } from "@/lib/auth-guard";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { pendingExpiryCutoff } from "@/modules/reservations/domain/expiry";
+import { expirePendingReservation } from "@/modules/reservations/lib/expire";
 import { applyOverlapOccupancy, effectiveSeatStatus } from "../domain/availability";
 
 async function getOverlappingEventIds(
@@ -28,20 +29,10 @@ async function expireStaleReservations(eventId: string): Promise<void> {
   const expiryCutoff = pendingExpiryCutoff();
   const stale = await prisma.reservation.findMany({
     where: { eventId, status: "PENDING", createdAt: { lt: expiryCutoff } },
-    select: { id: true, seatStatuses: { select: { seatId: true } } },
+    select: { id: true },
   });
   for (const reservation of stale) {
-    const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
-    await prisma.$transaction(async (tx) => {
-      await tx.reservation.update({
-        where: { id: reservation.id },
-        data: { status: "EXPIRED" },
-      });
-      await tx.seatStatus.updateMany({
-        where: { seatId: { in: seatIds }, eventId },
-        data: { status: "AVAILABLE", reservationId: null },
-      });
-    });
+    await expirePendingReservation(reservation.id);
   }
 }
 

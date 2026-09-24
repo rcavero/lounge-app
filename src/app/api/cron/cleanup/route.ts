@@ -4,6 +4,7 @@ import {
   eventRetentionCutoff,
   pendingExpiryCutoff,
 } from "@/modules/reservations/domain/expiry";
+import { expirePendingReservation } from "@/modules/reservations/lib/expire";
 
 export async function GET(request: Request) {
   // Verify the request is from Vercel Cron or has the correct secret
@@ -25,32 +26,17 @@ export async function GET(request: Request) {
     });
 
     // Expire PENDING reservations older than 5 minutes and release their seats
-    const expiredReservations = await prisma.reservation.findMany({
+    const stale = await prisma.reservation.findMany({
       where: {
         status: "PENDING",
         createdAt: { lt: pendingCutoff },
       },
-      select: {
-        id: true,
-        eventId: true,
-        seatStatuses: { select: { seatId: true } },
-      },
+      select: { id: true },
     });
 
     let expiredCount = 0;
-    for (const reservation of expiredReservations) {
-      const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
-      await prisma.$transaction(async (tx) => {
-        await tx.reservation.update({
-          where: { id: reservation.id },
-          data: { status: "EXPIRED" },
-        });
-        await tx.seatStatus.updateMany({
-          where: { seatId: { in: seatIds }, eventId: reservation.eventId },
-          data: { status: "AVAILABLE", reservationId: null },
-        });
-      });
-      expiredCount++;
+    for (const reservation of stale) {
+      if (await expirePendingReservation(reservation.id)) expiredCount++;
     }
 
     return NextResponse.json({

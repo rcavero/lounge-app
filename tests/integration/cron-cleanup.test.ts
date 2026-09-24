@@ -116,9 +116,11 @@ describe("GET /api/cron/cleanup — reservas pendientes", () => {
     expect(
       (await prisma.reservation.findUniqueOrThrow({ where: { id: stale.id } })).status,
     ).toBe("EXPIRED");
+    // Libres, pero con el rastro de la reserva: si el pago llega tarde, se recuperan
+    // si nadie los ha cogido (RCA-276).
     const states = await seatStatesOf(event.id);
-    expect(states[seats[0].id]).toEqual({ status: "AVAILABLE", reservationId: null });
-    expect(states[seats[1].id]).toEqual({ status: "AVAILABLE", reservationId: null });
+    expect(states[seats[0].id]).toEqual({ status: "AVAILABLE", reservationId: stale.id });
+    expect(states[seats[1].id]).toEqual({ status: "AVAILABLE", reservationId: stale.id });
   });
 
   it("no expira la de hace 4 minutos", async () => {

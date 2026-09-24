@@ -133,8 +133,9 @@ describe("getSeatsForEvent — expiración de reservas pendientes", () => {
     expect(
       (await prisma.reservation.findUniqueOrThrow({ where: { id: stale.id } })).status,
     ).toBe("EXPIRED");
-    // Y el vínculo con la reserva desaparece.
-    expect((await seatStatesOf(event.id))[seats[0].id].reservationId).toBeNull();
+    // El vínculo con la reserva se conserva como rastro, para poder recuperar los
+    // asientos si el pago llega tarde (RCA-276).
+    expect((await seatStatesOf(event.id))[seats[0].id].reservationId).toBe(stale.id);
   });
 
   it("no expira la PENDING de hace 4 minutos: el cliente sigue en la pasarela", async () => {
