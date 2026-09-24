@@ -402,37 +402,32 @@ describe("initializePayment — lo que confía al cliente", () => {
     },
   );
 
-  it("COMPORTAMIENTO ACTUAL: un asiento repetido se cobra dos veces", async () => {
+  // Estos dos se cobraban antes: 2 asientos pagados y 1 apartado. Los cierra el
+  // recuento de asientos apartados que trajo el arreglo de la carrera (RCA-175).
+  it("un asiento repetido no se cobra dos veces: no escribe nada", async () => {
+    const before = await snapshotWrites();
+
     const result = await initializePayment({
       eventId: event.id,
       seatIds: [seats[0].id, seats[0].id],
       customerName: "Ana",
     });
 
-    expect(result.success).toBe(true);
-    expect(signedParams(result.formBody).DS_MERCHANT_AMOUNT).toBe("2300");
-
-    const reservation = await prisma.reservation.findFirstOrThrow();
-    expect(reservation.numberOfSeats).toBe(2);
-    expect(
-      await prisma.seatStatus.count({ where: { reservationId: reservation.id } }),
-    ).toBe(1);
+    expect(result.success).toBe(false);
+    expect(await snapshotWrites()).toEqual(before);
   });
 
-  it("COMPORTAMIENTO ACTUAL: un asiento que no existe se cobra sin apartar nada", async () => {
+  it("un asiento que no existe no se cobra: no escribe nada", async () => {
+    const before = await snapshotWrites();
+
     const result = await initializePayment({
       eventId: event.id,
       seatIds: [seats[0].id, "asiento-inventado"],
       customerName: "Ana",
     });
 
-    expect(result.success).toBe(true);
-    expect(signedParams(result.formBody).DS_MERCHANT_AMOUNT).toBe("2300");
-
-    const reservation = await prisma.reservation.findFirstOrThrow();
-    expect(
-      await prisma.seatStatus.count({ where: { reservationId: reservation.id } }),
-    ).toBe(1);
+    expect(result.success).toBe(false);
+    expect(await snapshotWrites()).toEqual(before);
   });
 });
 

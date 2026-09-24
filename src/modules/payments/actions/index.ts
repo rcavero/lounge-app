@@ -16,6 +16,24 @@ import { applyPaymentOutcome } from "../lib/apply-payment-outcome";
 import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
+/** Algún asiento pedido no se ha podido apartar dentro de la transacción. */
+class SeatsTakenError extends Error {}
+
+/** El mensaje de error si alguno de los asientos no está libre en este evento. */
+async function unavailableSeatsError(
+  eventId: string,
+  seatIds: string[],
+): Promise<string | null> {
+  const seatStatuses = await prisma.seatStatus.findMany({
+    where: { eventId, seatId: { in: seatIds } },
+    include: { seat: true },
+  });
+
+  const unavailable = seatStatuses.filter((ss) => ss.status !== "AVAILABLE");
+  if (unavailable.length === 0) return null;
+  return `Asientos no disponibles: ${unavailable.map((s) => s.seat.code).join(", ")}`;
+}
+
 export async function initializePayment(data: {
   eventId: string;
   seatIds: string[];
@@ -47,19 +65,11 @@ export async function initializePayment(data: {
   const { seatPriceCents, managementFeeCents, totalCents, totalPrice } =
     computeReservationAmount(event, seatIds.length);
 
-  // Verify all selected seats are available in this event
-  const seatStatuses = await prisma.seatStatus.findMany({
-    where: { eventId, seatId: { in: seatIds } },
-    include: { seat: true },
-  });
-
-  const unavailable = seatStatuses.filter((ss) => ss.status !== "AVAILABLE");
-  if (unavailable.length > 0) {
-    return {
-      success: false,
-      error: `Asientos no disponibles: ${unavailable.map((s) => s.seat.code).join(", ")}`,
-    };
-  }
+  // Comprobación temprana, para devolver un error con nombre de asiento antes de hacer
+  // más consultas. NO es la que protege frente a dos clientes a la vez: esa va dentro
+  // de la transacción, más abajo.
+  const unavailableError = await unavailableSeatsError(eventId, seatIds);
+  if (unavailableError) return { success: false, error: unavailableError };
 
   // Verify selected seats are not taken in overlapping events
   const overlappingCandidates = await prisma.event.findMany({
@@ -93,31 +103,47 @@ export async function initializePayment(data: {
 
   const orderId = generateOrderId();
 
-  // Create PENDING reservation and mark seats as RESERVED atomically
-  const reservation = await prisma.$transaction(async (tx) => {
-    const newReservation = await tx.reservation.create({
-      data: {
-        eventId,
-        customerName,
-        // La columna es NOT NULL y en este alcance no se pide email al cliente.
-        customerEmail: "cliente@lounge.com",
-        numberOfSeats: seatIds.length,
-        totalPrice,
-        seatPriceCents,
-        managementFeeCents,
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        paymentId: orderId,
-      },
-    });
+  // Crea la reserva PENDING y aparta los asientos, todo o nada.
+  let reservation;
+  try {
+    reservation = await prisma.$transaction(async (tx) => {
+      const newReservation = await tx.reservation.create({
+        data: {
+          eventId,
+          customerName,
+          // La columna es NOT NULL y en este alcance no se pide email al cliente.
+          customerEmail: "cliente@lounge.com",
+          numberOfSeats: seatIds.length,
+          totalPrice,
+          seatPriceCents,
+          managementFeeCents,
+          status: "PENDING",
+          paymentStatus: "PENDING",
+          paymentId: orderId,
+        },
+      });
 
-    await tx.seatStatus.updateMany({
-      where: { eventId, seatId: { in: seatIds } },
-      data: { status: "RESERVED", reservationId: newReservation.id },
-    });
+      // Solo aparta los que SIGUEN libres. Si otro cliente ha apartado alguno desde la
+      // comprobación de arriba, Postgres espera a que su transacción termine, vuelve a
+      // evaluar el `where` y ya no lo cuenta. Si falta uno, se deshace todo, reserva
+      // incluida: nunca se cobra un asiento que no se ha podido apartar.
+      const claimed = await tx.seatStatus.updateMany({
+        where: { eventId, seatId: { in: seatIds }, status: "AVAILABLE" },
+        data: { status: "RESERVED", reservationId: newReservation.id },
+      });
+      if (claimed.count !== seatIds.length) throw new SeatsTakenError();
 
-    return newReservation;
-  });
+      return newReservation;
+    });
+  } catch (error) {
+    if (!(error instanceof SeatsTakenError)) throw error;
+    return {
+      success: false,
+      error:
+        (await unavailableSeatsError(eventId, seatIds)) ??
+        "Alguno de los asientos ya no está disponible. Elige otros.",
+    };
+  }
 
   // Build Redsys signed redirect form
   const amountInCents = toRedsysAmount(totalCents);

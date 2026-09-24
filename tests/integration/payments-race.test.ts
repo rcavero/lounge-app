@@ -3,7 +3,8 @@
  *
  * `initializePayment` comprueba la disponibilidad con una lectura y aparta los asientos
  * después, en una transacción. Entre las dos cosas hay una ventana, y dos peticiones que
- * caigan dentro pasan la comprobación las dos.
+ * caigan dentro pasaban la comprobación las dos. Ahora la transacción solo aparta
+ * asientos que siguen `AVAILABLE` y se deshace si falta alguno.
  *
  * Para que la carrera no dependa de la suerte, `holdTransactions` retiene la
  * transacción de cada llamada hasta que han llegado todas: garantiza que las dos han
@@ -64,7 +65,7 @@ function reserve(seatIds: string[], customerName: string) {
 }
 
 describe("initializePayment — dos clientes a la vez", () => {
-  it("COMPORTAMIENTO ACTUAL: el mismo asiento se vende a los dos", async () => {
+  it("el mismo asiento: gana uno, y el otro recibe el error sin dejar nada escrito", async () => {
     holdTransactions(2);
 
     const results = await Promise.all([
@@ -72,13 +73,23 @@ describe("initializePayment — dos clientes a la vez", () => {
       reserve([seats[0].id], "Luis"),
     ]);
 
-    expect(results.map((r) => r.success)).toEqual([true, true]);
-    // Dos reservas PENDING para un solo asiento: las dos irán a la pasarela y las dos
-    // pagarán. El asiento acaba vinculado a la que escribió la última.
-    expect(await prisma.reservation.count({ where: { status: "PENDING" } })).toBe(2);
+    const winners = results.filter((r) => r.success);
+    const losers = results.filter((r) => !r.success);
+    expect(winners).toHaveLength(1);
+    expect(losers).toEqual([
+      { success: false, error: `Asientos no disponibles: ${seats[0].code}` },
+    ]);
+
+    // Una sola reserva, y es la dueña del asiento.
+    const [reservation] = await prisma.reservation.findMany();
+    expect(await prisma.reservation.count()).toBe(1);
+    expect((await seatStatesOf(event.id))[seats[0].id]).toEqual({
+      status: "RESERVED",
+      reservationId: reservation.id,
+    });
   });
 
-  it("COMPORTAMIENTO ACTUAL: con asientos solapados, el compartido cambia de dueño", async () => {
+  it("con asientos solapados, el perdedor no se queda ni con los que no disputaba", async () => {
     holdTransactions(2);
 
     const [ana, luis] = await Promise.all([
@@ -86,16 +97,49 @@ describe("initializePayment — dos clientes a la vez", () => {
       reserve([seats[1].id, seats[2].id], "Luis"),
     ]);
 
-    expect(ana.success).toBe(true);
-    expect(luis.success).toBe(true);
+    expect([ana.success, luis.success].sort()).toEqual([false, true]);
 
+    const [winner] = await prisma.reservation.findMany();
+    expect(await prisma.reservation.count()).toBe(1);
+
+    // El ganador tiene sus dos asientos; el que solo pedía el perdedor sigue libre,
+    // porque su transacción se deshizo entera.
     const states = await seatStatesOf(event.id);
-    const owners = new Set(
-      [seats[0], seats[1], seats[2]].map((s) => states[s.id].reservationId),
+    const winnerSeats = winner.customerName === "Ana" ? [0, 1] : [1, 2];
+    const loserOnly = winner.customerName === "Ana" ? 2 : 0;
+    for (const i of winnerSeats) {
+      expect(states[seats[i].id]).toEqual({
+        status: "RESERVED",
+        reservationId: winner.id,
+      });
+    }
+    expect(states[seats[loserOnly].id]).toEqual({
+      status: "AVAILABLE",
+      reservationId: null,
+    });
+    expect(states[seats[3].id]).toEqual({ status: "AVAILABLE", reservationId: null });
+  });
+
+  it("diez clientes a por el mismo asiento: exactamente uno lo consigue", async () => {
+    holdTransactions(10);
+
+    const results = await Promise.all(
+      Array.from({ length: 10 }, (_, i) => reserve([seats[0].id], `Cliente ${i}`)),
     );
-    // Dos reservas de dos asientos cada una, repartidas en tres asientos: una de las
-    // dos cobrará dos asientos y solo tendrá uno.
-    expect(owners.size).toBe(2);
+
+    expect(results.filter((r) => r.success)).toHaveLength(1);
+    expect(await prisma.reservation.count()).toBe(1);
+  });
+
+  it("asientos distintos no se estorban: los dos lo consiguen", async () => {
+    holdTransactions(2);
+
+    const results = await Promise.all([
+      reserve([seats[0].id], "Ana"),
+      reserve([seats[1].id], "Luis"),
+    ]);
+
+    expect(results.map((r) => r.success)).toEqual([true, true]);
     expect(await prisma.reservation.count()).toBe(2);
   });
 });
