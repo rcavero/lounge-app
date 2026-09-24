@@ -333,7 +333,7 @@ Y una que **no** falló, anotada tal cual: quitar `vi.resetModules()` de los tes
 ### P2.4 Hallazgos
 
 - **RCA-275, urgente — contraseña de admin en claro en `prisma/seed.ts`.** Email real y `12345678`, en todos los commits. La auditoría de 0.6 buscó secretos, claves y bases de datos, no credenciales de aplicación. Si alguna cuenta de producción o de testing se creó con ese seed y nunca cambió de contraseña, publicar el repositorio publica la llave del panel, y `academic` es una preview pública sobre la base de testing. **Antes de publicar**: comprobar con `bcrypt.compare`, en solo lectura, que ningún `AdminUser` vivo la usa, y sacarla del seed.
-- **RCA-274, baja — los mapas por nombre aceptan claves del prototipo.** `isManualSport("constructor") === true`. Solo lo alcanza un admin autenticado mandando el valor a mano.
+- **RCA-274, baja — los mapas por nombre aceptan claves del prototipo.** `isManualSport("constructor") === true`. Solo lo alcanza un admin autenticado mandando el valor a mano. **Resuelto en P7.8.**
 - **Comportamientos actuales, documentados como tales** en tests titulados `COMPORTAMIENTO ACTUAL:` —que tienen que cambiar de signo el día que se arreglen—: un evento ya empezado no se bloquea en `EventRow`; `toIntId("83abc") === 83`; las letras que NFD no descompone (`ø`, `ß`) desaparecen al normalizar nombres de equipo; y nada quita la barra final de `NEXT_PUBLIC_BASE_URL`. Ninguno falla con los datos reales, así que no llevan tarjeta.
 
 La regla del plan se aplicó igual que con el `"Boxeo vs "`: **un fallo encontrado al caracterizar se documenta y se abre, no se arregla dentro de un commit de tests**.
@@ -731,6 +731,13 @@ Es la segunda excepción a «`main` y `testing` no se tocan». Se hizo así:
 4. **`testing`** (`adf7594`), con un pago en su preview: el pedido `790243665634` quedó confirmado con sus 2 asientos y 23,00 €.
 5. **Cherry-pick sobre `main`** (`4ec153e`), con la confirmación explícita de Ramón, porque el push despliega en producción. Sin migraciones.
 
+### P7.8 Los dos menores
+
+- **RCA-279** (`9fb5bc2`). Un deporte manual con un solo nombre ya no deja «Velada vs » con espacio final: el título es ese nombre, y sin ninguno, la competición, como ya hacía la rama de motor. Los eventos guardados no cambian solos, porque el título se calcula al crear o editar.
+- **RCA-274** (`3b98b3d`). Los nueve mapas por nombre de `competitions.ts` se crean sin prototipo, con `lookupTable()`: `isManualSport("constructor")` ya es `false`. Arregla a todos los que leen de una vez, en vez de poner `Object.hasOwn` en cada lectura. Una mutación que devuelve el objeto normal hace fallar 10 tests.
+
+Tras los dos: 344 tests unitarios y de componentes, 498 con integración, y los 28 E2E, en verde. La cobertura cumple los umbrales.
+
 ---
 
 ## Fase 2 — Extracción de capa de dominio
@@ -968,7 +975,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P4**~~ | ~~Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto.~~ **Hecho.** Ver P4 | — | 07 · Fase 4 |
 | ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
-| ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hechos los tres arreglos**; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
+| ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hecho todo**, con el hotfix de la carrera en producción; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
 | **P8** | Estados de carga, skeletons y animaciones. Ver [Revisión de UI/UX](#revisión-de-uiux--estados-de-carga) | — | 13 · UI/UX |
 | **P9** | Documentación. El CHANGELOG, el último | — | 10 · Fase 7 |
 | **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
