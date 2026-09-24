@@ -6,6 +6,7 @@ import {
 import { MERCHANT_INFO } from "@/lib/redsys";
 import { ConfirmationClient } from "./client";
 import { ProcessingClient } from "./processing-client";
+import { RefundNotice } from "./refund-notice";
 
 interface Props {
   params: Promise<{ orderId: string }>;
@@ -35,6 +36,9 @@ export default async function ConfirmationPage({ params }: Props) {
       />
     );
   }
+
+  // Cobrada y anulada: el pago llegó tarde y sus asientos ya eran de otro (RCA-276).
+  if (reservation.needsRefund) return <RefundNotice orderId={orderId} />;
 
   // In production the browser can reach this page before the Redsys webhook
   // confirms the reservation. Poll for the webhook instead of showing a 404.

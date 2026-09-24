@@ -8,6 +8,7 @@ import { getReservationByOrderId } from "@/modules/payments/actions";
 import type { ReservationTicketData } from "@/modules/payments/types";
 import type { MerchantInfo } from "@/lib/redsys";
 import { ConfirmationClient } from "./client";
+import { RefundNotice } from "./refund-notice";
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_ATTEMPTS = 16; // ~40s waiting for the Redsys webhook
@@ -22,6 +23,7 @@ type PollState =
   | { phase: "polling" }
   | { phase: "confirmed"; reservation: ReservationTicketData }
   | { phase: "failed"; eventId: string | null }
+  | { phase: "refund" }
   | { phase: "timeout" };
 
 export function ProcessingClient({ orderId, merchant }: Props) {
@@ -45,6 +47,12 @@ export function ProcessingClient({ orderId, merchant }: Props) {
 
       if (reservation?.status === "CONFIRMED") {
         setState({ phase: "confirmed", reservation });
+        return;
+      }
+
+      // Antes que el fallo: también es CANCELLED, pero aquí sí se ha cobrado.
+      if (reservation?.needsRefund) {
+        setState({ phase: "refund" });
         return;
       }
 
@@ -77,6 +85,10 @@ export function ProcessingClient({ orderId, merchant }: Props) {
         merchant={merchant}
       />
     );
+  }
+
+  if (state.phase === "refund") {
+    return <RefundNotice orderId={orderId} />;
   }
 
   if (state.phase === "failed") {

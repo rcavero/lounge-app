@@ -12,6 +12,7 @@ import {
 } from "@/lib/redsys";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { computeReservationAmount, toRedsysAmount } from "../domain/amount";
+import { needsRefund } from "../domain/outcome";
 import { applyPaymentOutcome } from "../lib/apply-payment-outcome";
 import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
@@ -260,6 +261,7 @@ export async function getReservationByOrderId(
     seatPriceCents: reservation.seatPriceCents,
     managementFeeCents: reservation.managementFeeCents,
     status: reservation.status,
+    needsRefund: needsRefund(reservation),
     // Recibo: null mientras no haya llegado una notificación firmada de Redsys
     authorisationCode: reservation.authorisationCode,
     paymentDateTime: reservation.paymentDateTime,

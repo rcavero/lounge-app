@@ -73,3 +73,42 @@ test("firma corrupta: responde 200 y no toca la reserva", async ({ request }) =>
   });
   expect(reservation.seatStatuses.map((s) => s.status)).toEqual(["RESERVED", "RESERVED"]);
 });
+
+test("pago tardío sin asientos: queda para devolver y el cliente lo ve", async ({
+  page,
+  request,
+}) => {
+  // La reserva lleva 6 minutos en la pasarela: abrir la página del evento la caduca,
+  // como lo haría cualquier otro cliente en producción.
+  await prisma.reservation.updateMany({
+    where: { paymentId: ORDER_ID },
+    data: { createdAt: new Date(Date.now() - 6 * 60 * 1000) },
+  });
+  await page.goto(`/eventos/${IDS.open}`);
+  await expect(page.getByTestId("seat").first()).toBeVisible();
+
+  // Otro cliente aparta uno de sus asientos antes de que llegue el pago.
+  const event = await prisma.event.findUniqueOrThrow({ where: { id: IDS.open } });
+  const taken = await prisma.seat.findMany({ where: { id: SEAT_IDS[1] } });
+  await makeReservation({ event, seats: taken, paymentId: "900000000778" });
+
+  const response = await postNotification(request, {
+    orderId: ORDER_ID,
+    amountCents: "2300",
+    ok: true,
+    authorisationCode: "654321",
+  });
+  expect(response.status()).toBe(200);
+
+  expect(
+    await prisma.reservation.findFirstOrThrow({ where: { paymentId: ORDER_ID } }),
+  ).toMatchObject({
+    status: "CANCELLED",
+    paymentStatus: "COMPLETED",
+    authorisationCode: "654321",
+  });
+
+  await page.goto(`/reserva/confirmacion/${ORDER_ID}`);
+  await expect(page.getByTestId("refund-notice")).toBeVisible();
+  await expect(page.getByTestId("refund-notice")).toContainText(ORDER_ID);
+});
