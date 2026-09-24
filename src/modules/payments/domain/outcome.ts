@@ -34,6 +34,29 @@ export function reservationUpdateFor(outcome: PaymentOutcome, now?: Date) {
     : { status: "CANCELLED", paymentStatus: "FAILED" };
 }
 
+/**
+ * Una reserva **cobrada y anulada** (RCA-276). El banco autorizó el pago, pero la
+ * reserva ya había caducado y sus asientos no se pudieron recuperar: hay que devolver
+ * el dinero. No es un estado nuevo en el esquema, sino una combinación que ningún otro
+ * camino produce: `CANCELLED` con el pago `COMPLETED`. Cuando el bar hace la devolución
+ * en el portal de Redsys, el pago pasa a `REFUNDED`.
+ */
+export const PAID_WITHOUT_SEATS = {
+  status: "CANCELLED",
+  paymentStatus: "COMPLETED",
+} as const;
+
+/** ¿Hay que devolver el dinero de esta reserva? */
+export function needsRefund(reservation: {
+  status: string;
+  paymentStatus: string;
+}): boolean {
+  return (
+    reservation.status === PAID_WITHOUT_SEATS.status &&
+    reservation.paymentStatus === PAID_WITHOUT_SEATS.paymentStatus
+  );
+}
+
 export function seatUpdateFor(outcome: "ok"): { status: "OCCUPIED" };
 export function seatUpdateFor(outcome: "ko"): {
   status: "AVAILABLE";

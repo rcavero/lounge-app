@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { reservationUpdateFor, seatUpdateFor } from "./outcome";
+import {
+  needsRefund,
+  PAID_WITHOUT_SEATS,
+  reservationUpdateFor,
+  seatUpdateFor,
+} from "./outcome";
 
 const NOW = new Date("2026-10-14T10:00:00.000Z");
 
@@ -29,5 +34,30 @@ describe("pago denegado", () => {
 
   it("los asientos vuelven a AVAILABLE y pierden el vínculo", () => {
     expect(seatUpdateFor("ko")).toEqual({ status: "AVAILABLE", reservationId: null });
+  });
+});
+
+describe("cobrada y anulada (RCA-276)", () => {
+  it("es CANCELLED con el pago COMPLETED", () => {
+    expect(PAID_WITHOUT_SEATS).toEqual({
+      status: "CANCELLED",
+      paymentStatus: "COMPLETED",
+    });
+  });
+
+  it("solo esa combinación pide devolución", () => {
+    expect(needsRefund({ status: "CANCELLED", paymentStatus: "COMPLETED" })).toBe(true);
+
+    // Un KO normal: no se cobró nada.
+    expect(needsRefund({ status: "CANCELLED", paymentStatus: "FAILED" })).toBe(false);
+    // Ya devuelta.
+    expect(needsRefund({ status: "CANCELLED", paymentStatus: "REFUNDED" })).toBe(false);
+    // Pagada y con sus asientos.
+    expect(needsRefund({ status: "CONFIRMED", paymentStatus: "COMPLETED" })).toBe(false);
+    expect(needsRefund({ status: "EXPIRED", paymentStatus: "PENDING" })).toBe(false);
+  });
+
+  it("un KO nunca produce una reserva que pida devolución", () => {
+    expect(needsRefund({ ...reservationUpdateFor("ko") })).toBe(false);
   });
 });
