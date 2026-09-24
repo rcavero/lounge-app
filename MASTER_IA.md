@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura) **y P7** (los tres fallos de dinero, solo en `academic`). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **y P8** (estados de carga y animaciones). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -740,6 +740,73 @@ Tras los dos: 344 tests unitarios y de componentes, 498 con integración, y los 
 
 ---
 
+## Paso P8 — Estados de carga, skeletons y animaciones · EJECUTADO
+
+En Linear, «13 · UI/UX» (RCA-280 a RCA-284). Commits de `fee20be` a `c09d388`. El plan está en [Revisión de UI/UX](#revisión-de-uiux--estados-de-carga).
+
+### P8.1 Qué quedó
+
+- **Skeletons.** Hay un `loading.tsx` que imita la vista de destino en la portada, en la página del evento, en la confirmación y en cada página del panel salvo el menú principal (ver P8.3). En producción, `<Link>` precarga ese límite, así que el skeleton sale en cuanto se pulsa.
+  - En el evento, el plano del local, que es una imagen estática, se pinta ya atenuado.
+  - En el panel se ven el título de verdad y la flecha de volver operativa.
+  - Todos son `role="status"` y anuncian «Cargando…» una sola vez.
+- **La tarjeta pulsada responde.** `LinkPendingIndicator`, con `useLinkStatus`, pone un spinner en la tarjeta mientras navega, con 150 ms de retardo para no parpadear. Cubre el hueco que el skeleton no cubre: pulsar antes de que la precarga termine. Además, la tarjeta se hunde un poco al pulsarla.
+- **Botones.** `Button` tiene una prop `loading`: spinner en lugar del icono, `disabled` y `aria-busy`. Se usa en todos los botones de acción:
+  - del cliente: login, pagar y los PDF;
+  - del panel: eventos, bloqueos, posiciones, sugerencias y devoluciones.
+  Dos que no tenían ninguna señal, los informes PDF (un segundo toque abría dos pestañas) y «Salir», ahora la tienen.
+- **Animaciones** de entrada cortas, todas con `motion-safe:`: las listas en cascada, el plano y el ticket con un fundido, y los modales con fundido y zoom.
+- La portada pasa al grupo de rutas `(inicio)`, que no cambia la URL, para que su skeleton no haga de pantalla de carga de las demás rutas.
+
+### P8.2 Qué se desvió del plan
+
+1. **Crear, editar y eliminar evento reactivaban el botón en el `finally`, justo después de `router.push`.** Durante la navegación parecía que no había pasado nada, y un segundo toque repetía la acción. Ahora el botón solo se reactiva si hay error. Formulario de usuarios y bloqueos ya lo hacían bien.
+2. **Skeletons de más de los previstos:** también en «Nuevo evento», «Sugerencias», «Editar usuario» y «Añadir usuario», con el mismo componente.
+3. **El skeleton de la confirmación no tiene E2E.** Allí se llega con una navegación completa desde la pasarela: retener la petición retiene la página entera, así que no hay forma de ver el estado intermedio desde Playwright.
+
+### P8.3 La regresión que trajo P8 y cómo se encontró
+
+Al pasar la suite, el E2E de «Ya está devuelto» (P7) empezó a fallar a veces. **La base quedaba en `REFUNDED`, pero el aviso seguía en pantalla.** Se midió repitiéndolo 30 veces en cada estado:
+
+| Estado | Fallos de 30 |
+|---|---|
+| `src/` como al cerrar P7 | 0 |
+| Tras los skeletons del panel (13.2) | entre 1 y 4 |
+| Con los cambios de 13.3 | entre 7 y 12 |
+| Sin `admin/(dashboard)/loading.tsx` | 0 |
+
+La causa es ese `loading.tsx`, en el mismo segmento que el menú del panel. Con él, la respuesta de la acción a veces no se aplica, y pasaba igual con `router.refresh()` que con `revalidatePath`. Se quitó. El menú solo lee la sesión y los pagos a devolver, y las demás páginas del panel tienen su propio skeleton.
+
+**Dos hipótesis anteriores resultaron falsas y se descartaron con datos:**
+- La hidratación: se esperó a que React hidratara el botón, y seguía fallando.
+- `router.refresh()` frente a `revalidatePath`: fallaban igual.
+
+Se quedó `revalidatePath`, porque ahorra una petición, pero ya no se presenta como el arreglo. El aviso para quien vuelva a poner un `loading.tsx` ahí está en el propio `page-skeleton.tsx`.
+
+**Un incidente de entorno por el camino.** Para medir el estado de P7 se creó un worktree temporal con `node_modules` enlazado por junction. Al limpiarlo, `git worktree remove --force` atravesó la junction y borró parte del `node_modules` real. Se recuperó con `npm ci`, sin pérdida de código ni de datos, y la medición se hizo después dentro del propio repositorio. Queda anotado en la memoria de la IA para no repetirlo.
+
+### P8.4 Cómo se comprobó que los tests sirven
+
+- **E2E de carga con la navegación retenida.** `holdNavigation` retiene la petición RSC hasta que el test la suelta. Se exige ver el skeleton antes que el contenido en tres casos: al pulsar un evento, al volver a la portada, y en dos navegaciones del panel, como ADMIN y como WORKER. **Sin cada `loading.tsx`, su test falla.**
+- **El helper `prefetchOf` espera a la respuesta de la precarga, no a la petición.** Con la petición, el primer intento pasó por suerte y los siguientes fallaban al pulsar antes de que llegara.
+- **Spinner de la tarjeta:** con la precarga también retenida, solo la tarjeta pulsada muestra el indicador.
+- **«Reducir movimiento»:** con la preferencia emulada, ningún elemento de la portada ni de la página del evento tiene animación. Sin ella, la tarjeta anima `enter`. Quitando `motion-safe:`, el test falla.
+- **Tests de componente** de `Button` con `loading`, de `Skeleton` y `LoadingRegion`, del indicador y de las clases de movimiento. El de `Button` con `asChild` encontró un fallo real antes del commit: el `false` del spinner contaba como segundo hijo y `Slot` lanzaba.
+
+### P8.5 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` (unit + ui) | 361, en verde |
+| `npm run test:coverage` (unit + ui + integración) | 515, en verde y con los umbrales cumplidos |
+| `npm run e2e` | 35, en verde (7 nuevos) |
+| E2E de «Ya está devuelto», 30 repeticiones | 0 fallos |
+| `npm run lint`, `typecheck`, `format:check` | limpios |
+| `npm run build` | limpio, las mismas 24 rutas |
+| **A mano, Ramón desde el móvil en la preview de `academic`** | **pendiente** |
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -934,7 +1001,7 @@ Antes de montarlo hay que capturar pantallas de la app desplegada en `academic`.
 
 ## Revisión de UI/UX — estados de carga
 
-> **Añadida el 24 de septiembre, a petición de Ramón.** Es el paso P8, en Linear «13 · UI/UX» (RCA-280 a RCA-284).
+> **Añadida el 24 de septiembre, a petición de Ramón.** Es el paso P8, en Linear «13 · UI/UX» (RCA-280 a RCA-284). **Ejecutado:** lo que de verdad se hizo, con sus desvíos, está en [Paso P8](#paso-p8--estados-de-carga-skeletons-y-animaciones--ejecutado). Esta sección es el plan.
 
 **El problema.** Al pulsar un evento en la portada, la pantalla no cambia durante los 2–3 s que tarda `/eventos/[id]`, y parece que el clic no ha hecho nada. La causa es doble. No hay ni un `loading.tsx` en las 18 páginas de `src/app/`. Y la página del evento hace tres viajes a la base de datos en serie antes de pintar nada: el evento, luego inicializar los asientos, luego los asientos y los carteles. Sin un límite de Suspense, el `<Link>` no da ninguna señal hasta que llega todo. El panel tiene el mismo problema, y los estados de «cargando» que ya existen, en 12 ficheros, son desiguales.
 
@@ -976,7 +1043,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
 | ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hecho todo**, con el hotfix de la carrera en producción; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
-| **P8** | Estados de carga, skeletons y animaciones. Ver [Revisión de UI/UX](#revisión-de-uiux--estados-de-carga) | — | 13 · UI/UX |
+| ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, a falta de la verificación en el móvil. Ver P8 | — | 13 · UI/UX |
 | **P9** | Documentación. El CHANGELOG, el último | — | 10 · Fase 7 |
 | **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
 

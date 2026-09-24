@@ -559,3 +559,7 @@ npm run build
       la clave del entorno y la manda a localhost. Aborta si `REDSYS_ENV=production` o si el destino
       no es localhost, y pide `--force` para un `ko` sobre una reserva ya confirmada (la cancelaría
       y liberaría sus asientos de forma irreversible).
+
+12. **Estados de carga** (septiembre 2026). Cada página tiene un `loading.tsx` que imita su forma: en producción `<Link>` lo precarga y sale en cuanto se pulsa. Las piezas están en `components/ui/skeleton.tsx` (`Skeleton`, `LoadingRegion`), en `admin/(dashboard)/components/page-skeleton.tsx` (`AdminPageSkeleton`), en `shared/components/link-pending.tsx` (el spinner de la tarjeta pulsada, con `useLinkStatus`) y en `shared/components/motion.ts` (animaciones, todas `motion-safe:`). Los botones de acción usan `<Button loading>`, y **si tras la acción se navega, el botón no se reactiva en el éxito**: solo en el error.
+    - **El menú del panel (`/admin`) no tiene `loading.tsx`, a propósito.** Con uno en `(dashboard)/`, la respuesta de «Ya está devuelto» a veces no se aplicaba (medido: 7–12 fallos de 30 frente a 0). Si se vuelve a poner, repetir el E2E de `admin/refunds.spec.ts` 30 veces.
+    - La portada vive en el grupo `(inicio)` para que su skeleton no haga de pantalla de carga de las demás rutas.
