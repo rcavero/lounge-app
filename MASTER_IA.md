@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright) **y P6** (CI y cobertura). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura) **y P7** (los tres fallos de dinero, solo en `academic`). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -33,7 +33,7 @@ Estado de partida el 21 de septiembre, verificado entonces:
 
 | Hallazgo | Estado |
 |---|---|
-| `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Abierto.** Bug real en producción |
+| `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Resuelto en `academic` (P7).** Sigue en producción hasta que se decida el hotfix (RCA-269) |
 | `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | **Resuelto en P4**: el plazo vive en `reservations/domain/expiry.ts`, con nombre, y vale lo mismo |
 | Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 4). Desde P2, un test fija las dos fronteras al minuto |
 | Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | **Resuelto en P4**, junto con `getSeatsByZone` |
@@ -43,8 +43,8 @@ Estado de partida el 21 de septiembre, verificado entonces:
 - **`npm run lint` fallaba con 533 errores y 1761 avisos**, igual en `main`. **Resuelto en 1.4**: estaban todos en el cliente generado por Prisma, que nunca debió entrar en el lint. La deuda real eran 3 errores, **arreglados en P6**: `npm run lint` está a cero.
 - **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
 - **Una tercera, que la auditoría de 0.6 no vio**: `prisma/seed.ts` crea un admin con el email real y la contraseña `12345678`, en claro y en todo el historial. **Abierta (RCA-275, urgente)**: hay que comprobar que ninguna cuenta viva la usa **antes de publicar el repositorio**. Ver P2.4.
-- **Un pago que llega después de expirar la reserva se cobra sin asientos.** Bug de producción que sacó a la luz la integración. **Abierto (RCA-276, alta)**. Ver P3.4.
-- **`initializePayment` no comprueba en servidor la ventana de reserva ni el estado del evento**: la ventana solo la aplica la portada, y por enlace directo se puede comprar un partido que empieza en una hora. **Abierto (RCA-277, media)**. Ver P3.4.
+- **Un pago que llega después de expirar la reserva se cobra sin asientos.** Bug de producción que sacó a la luz la integración. **Resuelto en `academic` (P7)**: se rescatan los asientos o la reserva queda para devolver. Sigue en producción hasta el hotfix (RCA-269).
+- **`initializePayment` no comprueba en servidor la ventana de reserva ni el estado del evento**: la ventana solo la aplica la portada, y por enlace directo se puede comprar un partido que empieza en una hora. **Resuelto en `academic` (P7)**. Sigue en producción hasta el hotfix (RCA-269).
 
 ---
 
@@ -639,6 +639,88 @@ Queda **una nota informativa** en cada ejecución: `ubuntu-latest` pasará a Ubu
 
 ---
 
+## Paso P7 — Los tres fallos de dinero · EJECUTADO EN `academic`
+
+En Linear, RCA-175 (con RCA-267 y RCA-268), RCA-276 y RCA-277. Commits de `45258ae` a `cc5d7cf`. **Arreglados solo en `academic`**: si se llevan a `main` como hotfix lo decide Ramón (RCA-269).
+
+### P7.1 Qué quedó
+
+- **Carrera de asientos (RCA-175).** Dentro de la transacción, `initializePayment` solo aparta asientos que siguen `AVAILABLE`, y compara cuántos ha apartado con cuántos se pidieron. Si falta uno, se deshace todo, incluida la reserva, y el segundo cliente recibe «Asientos no disponibles». Con el aislamiento por defecto de Postgres (READ COMMITTED), la segunda transacción espera al bloqueo de fila de la primera y vuelve a evaluar el `where`: no hace falta SERIALIZABLE ni un bloqueo explícito.
+- **Pago que llega con la reserva caducada (RCA-276).** Opción elegida por Ramón: **rescatar o devolver**.
+  - **La caducidad deja rastro.** Los asientos quedan `AVAILABLE`, pero conservan `reservationId`. Las dos copias que había (la página del evento y el cron) pasan a una sola, `reservations/lib/expire.ts`, que además solo caduca lo que sigue `PENDING`. Antes, si el webhook confirmaba entre la lectura y la escritura, una reserva pagada quedaba `EXPIRED` y con sus asientos libres.
+  - **El OK del webhook pasa por `payments/lib/settle-payment.ts`.** Si la reserva está en plazo, se confirma como siempre. Si ha caducado y sus asientos siguen libres, sin venderse tampoco en un partido que se solape, se recuperan todos o ninguno y se confirma.
+  - **Si no se puede rescatar, queda *cobrada y anulada*.** Es `CANCELLED` con el pago `COMPLETED`, una combinación que ningún otro camino produce, así que no hace falta migración.
+    - El cliente ve «Tus asientos ya no estaban disponibles» y que se le devolverá el importe.
+    - El panel abre con **«Pagos a devolver»**, con el pedido y el código de autorización. Lo ven ADMIN y WORKER, este último por si el cliente se presenta en la barra.
+    - Solo el ADMIN tiene «Ya está devuelto», que pasa el pago a `REFUNDED`, un valor que el enum ya tenía.
+- **Validación en el servidor (RCA-277).** Opción elegida por Ramón: **ventana y estado**. La regla vive ahora en `events/domain/booking-window.ts`: de 48 h a 4 h antes, y solo eventos `UPCOMING`. La leen la portada, la página del evento y `initializePayment`. Fuera de ventana, la página enseña el motivo, en el idioma del navegador, en lugar del plano. Los asientos repetidos o inexistentes se rechazan con su propio mensaje.
+
+### P7.2 Qué se desvió del plan
+
+1. **El arreglo de la carrera cerró de paso dos puntos de RCA-277.** El recuento de asientos apartados rechaza un asiento repetido o inexistente, porque el número no cuadra. Sus dos tests de `COMPORTAMIENTO ACTUAL` cambiaron de signo en el mismo commit, y RCA-277 añadió después un mensaje propio para cada caso.
+2. **La carrera entre la caducidad y el webhook no estaba en ninguna tarjeta.** Apareció al leer el código para diseñar RCA-276, y se cerró dentro de ella porque es el mismo punto.
+3. **`EventRow` cambia un comportamiento a propósito.** Un evento que ya ha empezado ahora sale bloqueado, porque la portada usa la misma regla que el servidor. En la portada no se ve: solo lista eventos futuros.
+4. **Las reservas caducadas antes del despliegue no tienen rastro.** Un pago tardío sobre ellas queda siempre para devolver: no hay forma de saber qué asientos eran.
+
+### P7.3 Cómo se comprobó que los tests sirven
+
+- **La carrera se reprodujo antes de arreglarla.** Primero, un commit con los tests en `COMPORTAMIENTO ACTUAL`, en verde: el mismo asiento se vende a los dos. Para que la carrera no dependa de la suerte, un espía retiene la transacción de cada llamada hasta que han llegado todas. Con el arreglo retirado, 3 de los 4 tests nuevos fallan. El cuarto, «asientos distintos no se estorban», pasa en los dos casos, como debe.
+- **El pago tardío: 6 de los 8 casos nuevos fallan con el webhook anterior.** Los dos que pasan lo hacen con razón. El rescate simple ya funcionaba con solo dejar el rastro, porque el OK antiguo ocupaba los asientos por `reservationId`. Y la notificación repetida sobre una reserva a tiempo no ha cambiado.
+- **8 mutaciones, todas detectadas:**
+  - quitar `AVAILABLE` del `where`, o no comprobar el recuento;
+  - caducar sin filtrar por `PENDING`, o borrando el rastro;
+  - rescatar sin mirar los partidos que se solapan;
+  - permitir un rescate parcial;
+  - quitar la comprobación de la ventana en el servidor.
+- **E2E nuevos:**
+  - pago tardío de principio a fin: la reserva caduca al abrir la página, otro cliente aparta un asiento, llega el OK firmado y el cliente ve el aviso;
+  - «Pagos a devolver» como ADMIN y como WORKER;
+  - la ventana por enlace directo, con cinco casos.
+
+### P7.4 La puerta: pago real antes y después, y los casos nuevos a mano
+
+Ramón pagó en la preview de `academic` en el mismo evento, antes y después del despliegue:
+
+| | Antes | Después |
+|---|---|---|
+| Pedido | `790240235887` | `790240605608` |
+| Estado | CONFIRMED · COMPLETED | CONFIRMED · COMPLETED |
+| Asientos | 3, ocupados | 3, ocupados |
+| Total | 34,50 € | 34,50 € |
+| Desglose por asiento | 10,00 € + 1,50 € | 10,00 € + 1,50 € |
+| Recibo | 070495 · 0000 | 070514 · 0000 |
+
+`verify-management-fee.ts report` contra testing: ninguna reserva con un total que no cuadre con su desglose, ni sin precio unitario.
+
+Y los casos nuevos, en la preview, donde sí llega el webhook de Redsys:
+
+- **Rescate** (`790241789391`): el pago llegó 9 minutos después de pulsar RESERVAR, con la página del evento abierta entretanto. Queda confirmada con sus 2 asientos ocupados.
+- **Devolución** (`790240882254`): otro cliente pagó uno de sus asientos (`790241371724`) mientras el primero seguía en la pasarela. La primera queda cobrada y anulada, sin asientos y con su recibo. La del otro cliente sigue intacta.
+- **Ventana:** por enlace directo, un evento fuera de ventana enseña el motivo y no el plano.
+
+### P7.5 Hallazgos que quedan
+
+Los tres son de probabilidad baja y se anotan sin tarjeta, porque Linear va justo de cupo:
+
+- **Dos partidos solapados.** La comprobación de que un asiento no está vendido en otro partido que se solapa sigue fuera de la transacción, igual en la reserva que en el rescate. Dos clientes que paguen el mismo asiento en dos partidos solapados, en el mismo instante, podrían pasar los dos.
+- **El número de pedido son los 12 últimos dígitos del reloj en milisegundos, y `paymentId` no es único.** Dos reservas creadas en el mismo milisegundo compartirían pedido; Redsys rechazaría el segundo pago como pedido repetido.
+- **La página de error cancela por número de pedido, sin más comprobación.** Quien conozca, o adivine, el pedido de una reserva pendiente ajena puede cancelarla. Como el pedido sale del reloj, se puede adivinar.
+
+### P7.6 Verificación de cierre
+
+| Comprobación | Resultado |
+|---|---|
+| `npm test` (unit + ui) | 333, en verde |
+| `npm run test:coverage` (unit + ui + integración) | 487, en verde y con los umbrales cumplidos |
+| `npm run e2e` | 28, en verde (8 nuevos) |
+| `npm run lint`, `typecheck`, `format:check` | limpios |
+| `npm run build` | limpio, las mismas 24 rutas |
+| CI #5 (`cc5d7cf`) | verde, 2 min 56 s |
+| Unicode oculto en los 33 ficheros tocados | ninguno |
+| Puerta del pago real | pasada, más el rescate, la devolución y la ventana a mano |
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -874,7 +956,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P4**~~ | ~~Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto.~~ **Hecho.** Ver P4 | — | 07 · Fase 4 |
 | ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
-| **P7** | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
+| ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hechos los tres arreglos**; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
 | **P8** | Estados de carga, skeletons y animaciones. Ver [Revisión de UI/UX](#revisión-de-uiux--estados-de-carga) | — | 13 · UI/UX |
 | **P9** | Documentación. El CHANGELOG, el último | — | 10 · Fase 7 |
 | **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
