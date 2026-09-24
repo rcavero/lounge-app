@@ -130,12 +130,15 @@ describe("EventRow — ventana de reservas (48 h a 4 h antes)", () => {
     expect(screen.queryByRole("link")).toBeNull();
   });
 
-  it("COMPORTAMIENTO ACTUAL: un evento ya empezado (-1 h) NO se bloquea", () => {
-    // La condición de "demasiado tarde" exige hoursUntilEvent >= 0. En la home no
-    // llega a verse porque getUpcomingEvents filtra eventDate >= ahora, pero el
-    // componente por sí solo lo deja navegable.
+  it("un evento ya empezado (-1 h) también se bloquea", () => {
+    // Antes no: la condición exigía hoursUntilEvent >= 0. En la portada no se llega a
+    // ver, porque getUpcomingEvents solo lista eventos futuros, pero desde que la regla
+    // vive en events/domain/booking-window.ts es la misma que aplica el servidor.
     renderRow(-1 * HOUR);
-    expect(screen.queryByRole("link")).not.toBeNull();
+    expect(screen.queryByRole("link")).toBeNull();
+
+    clickCard();
+    expect(screen.getByText(TOO_LATE_ES)).not.toBeNull();
   });
 
   it("sin checkAvailability, siempre es navegable", () => {

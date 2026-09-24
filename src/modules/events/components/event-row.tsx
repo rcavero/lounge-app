@@ -10,6 +10,8 @@ import { TeamLogo } from "./team-logo";
 import { CompetitionEmblem } from "./competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
 import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
+import { bookingWindowReason } from "../domain/booking-window";
+import { BOOKING_CLOSED_MESSAGES } from "./booking-messages";
 
 interface EventRowProps {
   event: EventWithTeams;
@@ -26,19 +28,6 @@ const screenColors: Record<string, string> = {
   TV3: "bg-[#D4AF37] text-black",
   TV1: "bg-[#b91c1c] text-white",
   TV2: "bg-[#3b82f6] text-white",
-};
-
-const MESSAGES = {
-  es: {
-    tooEarly: "Las reservas se desbloquearán 48 horas antes del evento",
-    tooLate:
-      "Se han cerrado las reservas para este evento porque faltan menos de 4 horas para su inicio",
-  },
-  en: {
-    tooEarly: "Reservations will open 48 hours before the event",
-    tooLate:
-      "Reservations for this event are closed because it starts in less than 4 hours",
-  },
 };
 
 export function EventRow({ event, href, checkAvailability = false }: EventRowProps) {
@@ -70,15 +59,15 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
   const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
   const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-  // Availability check
-  const hoursUntilEvent = (eventDate.getTime() - now) / (1000 * 60 * 60);
-  const isTooEarly = checkAvailability && hoursUntilEvent > 48;
-  const isTooLate = checkAvailability && hoursUntilEvent >= 0 && hoursUntilEvent < 4;
-  const isLocked = isTooEarly || isTooLate;
+  // La misma regla que aplican la página del evento y el servidor (RCA-277).
+  const closedReason = checkAvailability
+    ? bookingWindowReason(eventDate, new Date(now))
+    : null;
+  const isLocked = closedReason !== null;
 
   const handleLockedClick = () => {
-    const msgs = isSpanish ? MESSAGES.es : MESSAGES.en;
-    setTooltip(isTooEarly ? msgs.tooEarly : msgs.tooLate);
+    if (!closedReason) return;
+    setTooltip(BOOKING_CLOSED_MESSAGES[isSpanish ? "es" : "en"][closedReason]);
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
     tooltipTimer.current = setTimeout(() => setTooltip(null), 3000);
   };
@@ -117,10 +106,12 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
         competition={event.competition}
         className="absolute top-2 left-2"
       />
-      {isTooEarly && (
+      {closedReason === "too-early" && (
         <Clock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />
       )}
-      {isTooLate && <Lock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
+      {closedReason === "too-late" && (
+        <Lock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />
+      )}
 
       {/* Home Team / GP name */}
       <div className="flex flex-col items-center w-20">
