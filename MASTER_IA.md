@@ -8,7 +8,7 @@
 >
 > **Numeración.** Las «Fase N» de este documento agrupan por **tema**; Linear numera por
 > **orden de ejecución**, y por eso su «Fase 2» es la caracterización y no la capa de dominio.
-> Para no mezclarlas, aquí el orden se cita siempre como **P0–P6**, y la tabla de
+> Para no mezclarlas, aquí el orden se cita siempre como **P0–P10**, y la tabla de
 > [Orden de ejecución](#orden-de-ejecución) da la tarjeta de Linear de cada paso.
 >
 > El detalle de cada desvío, con su porqué y su verificación, está en las tarjetas del proyecto
@@ -831,6 +831,36 @@ Antes de montarlo hay que capturar pantallas de la app desplegada en `academic`.
 
 ---
 
+## Revisión de UI/UX — estados de carga
+
+> **Añadida el 24 de septiembre, a petición de Ramón.** Es el paso P8, en Linear «13 · UI/UX» (RCA-280 a RCA-284).
+
+**El problema.** Al pulsar un evento en la portada, la pantalla no cambia durante los 2–3 s que tarda `/eventos/[id]`, y parece que el clic no ha hecho nada. La causa es doble. No hay ni un `loading.tsx` en las 18 páginas de `src/app/`. Y la página del evento hace tres viajes a la base de datos en serie antes de pintar nada: el evento, luego inicializar los asientos, luego los asientos y los carteles. Sin un límite de Suspense, el `<Link>` no da ninguna señal hasta que llega todo. El panel tiene el mismo problema, y los estados de «cargando» que ya existen, en 12 ficheros, son desiguales.
+
+**El enfoque**, el estándar de Next 16 y React 19, sin dependencias nuevas:
+
+- **`loading.tsx` por segmento, con un skeleton que imita la vista de destino.** En producción, `<Link>` precarga el límite de carga de las rutas dinámicas, así que el skeleton aparece en cuanto se pulsa y no hace falta esperar al servidor. Hay un primitivo compartido, `components/ui/skeleton.tsx`, al estilo shadcn. Accesibilidad: `role="status"`, `aria-busy` y un texto oculto «Cargando…».
+- **Feedback en el elemento pulsado**, para cuando la precarga aún no ha llegado. Se usa `useLinkStatus` en las filas de evento y las tarjetas del panel, más `active:scale-[0.98]` como respuesta táctil.
+- **Botones de acción con una prop `loading`** en `Button`: spinner, `disabled` y `aria-busy`. El mecanismo de navegación posterior no se cambia (punto 4 de `CLAUDE.md`).
+- **Animaciones básicas** con `tw-animate-css`, que ya está instalado, siempre bajo `motion-safe:`.
+
+**Lo que se descarta y por qué.**
+
+- `<ViewTransition>` de React sigue siendo experimental en Next 16, y esto acaba en producción.
+- Acelerar los tres viajes en serie de `/eventos/[id]` es otro cambio, porque toca el camino de los asientos. Lo que se pide aquí es que la espera se perciba de otra forma, no quitar latencia.
+
+**Cómo se comprueba.**
+
+- Tests de componente de `Button` con `loading`.
+- Un E2E que retrasa con `page.route` la petición RSC de `/eventos/[id]` y exige ver el skeleton antes que el plano, y otro igual en el panel.
+- Los 20 E2E existentes, en verde.
+- A mano, Ramón en el móvil:
+  - el skeleton sale al instante al pulsar un evento;
+  - el panel se recorre como ADMIN y como WORKER;
+  - con «reducir movimiento» activado, no hay animaciones.
+
+---
+
 ## Orden de ejecución
 
 Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: la caracterización va antes que el refactor, o no hay forma de demostrar que el refactor no cambió nada.
@@ -844,8 +874,14 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P4**~~ | ~~Extracción de dominio, **un módulo por commit, de menor a mayor riesgo**: `overlap` → `expiry` → `availability` → `report-months` → `title` → borrar `createReservation` → **`amount` (dinero)** → **`apply-payment-outcome` (dinero)** → borrar el resto del código muerto.~~ **Hecho.** Ver P4 | — | 07 · Fase 4 |
 | ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
+| **P7** | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
+| **P8** | Estados de carga, skeletons y animaciones. Ver [Revisión de UI/UX](#revisión-de-uiux--estados-de-carga) | — | 13 · UI/UX |
+| **P9** | Documentación. El CHANGELOG, el último | — | 10 · Fase 7 |
+| **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
 
-**La documentación (Fase 4 de este documento, «10 · Fase 7» en Linear) y la presentación (Fase 5, «11 · Fase 8») van en paralelo a partir de P3**: no dependen del refactor, y conviene escribirlas mientras el contexto está fresco en lugar de dejarlas para el final, que es cuando se entregan a medias. La carrera de asientos es «12» en Linear.
+**Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
+
+**Antes de publicar el repositorio**, con independencia del orden anterior: RCA-275, la contraseña del seed, que sigue pospuesta hasta que Ramón lo pida, y el punto 6 de la verificación manual.
 
 ---
 
