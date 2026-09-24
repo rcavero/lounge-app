@@ -8,7 +8,8 @@
  *
  * Solo decide **qué** se escribe. **Si** se escribe lo decide cada caller, y a propósito
  * no aquí: son tres guardas distintas. La página de OK solo confirma `PENDING`; la de KO
- * no cancela una `CONFIRMED`; el webhook actúa sin filtro de estado. Meter aquí una
+ * no cancela una `CONFIRMED`; el KO del webhook actúa sin filtro de estado, y su OK
+ * pasa por `lib/settle-payment.ts`, que decide según el estado (RCA-276). Meter aquí una
  * regla como "un KO sobre una CONFIRMED no hace nada" cambiaría lo que hace el webhook.
  *
  * Módulo plano, sin `"use server"` ni Prisma.

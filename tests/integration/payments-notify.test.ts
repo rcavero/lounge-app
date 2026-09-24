@@ -15,7 +15,10 @@ import {
 } from "@/app/api/payments/return/[orderId]/route";
 import type { Event, Reservation, Seat } from "@/generated/prisma";
 import { prisma } from "@/lib/prisma";
+import { initializePayment } from "@/modules/payments/actions";
+import { PAID_WITHOUT_SEATS } from "@/modules/payments/domain/outcome";
 import { recordPaymentReceipt } from "@/modules/payments/lib/receipt";
+import { expirePendingReservation } from "@/modules/reservations/lib/expire";
 
 import {
   signRedsysNotification,
@@ -247,31 +250,165 @@ describe("POST /api/payments/notify — reserva que ya no está pendiente", () =
       reservationId: null,
     });
   });
+});
 
-  /**
-   * El caso que importa. Una reserva PENDING caduca a los 5 minutos: la expira
-   * `getSeatsForEvent` en cuanto cualquiera abre la página del evento, y la expiración
-   * suelta el vínculo con los asientos. Si el cliente tarda más que eso en la pasarela
-   * (un 3D Secure lento basta) y el pago sale bien, la notificación llega tarde:
-   * la reserva pasa a CONFIRMED y se cobra, pero los asientos siguen libres, sin dueño,
-   * y se pueden vender a otro. El ticket sale sin asientos.
-   */
-  it("COMPORTAMIENTO ACTUAL: un OK sobre una reserva EXPIRED la confirma sin asientos", async () => {
-    const reservation = await makeReservation({
-      event,
-      seats: [seats[0], seats[1]],
-      status: "EXPIRED",
+/**
+ * RCA-276. Una reserva PENDING caduca a los 5 minutos: la caduca `getSeatsForEvent` en
+ * cuanto cualquiera abre la página del evento. Si el cliente tarda más que eso en la
+ * pasarela (un 3D Secure lento basta) y el pago sale bien, la notificación llega tarde.
+ *
+ * Antes la reserva pasaba a CONFIRMED sin asientos: se cobraba, el ticket salía vacío y
+ * los asientos se podían vender a otro. Ahora se recuperan si siguen libres, y si no,
+ * la reserva queda cobrada y anulada para que el bar devuelva el dinero.
+ */
+describe("POST /api/payments/notify — el pago llega con la reserva ya caducada", () => {
+  /** Una reserva caducada por el camino real, con el rastro en sus asientos. */
+  async function expired(seatList: Seat[]) {
+    const reservation = await makeReservation({ event, seats: seatList });
+    expect(await expirePendingReservation(reservation.id)).toBe(true);
+    return reservation;
+  }
+
+  async function someoneElseReserves(seatList: Seat[], onEvent: Event = event) {
+    const result = await initializePayment({
+      eventId: onEvent.id,
+      seatIds: seatList.map((s) => s.id),
+      customerName: "Luis",
     });
+    expect(result.success).toBe(true);
+    return prisma.reservation.findFirstOrThrow({ where: { customerName: "Luis" } });
+  }
+
+  it("si los asientos siguen libres, los recupera y confirma", async () => {
+    const reservation = await expired([seats[0], seats[1]]);
 
     await postNotify(toFormBody(signedFor(reservation)));
 
     expect(await reload(reservation)).toMatchObject({
       status: "CONFIRMED",
       paymentStatus: "COMPLETED",
+      confirmedAt: TEST_NOW,
     });
     const states = await seatStatesOf(event.id);
+    for (const seat of [seats[0], seats[1]]) {
+      expect(states[seat.id]).toEqual({
+        status: "OCCUPIED",
+        reservationId: reservation.id,
+      });
+    }
+    expect(consoleError).not.toHaveBeenCalled();
+  });
+
+  it("si otro cliente ha cogido uno, queda cobrada y anulada, y no toca el suyo", async () => {
+    const reservation = await expired([seats[0], seats[1]]);
+    const luis = await someoneElseReserves([seats[1]]);
+
+    await postNotify(toFormBody(signedFor(reservation, { authorisationCode: "U6N2PG" })));
+
+    expect(await reload(reservation)).toMatchObject({
+      status: "CANCELLED",
+      paymentStatus: "COMPLETED",
+      confirmedAt: null,
+      // El recibo se guarda igual: el bar lo necesita para localizar la devolución.
+      authorisationCode: "U6N2PG",
+    });
+    const states = await seatStatesOf(event.id);
+    // Ni medio rescate: el que seguía libre queda libre, y sin rastro.
     expect(states[seats[0].id]).toEqual({ status: "AVAILABLE", reservationId: null });
-    expect(states[seats[1].id]).toEqual({ status: "AVAILABLE", reservationId: null });
+    expect(states[seats[1].id]).toEqual({ status: "RESERVED", reservationId: luis.id });
+    expect(consoleError).toHaveBeenCalledWith(
+      expect.stringContaining("COBRADA SIN ASIENTOS"),
+    );
+  });
+
+  it("si el bar ha bloqueado uno entretanto, queda cobrada y anulada", async () => {
+    const reservation = await expired([seats[0]]);
+    await prisma.seatStatus.updateMany({
+      where: { eventId: event.id, seatId: seats[0].id },
+      data: { status: "BLOCKED" },
+    });
+
+    await postNotify(toFormBody(signedFor(reservation)));
+
+    expect(await reload(reservation)).toMatchObject(PAID_WITHOUT_SEATS);
+    expect((await seatStatesOf(event.id))[seats[0].id]).toEqual({
+      status: "BLOCKED",
+      reservationId: null,
+    });
+  });
+
+  it("si el asiento está vendido en un partido que se solapa, queda cobrada y anulada", async () => {
+    const reservation = await expired([seats[0]]);
+    const overlapping = await makeEvent({
+      title: "Otro partido",
+      eventDate: new Date(event.eventDate.getTime() + 60 * 60 * 1000),
+    });
+    await makeSeatStatuses(overlapping.id, seats);
+    await someoneElseReserves([seats[0]], overlapping);
+
+    await postNotify(toFormBody(signedFor(reservation)));
+
+    expect(await reload(reservation)).toMatchObject(PAID_WITHOUT_SEATS);
+    expect((await seatStatesOf(event.id))[seats[0].id].status).toBe("AVAILABLE");
+  });
+
+  it("una EXPIRED sin rastro, de antes de este cambio, queda cobrada y anulada", async () => {
+    // Las caducadas antes del despliegue soltaron el vínculo: no hay forma de saber
+    // qué asientos eran, así que no se puede rescatar nada.
+    const reservation = await makeReservation({
+      event,
+      seats: [seats[0]],
+      status: "EXPIRED",
+    });
+
+    await postNotify(toFormBody(signedFor(reservation)));
+
+    expect(await reload(reservation)).toMatchObject(PAID_WITHOUT_SEATS);
+    expect((await seatStatesOf(event.id))[seats[0].id].status).toBe("AVAILABLE");
+  });
+
+  it("una notificación repetida tras el rescate no cambia nada", async () => {
+    const reservation = await expired([seats[0]]);
+    const body = toFormBody(signedFor(reservation));
+
+    await postNotify(body);
+    const afterFirst = await reload(reservation);
+    await postNotify(body);
+
+    // `updatedAt` sí cambia: una notificación repetida vuelve a escribir lo mismo,
+    // como ya hacía con una reserva confirmada a tiempo.
+    expect(await reload(reservation)).toEqual({
+      ...afterFirst,
+      updatedAt: expect.any(Date),
+    });
+    expect((await seatStatesOf(event.id))[seats[0].id].status).toBe("OCCUPIED");
+  });
+
+  it("una notificación repetida no reabre una devolución ya hecha", async () => {
+    const reservation = await expired([seats[0]]);
+    await someoneElseReserves([seats[0]]);
+    await postNotify(toFormBody(signedFor(reservation)));
+    await prisma.reservation.update({
+      where: { id: reservation.id },
+      data: { paymentStatus: "REFUNDED" },
+    });
+
+    await postNotify(toFormBody(signedFor(reservation)));
+
+    expect(await reload(reservation)).toMatchObject({
+      status: "CANCELLED",
+      paymentStatus: "REFUNDED",
+    });
+  });
+
+  it("un OK después de un KO de la misma reserva queda cobrado y anulado", async () => {
+    // El KO suelta el vínculo, así que no hay rastro que rescatar.
+    const reservation = await makeReservation({ event, seats: [seats[0]] });
+    await postNotify(toFormBody(signedFor(reservation, { ok: false })));
+
+    await postNotify(toFormBody(signedFor(reservation)));
+
+    expect(await reload(reservation)).toMatchObject(PAID_WITHOUT_SEATS);
   });
 });
 

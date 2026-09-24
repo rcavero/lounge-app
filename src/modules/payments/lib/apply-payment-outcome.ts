@@ -6,7 +6,8 @@ import { reservationUpdateFor, seatUpdateFor } from "../domain/outcome";
  * Aplica el resultado de un pago a la reserva y a sus asientos, en una transacción. 💰
  *
  * Era la misma transacción copiada en cuatro sitios: confirmar y cancelar desde las
- * páginas de vuelta, y el OK y el KO del webhook.
+ * páginas de vuelta, y el OK y el KO del webhook. El OK del webhook ya no pasa por aquí:
+ * va por `settle-payment.ts`, que además sabe qué hacer con un pago que llega tarde.
  *
  * NO es una server action, y eso es deliberado, por lo mismo que `receipt.ts`: todo lo
  * exportado desde un fichero `"use server"` queda como endpoint invocable desde el

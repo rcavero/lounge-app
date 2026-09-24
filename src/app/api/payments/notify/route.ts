@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { recordPaymentReceipt } from "@/modules/payments/lib/receipt";
 import { expectedCentsFromTotalPrice } from "@/modules/payments/domain/amount";
 import { applyPaymentOutcome } from "@/modules/payments/lib/apply-payment-outcome";
+import { settleAuthorisedPayment } from "@/modules/payments/lib/settle-payment";
 
 export async function POST(request: Request) {
   try {
@@ -61,12 +62,20 @@ export async function POST(request: Request) {
       );
     }
 
-    // Sin filtro de estado, a diferencia de las páginas de vuelta: ver domain/outcome.ts.
     if (isSuccess) {
-      await applyPaymentOutcome({ outcome: "ok", reservationId: reservation.id });
+      // Un OK tardío, sobre una reserva ya caducada, recupera sus asientos si siguen
+      // libres o la deja cobrada y anulada. Ver lib/settle-payment.ts (RCA-276).
+      const settled = await settleAuthorisedPayment(reservation.id);
 
-      console.log(`[Payment notify] Reservation ${reservation.id} confirmed`);
+      if (settled === "refund") {
+        console.error(
+          `[Payment notify] COBRADA SIN ASIENTOS orderId=${orderId} reservation=${reservation.id}: hay que devolver el importe`,
+        );
+      } else {
+        console.log(`[Payment notify] Reservation ${reservation.id} ${settled}`);
+      }
     } else {
+      // El KO sigue sin filtro de estado: ver domain/outcome.ts.
       const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
 
       // Release seats back to available
