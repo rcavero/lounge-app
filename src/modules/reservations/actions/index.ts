@@ -2,7 +2,8 @@
 
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "@/modules/events/types";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAdmin, requireAuth } from "@/lib/auth-guard";
+import { PAID_WITHOUT_SEATS } from "@/modules/payments/domain/outcome";
 import {
   groupEventsByMonth,
   monthRange,
@@ -227,4 +228,58 @@ export async function getMonthlyReportData(
       totalPrice: Number(res.totalPrice),
     })),
   }));
+}
+
+export interface PaymentToRefund {
+  id: string;
+  paymentId: string | null;
+  customerName: string;
+  totalPrice: number;
+  authorisationCode: string | null;
+  paymentDateTime: string | null;
+  eventTitle: string;
+  eventDate: Date;
+}
+
+/**
+ * Reservas cobradas y anuladas: el pago llegó con la reserva caducada y sus asientos ya
+ * eran de otro (RCA-276). El bar tiene que devolver el importe desde el portal de Redsys.
+ * Las ve también el WORKER: si el cliente se presenta en la barra, tiene que saberlo.
+ */
+export async function getPaymentsToRefund(): Promise<PaymentToRefund[]> {
+  await requireAuth();
+  const reservations = await prisma.reservation.findMany({
+    where: PAID_WITHOUT_SEATS,
+    include: { event: { select: { title: true, eventDate: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return reservations.map((r) => ({
+    id: r.id,
+    paymentId: r.paymentId,
+    customerName: r.customerName,
+    totalPrice: Number(r.totalPrice),
+    authorisationCode: r.authorisationCode,
+    paymentDateTime: r.paymentDateTime,
+    eventTitle: r.event.title,
+    eventDate: r.event.eventDate,
+  }));
+}
+
+/**
+ * El bar ya ha hecho la devolución en el portal de Redsys. Solo ADMIN, y solo sobre una
+ * reserva que de verdad esté pendiente de devolver: no sirve para anular una reserva
+ * confirmada.
+ */
+export async function markReservationRefunded(
+  reservationId: string,
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const { count } = await prisma.reservation.updateMany({
+    where: { id: reservationId, ...PAID_WITHOUT_SEATS },
+    data: { paymentStatus: "REFUNDED" },
+  });
+  return count === 1
+    ? { success: true }
+    : { success: false, error: "Esta reserva no está pendiente de devolución" };
 }

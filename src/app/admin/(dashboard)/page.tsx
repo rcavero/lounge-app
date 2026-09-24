@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { Calendar, Armchair, ClipboardList, Users } from "lucide-react";
 import { getSessionData } from "@/modules/auth/actions";
+import { getPaymentsToRefund } from "@/modules/reservations/actions";
+import { RefundAlert } from "./components/refund-alert";
 
 export default async function AdminDashboardPage() {
   const session = await getSessionData();
   const isAdmin = session.role === "ADMIN";
+  const paymentsToRefund = await getPaymentsToRefund();
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -13,6 +16,8 @@ export default async function AdminDashboardPage() {
           <h1 className="text-white text-xl font-semibold mb-6">
             Panel de Administracion
           </h1>
+
+          <RefundAlert payments={paymentsToRefund} isAdmin={isAdmin} />
 
           <div className="space-y-3">
             {/* Workers only see Reservas */}
