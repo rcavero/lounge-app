@@ -803,7 +803,8 @@ Se quedó `revalidatePath`, porque ahorra una petición, pero ya no se presenta 
 | E2E de «Ya está devuelto», 30 repeticiones | 0 fallos |
 | `npm run lint`, `typecheck`, `format:check` | limpios |
 | `npm run build` | limpio, las mismas 24 rutas |
-| **A mano, Ramón desde el móvil en la preview de `academic`** | **pendiente** |
+| A mano, Ramón desde el móvil en la preview de `academic`: skeleton al pulsar un evento, el panel como ADMIN y como WORKER, «reducir movimiento» | hecho el 24 de septiembre |
+| CI #14 (`d94a159`) | verde |
 
 ---
 
@@ -1043,7 +1044,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P5**~~ | ~~E2E: los `data-testid` en un commit aislado, luego config y escenarios.~~ **Hecho.** Ver P5. El job de CI pasa a P6, que es donde lo tiene Linear | — | 08 · Fase 5 |
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
 | ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hecho todo**, con el hotfix de la carrera en producción; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
-| ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, a falta de la verificación en el móvil. Ver P8 | — | 13 · UI/UX |
+| ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, y comprobado en el móvil. Ver P8 | — | 13 · UI/UX |
 | **P9** | Documentación. El CHANGELOG, el último | — | 10 · Fase 7 |
 | **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
 
