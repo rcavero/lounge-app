@@ -366,17 +366,22 @@ describe("initializePayment — entradas inválidas no escriben nada", () => {
 });
 
 /**
- * Lo que el servidor NO comprueba hoy. `initializePayment` es una server action: es un
- * endpoint público, y cualquiera puede llamarla con los argumentos que quiera sin pasar
- * por la interfaz. Estos tests fijan lo que hace en ese caso. No es lo deseable: si se
- * corrige, tienen que cambiar de signo.
+ * Lo que el servidor comprueba aunque la interfaz ya lo impida. `initializePayment` es
+ * una server action: un endpoint público al que cualquiera puede llamar con los
+ * argumentos que quiera. Antes de RCA-277 todo esto se vendía; ahora se rechaza sin
+ * escribir nada.
  */
-describe("initializePayment — lo que confía al cliente", () => {
-  it("COMPORTAMIENTO ACTUAL: vende un evento que empieza en una hora", async () => {
-    // La ventana 48 h – 4 h solo la aplica EventRow en la lista de la portada. La
-    // página /eventos/[id] no la comprueba, así que basta con conocer la URL.
-    const soon = await makeEvent({ eventDate: new Date(TEST_NOW.getTime() + hours(1)) });
-    await makeSeatStatuses(soon.id, seats);
+describe("initializePayment — lo que ya no confía al cliente", () => {
+  async function eventAt(offsetMs: number) {
+    const other = await makeEvent({ eventDate: new Date(TEST_NOW.getTime() + offsetMs) });
+    await makeSeatStatuses(other.id, seats);
+    return other;
+  }
+
+  it("no vende un evento que empieza en una hora", async () => {
+    // La ventana solo la aplicaba EventRow en la portada; por enlace directo se compraba.
+    const soon = await eventAt(hours(1));
+    const before = await snapshotWrites();
 
     const result = await initializePayment({
       eventId: soon.id,
@@ -384,26 +389,58 @@ describe("initializePayment — lo que confía al cliente", () => {
       customerName: "Ana",
     });
 
-    expect(result.success).toBe(true);
+    expect(result).toEqual({
+      success: false,
+      error:
+        "Se han cerrado las reservas para este evento porque faltan menos de 4 horas para su inicio",
+    });
+    expect(await snapshotWrites()).toEqual(before);
   });
 
-  it.each(["FINISHED", "CANCELLED"] as const)(
-    "COMPORTAMIENTO ACTUAL: vende un evento %s",
-    async (status) => {
-      await prisma.event.update({ where: { id: event.id }, data: { status } });
+  it("no vende un evento a más de 48 h", async () => {
+    const early = await eventAt(hours(72));
 
+    const result = await initializePayment({
+      eventId: early.id,
+      seatIds: [seats[0].id],
+      customerName: "Ana",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Las reservas se desbloquearán 48 horas antes del evento",
+    });
+  });
+
+  it("vende en los dos bordes de la ventana: a 48 h y a 4 h justas", async () => {
+    for (const offset of [hours(48), hours(4)]) {
+      const edge = await eventAt(offset);
       const result = await initializePayment({
-        eventId: event.id,
+        eventId: edge.id,
         seatIds: [seats[0].id],
         customerName: "Ana",
       });
-
       expect(result.success).toBe(true);
-    },
-  );
+    }
+  });
 
-  // Estos dos se cobraban antes: 2 asientos pagados y 1 apartado. Los cierra el
-  // recuento de asientos apartados que trajo el arreglo de la carrera (RCA-175).
+  it.each(["FINISHED", "CANCELLED"] as const)("no vende un evento %s", async (status) => {
+    await prisma.event.update({ where: { id: event.id }, data: { status } });
+    const before = await snapshotWrites();
+
+    const result = await initializePayment({
+      eventId: event.id,
+      seatIds: [seats[0].id],
+      customerName: "Ana",
+    });
+
+    expect(result).toEqual({
+      success: false,
+      error: "Este evento ya no admite reservas",
+    });
+    expect(await snapshotWrites()).toEqual(before);
+  });
+
   it("un asiento repetido no se cobra dos veces: no escribe nada", async () => {
     const before = await snapshotWrites();
 
@@ -413,7 +450,10 @@ describe("initializePayment — lo que confía al cliente", () => {
       customerName: "Ana",
     });
 
-    expect(result.success).toBe(false);
+    expect(result).toEqual({
+      success: false,
+      error: "Hay asientos repetidos en la selección",
+    });
     expect(await snapshotWrites()).toEqual(before);
   });
 
@@ -426,7 +466,10 @@ describe("initializePayment — lo que confía al cliente", () => {
       customerName: "Ana",
     });
 
-    expect(result.success).toBe(false);
+    expect(result).toEqual({
+      success: false,
+      error: "Alguno de los asientos no existe en este evento",
+    });
     expect(await snapshotWrites()).toEqual(before);
   });
 });

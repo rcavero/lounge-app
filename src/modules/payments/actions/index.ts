@@ -10,6 +10,8 @@ import {
   PAY_METHODS,
   generateOrderId,
 } from "@/lib/redsys";
+import { BOOKING_CLOSED_MESSAGES } from "@/modules/events/components/booking-messages";
+import { bookingClosedReason } from "@/modules/events/domain/booking-window";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { computeReservationAmount, toRedsysAmount } from "../domain/amount";
 import { needsRefund } from "../domain/outcome";
@@ -20,7 +22,7 @@ import type { InitializePaymentResult, ReservationTicketData } from "../types";
 /** Algún asiento pedido no se ha podido apartar dentro de la transacción. */
 class SeatsTakenError extends Error {}
 
-/** El mensaje de error si alguno de los asientos no está libre en este evento. */
+/** El mensaje de error si alguno de los asientos no existe o no está libre en este evento. */
 async function unavailableSeatsError(
   eventId: string,
   seatIds: string[],
@@ -29,6 +31,11 @@ async function unavailableSeatsError(
     where: { eventId, seatId: { in: seatIds } },
     include: { seat: true },
   });
+
+  // Uno que no existe en este evento se cobraría sin apartar nada (RCA-277).
+  if (seatStatuses.length !== seatIds.length) {
+    return "Alguno de los asientos no existe en este evento";
+  }
 
   const unavailable = seatStatuses.filter((ss) => ss.status !== "AVAILABLE");
   if (unavailable.length === 0) return null;
@@ -46,6 +53,12 @@ export async function initializePayment(data: {
     return { success: false, error: "No hay asientos seleccionados" };
   }
 
+  // La interfaz no lo permite, pero esto es un endpoint público: un asiento repetido se
+  // cobraría dos veces (RCA-277).
+  if (new Set(seatIds).size !== seatIds.length) {
+    return { success: false, error: "Hay asientos repetidos en la selección" };
+  }
+
   // Se valida antes de tocar la base de datos: un nombre inválido no puede llegar a
   // crear una reserva PENDING que deje asientos bloqueados hasta que expire. El modal
   // valida lo mismo, pero esta es la comprobación que cuenta.
@@ -59,6 +72,13 @@ export async function initializePayment(data: {
 
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { success: false, error: "Evento no encontrado" };
+
+  // La ventana de 48 h – 4 h y el estado del evento. Antes solo los miraba la portada,
+  // y por enlace directo se compraba un partido que empezaba en una hora (RCA-277).
+  const closedReason = bookingClosedReason(event, new Date());
+  if (closedReason) {
+    return { success: false, error: BOOKING_CLOSED_MESSAGES.es[closedReason] };
+  }
 
   // Importes unitarios de la BD, nunca del cliente. Se trabaja en céntimos enteros:
   // Redsys exige el importe como entero de céntimos y así el desglose que se guarda
