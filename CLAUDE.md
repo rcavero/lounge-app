@@ -41,7 +41,9 @@ lounge-app/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── layout.tsx              # Layout raíz
-│   │   ├── page.tsx                # Página principal pública
+│   │   ├── (inicio)/               # Grupo sin URL: la portada y su skeleton
+│   │   │   ├── page.tsx            # Página principal pública
+│   │   │   └── loading.tsx         # Skeleton de la portada (solo de ella: ver el propio fichero)
 │   │   ├── globals.css             # Estilos globales
 │   │   ├── admin/
 │   │   │   ├── (dashboard)/        # Grupo de rutas protegidas
@@ -70,7 +72,7 @@ lounge-app/
 │   │   │   │       └── [id]/       # Editar usuario
 │   │   │   └── login/              # Página de login (pública)
 │   │   │       ├── page.tsx, client.tsx
-│   │   ├── eventos/[id]/           # Vista pública de evento (selección de asientos + pago)
+│   │   ├── eventos/[id]/           # Vista pública de evento (selección de asientos + pago) + loading.tsx
 │   │   ├── reserva/
 │   │   │   ├── confirmacion/[orderId]/ # Página de éxito post-pago
 │   │   │   │   ├── page.tsx, client.tsx
