@@ -5,6 +5,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { CheckCircle, Download, Home, Receipt } from "lucide-react";
+import { FADE_IN } from "@/shared/components/motion";
 import type { jsPDF as JsPdfDoc } from "jspdf";
 import { Button } from "@/components/ui/button";
 import type { ReservationTicketData } from "@/modules/payments/types";
@@ -402,7 +403,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
     // la pantalla en un móvil, y centrar verticalmente algo que desborda pega el icono al
     // borde de arriba (y deja esa parte fuera del scroll). El padding hace de margen.
     <div className="min-h-screen bg-black flex flex-col items-center px-4 py-12">
-      <div className="max-w-sm w-full space-y-6">
+      <div className={`max-w-sm w-full space-y-6 ${FADE_IN}`}>
         {/* Success icon */}
         <div className="flex flex-col items-center gap-3">
           <CheckCircle className="w-16 h-16 text-[#D4AF37]" />

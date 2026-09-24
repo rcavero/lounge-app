@@ -3,6 +3,7 @@ import { EventRow } from "@/modules/events/components/event-row";
 import { Logo } from "@/shared/components/logo";
 import { InfoBanner } from "@/shared/components/info-banner";
 import { Calendar } from "lucide-react";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 
 export const dynamic = "force-dynamic";
 
@@ -40,8 +41,10 @@ export default async function HomePage() {
           </div>
         ) : (
           <div className="max-w-md mx-auto space-y-3">
-            {events.map((event) => (
-              <EventRow key={event.id} event={event} checkAvailability />
+            {events.map((event, i) => (
+              <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+                <EventRow event={event} checkAvailability />
+              </div>
             ))}
           </div>
         )}

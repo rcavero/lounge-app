@@ -3,6 +3,7 @@ import { ArrowLeft, Calendar, Plus, Download } from "lucide-react";
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Button } from "@/components/ui/button";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 
 export default async function AdminEventsPage() {
   const events = await getUpcomingEvents();
@@ -63,12 +64,10 @@ export default async function AdminEventsPage() {
           </div>
         ) : (
           <div className="max-w-lg mx-auto space-y-3">
-            {events.map((event) => (
-              <EventRow
-                key={event.id}
-                event={event}
-                href={`/admin/eventos/${event.id}`}
-              />
+            {events.map((event, i) => (
+              <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+                <EventRow event={event} href={`/admin/eventos/${event.id}`} />
+              </div>
             ))}
           </div>
         )}

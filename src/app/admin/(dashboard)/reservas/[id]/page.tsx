@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
 import { formatEventDateMadrid } from "@/lib/utils";
 import { getEventWithReservations } from "@/modules/reservations/actions";
@@ -133,7 +134,7 @@ export default async function EventReservationsPage({ params }: Props) {
               <h2 className="text-white/70 text-xs font-medium uppercase tracking-wider">
                 Listado de reservas
               </h2>
-              {event.reservations.map((reservation) => {
+              {event.reservations.map((reservation, i) => {
                 const seatCodes = reservation.seatStatuses
                   .map((ss) => ss.seat.code)
                   .join(", ");
@@ -143,7 +144,8 @@ export default async function EventReservationsPage({ params }: Props) {
                   <Link
                     key={reservation.id}
                     href={`/admin/reservas/${event.id}/${reservation.id}`}
-                    className={`block relative ${PRESSABLE}`}
+                    className={`block relative ${PRESSABLE} ${ENTER}`}
+                    style={staggerDelay(i)}
                   >
                     <div className="bg-[#1a1a1a] rounded-2xl p-4 hover:bg-[#222] transition-colors">
                       <div className="flex items-start justify-between mb-2">

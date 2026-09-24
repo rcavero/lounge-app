@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 import { ArrowLeft, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllUsers } from "@/modules/users/actions";
@@ -59,11 +60,12 @@ export default async function AdminUsersPage() {
           </div>
         ) : (
           <div className="max-w-lg mx-auto space-y-3">
-            {users.map((user) => (
+            {users.map((user, i) => (
               <Link
                 key={user.id}
                 href={`/admin/usuarios/${user.id}`}
-                className={`block relative ${PRESSABLE}`}
+                className={`block relative ${PRESSABLE} ${ENTER}`}
+                style={staggerDelay(i)}
               >
                 <div className="bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors border border-white/10">
                   <div className="flex-1 min-w-0">

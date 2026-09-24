@@ -6,6 +6,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { ArrowLeft } from "lucide-react";
+import { FADE_IN, MODAL_BACKDROP, MODAL_CARD } from "@/shared/components/motion";
 import { Button } from "@/components/ui/button";
 import { formatEuros } from "@/lib/utils";
 import { centsToEuros } from "@/modules/events/config/pricing";
@@ -253,8 +254,12 @@ export function EventReservationClient({
     <div className="min-h-screen bg-black flex flex-col">
       {/* Conditions modal */}
       {showConditions && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-5">
-          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+        <div
+          className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-5 ${MODAL_BACKDROP}`}
+        >
+          <div
+            className={`bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10 ${MODAL_CARD}`}
+          >
             <h2 className="text-white font-bold text-sm tracking-widest text-center mb-5">
               {conditions.title}
             </h2>
@@ -293,9 +298,11 @@ export function EventReservationClient({
       {showNameModal && (
         <div
           data-testid="name-modal"
-          className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5"
+          className={`fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5 ${MODAL_BACKDROP}`}
         >
-          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+          <div
+            className={`bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10 ${MODAL_CARD}`}
+          >
             <h2 className="text-white font-bold text-sm tracking-widest text-center mb-2">
               {nameModal.title}
             </h2>
@@ -451,7 +458,7 @@ export function EventReservationClient({
 
       {/* Main Content - Floor Plan */}
       <main className="flex-1 px-4 py-4">
-        <div className="max-w-md mx-auto">
+        <div className={`max-w-md mx-auto ${FADE_IN}`}>
           <FloorPlanMap
             seats={seats}
             selectedSeats={selectedSeats}

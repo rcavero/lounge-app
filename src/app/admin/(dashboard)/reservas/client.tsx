@@ -12,6 +12,7 @@ import type {
   ReportMonth,
 } from "@/modules/reservations/actions";
 import { getMonthlyReportData } from "@/modules/reservations/actions";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 
 interface ReservasClientProps {
   upcomingEvents: EventWithReservationCount[];
@@ -200,8 +201,10 @@ export function ReservasClient({
           <h2 className="text-white/70 text-xs font-medium uppercase tracking-wider px-1">
             Próximos eventos
           </h2>
-          {upcomingEvents.map((event) => (
-            <EventRowWithBadge key={event.id} event={event} />
+          {upcomingEvents.map((event, i) => (
+            <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+              <EventRowWithBadge event={event} />
+            </div>
           ))}
         </div>
       )}
@@ -230,8 +233,10 @@ export function ReservasClient({
           }
         >
           <div className="space-y-3 pt-2">
-            {pastEvents.map((event) => (
-              <EventRowWithBadge key={event.id} event={event} />
+            {pastEvents.map((event, i) => (
+              <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+                <EventRowWithBadge event={event} />
+              </div>
             ))}
           </div>
         </Accordion>

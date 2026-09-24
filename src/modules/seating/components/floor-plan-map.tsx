@@ -93,7 +93,9 @@ export function FloorPlanMap({
               }}
               disabled={!isAvailable && !isSelected}
               className={cn(
-                "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 transition-all z-20",
+                // Con «reducir movimiento», solo cambia el color: sin crecer al pasar el dedo.
+                // No vale transform-none, que rompería el -translate del centrado.
+                "absolute w-[26px] h-[26px] md:w-[31px] md:h-[31px] rounded-full border-2 transform -translate-x-1/2 -translate-y-1/2 transition-all motion-reduce:transition-colors motion-reduce:hover:scale-100 z-20",
                 isAvailable &&
                   !isSelected &&
                   "bg-[#22c55e] border-[#16a34a] hover:scale-125 cursor-pointer",
