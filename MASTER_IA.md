@@ -33,7 +33,7 @@ Estado de partida el 21 de septiembre, verificado entonces:
 
 | Hallazgo | Estado |
 |---|---|
-| `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Resuelto en `academic` (P7).** Sigue en producción hasta que se decida el hotfix (RCA-269) |
+| `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Resuelto (P7)**, y en producción desde el 24 de septiembre por hotfix (P7.7) |
 | `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | **Resuelto en P4**: el plazo vive en `reservations/domain/expiry.ts`, con nombre, y vale lo mismo |
 | Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 4). Desde P2, un test fija las dos fronteras al minuto |
 | Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | **Resuelto en P4**, junto con `getSeatsByZone` |
@@ -641,7 +641,7 @@ Queda **una nota informativa** en cada ejecución: `ubuntu-latest` pasará a Ubu
 
 ## Paso P7 — Los tres fallos de dinero · EJECUTADO EN `academic`
 
-En Linear, RCA-175 (con RCA-267 y RCA-268), RCA-276 y RCA-277. Commits de `45258ae` a `cc5d7cf`. **Arreglados solo en `academic`**: si se llevan a `main` como hotfix lo decide Ramón (RCA-269).
+En Linear, RCA-175 (con RCA-267 y RCA-268), RCA-276 y RCA-277. Commits de `45258ae` a `cc5d7cf`. **La carrera ya está también en producción** por hotfix (P7.7). RCA-276 y RCA-277 llegan a `main` cuando se fusione `academic`.
 
 ### P7.1 Qué quedó
 
@@ -718,6 +718,18 @@ Los tres son de probabilidad baja y se anotan sin tarjeta, porque Linear va just
 | CI #5 (`cc5d7cf`) | verde, 2 min 56 s |
 | Unicode oculto en los 33 ficheros tocados | ninguno |
 | Puerta del pago real | pasada, más el rescate, la devolución y la ventana a mano |
+
+### P7.7 El hotfix de la carrera en producción (RCA-269)
+
+**Decisión de Ramón: solo la carrera, y ya.** Los otros dos arreglos se quedan en `academic`. `main` no tiene la capa de dominio de P4, así que llevarlos habría sido reescribirlos sobre el código antiguo sin la red de tests. En cambio, el parche de la carrera, unas 10 líneas en `initializePayment`, tiene la misma forma en las dos ramas.
+
+Es la segunda excepción a «`main` y `testing` no se tocan». Se hizo así:
+
+1. **Un worktree desde `testing`**, que tenía el mismo contenido que `main`, con el parche adaptado. No se reformateó el fichero, porque `main` no ha adoptado Prettier y el diff debía ser el mínimo.
+2. **Los tests de la carrera de `academic`, ejecutados contra el fichero de `main`.** Sin el parche fallan 3 de 4, y con él pasan todos, igual que los de confirmar, cancelar y el webhook. Solo fallan los 6 de RCA-277, que no van en el hotfix.
+3. **Typecheck, lint y build** del worktree, limpios.
+4. **`testing`** (`adf7594`), con un pago en su preview: el pedido `790243665634` quedó confirmado con sus 2 asientos y 23,00 €.
+5. **Cherry-pick sobre `main`** (`4ec153e`), con la confirmación explícita de Ramón, porque el push despliega en producción. Sin migraciones.
 
 ---
 
