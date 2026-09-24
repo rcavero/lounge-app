@@ -10,6 +10,17 @@
 //              el desplegable de equipos del formulario de evento.
 // Cambiar cualquiera de los dos rompe la UI en silencio, sin lanzar ningún error.
 
+/**
+ * Todos los mapas de este fichero se indexan con texto que viene de fuera: lo que un
+ * admin manda en el formulario, lo que devuelve ESPN, lo guardado en la base. Con un
+ * objeto normal, `mapa["constructor"]` encuentra la función de `Object.prototype`, y
+ * `isManualSport("constructor")` era `true` (RCA-274). Sin prototipo, una clave que no
+ * está en el mapa es `undefined`, y punto.
+ */
+function lookupTable<T>(entries: Record<string, T>): Record<string, T> {
+  return Object.assign(Object.create(null) as Record<string, T>, entries);
+}
+
 export interface Competition {
   code: string; // Slug de ESPN, p.ej. "esp.1"
   name: string; // Nombre visible
@@ -175,14 +186,14 @@ export const COMPETITIONS: Competition[] = [
 export const COMPETITION_NAMES = COMPETITIONS.map((c) => c.name);
 
 // Mapa de código de competición a objeto Competition
-export const COMPETITION_BY_CODE = Object.fromEntries(
-  COMPETITIONS.map((c) => [c.code, c]),
-) as Record<string, Competition>;
+export const COMPETITION_BY_CODE = lookupTable<Competition>(
+  Object.fromEntries(COMPETITIONS.map((c) => [c.code, c])),
+);
 
 // Mapa de nombre visible a objeto Competition
-export const COMPETITION_BY_NAME = Object.fromEntries(
-  COMPETITIONS.map((c) => [c.name, c]),
-) as Record<string, Competition>;
+export const COMPETITION_BY_NAME = lookupTable<Competition>(
+  Object.fromEntries(COMPETITIONS.map((c) => [c.name, c])),
+);
 
 /**
  * Puente entre los nombres cortos de ESPN y los nombres oficiales que guardaba
@@ -200,17 +211,17 @@ export const COMPETITION_BY_NAME = Object.fromEntries(
  * Para ampliarlo: ejecutar `npx tsx scripts/sync-verify.ts report` tras el sync
  * y añadir aquí los equipos que aparezcan como huérfanos con eventos asociados.
  */
-export const TEAM_NAME_ALIASES: Record<string, string> = {
+export const TEAM_NAME_ALIASES = lookupTable<string>({
   Lyon: "Olympique Lyonnais",
   Benfica: "Sport Lisboa e Benfica",
-};
+});
 
 // Competiciones retiradas del sync que siguen apareciendo en eventos históricos.
 // Sin estas entradas, esos eventos dejarían de mostrar su escudo.
-export const LEGACY_COMPETITION_EMBLEM: Record<string, string> = {
+export const LEGACY_COMPETITION_EMBLEM = lookupTable<string>({
   Championship: "/competiciones/championship.png",
   Brasileirão: "/competiciones/brasileirao.png",
-};
+});
 
 // URLs remotas de origen de los emblemas retirados. Solo las lee
 // scripts/download-crests.ts.
@@ -219,19 +230,19 @@ export const LEGACY_COMPETITION_EMBLEM: Record<string, string> = {
 // se comprobó que la de Brasileirão ya devuelve 404: ese emblema llevaba roto en
 // producción desde antes de esta migración. Se toman de ESPN, que sí sirve ambas
 // competiciones aunque no estén en el sync (bra.1 → 85, eng.2 → 24).
-export const LEGACY_COMPETITION_EMBLEM_SOURCE: Record<string, string> = {
+export const LEGACY_COMPETITION_EMBLEM_SOURCE = lookupTable<string>({
   Championship: "https://a.espncdn.com/i/leaguelogos/soccer/500/24.png",
   Brasileirão: "https://a.espncdn.com/i/leaguelogos/soccer/500/85.png",
-};
+});
 
 // Mapa de nombre visible a ruta del emblema (incluye las retiradas)
-export const COMPETITION_EMBLEM = {
+export const COMPETITION_EMBLEM = lookupTable<string>({
   ...LEGACY_COMPETITION_EMBLEM,
   ...Object.fromEntries(COMPETITIONS.map((c) => [c.name, c.emblem])),
-} as Record<string, string>;
+});
 
 // Mapa de ruta local → URL remota de origen, para el script de descarga.
-export const EMBLEM_SOURCES: Record<string, string> = {
+export const EMBLEM_SOURCES = lookupTable<string>({
   ...Object.fromEntries(
     Object.entries(LEGACY_COMPETITION_EMBLEM).map(([name, path]) => [
       path,
@@ -239,7 +250,7 @@ export const EMBLEM_SOURCES: Record<string, string> = {
     ]),
   ),
   ...Object.fromEntries(COMPETITIONS.map((c) => [c.emblem, c.emblemSource])),
-};
+});
 
 // ─── Deportes manuales (sin API — se crean a mano en el formulario) ────────────
 
@@ -265,9 +276,9 @@ export const MANUAL_SPORTS: ManualSport[] = [
 
 export const MANUAL_SPORT_NAMES = MANUAL_SPORTS.map((s) => s.name);
 
-export const MANUAL_SPORT_BY_NAME = Object.fromEntries(
-  MANUAL_SPORTS.map((s) => [s.name, s]),
-) as Record<string, ManualSport>;
+export const MANUAL_SPORT_BY_NAME = lookupTable<ManualSport>(
+  Object.fromEntries(MANUAL_SPORTS.map((s) => [s.name, s])),
+);
 
 /** Devuelve true si la competición es un deporte manual (no fútbol). */
 export function isManualSport(competition: string | null | undefined): boolean {
@@ -300,7 +311,7 @@ const DOMESTIC_LEAGUES = [
   "Eredivisie",
 ];
 
-export const COMPETITION_LEAGUES: Record<string, string[]> = {
+export const COMPETITION_LEAGUES = lookupTable<string[]>({
   // Ligas domésticas: solo sus propios equipos
   "La Liga": ["La Liga"],
   "La Liga 2": ["La Liga 2"],
@@ -331,4 +342,4 @@ export const COMPETITION_LEAGUES: Record<string, string[]> = {
   // Retiradas del sync: se conservan para poder editar eventos históricos.
   Championship: ["Championship"],
   Brasileirão: ["Brasileirão"],
-};
+});

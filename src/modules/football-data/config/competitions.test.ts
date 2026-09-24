@@ -5,13 +5,18 @@ import { describe, expect, it } from "vitest";
 
 import {
   COMPETITIONS,
+  COMPETITION_BY_CODE,
+  COMPETITION_BY_NAME,
   COMPETITION_EMBLEM,
   COMPETITION_LEAGUES,
   COMPETITION_NAMES,
   EMBLEM_SOURCES,
   LEGACY_COMPETITION_EMBLEM,
+  LEGACY_COMPETITION_EMBLEM_SOURCE,
+  MANUAL_SPORT_BY_NAME,
   MANUAL_SPORTS,
   MANUAL_SPORT_NAMES,
+  TEAM_NAME_ALIASES,
   getSportEmoji,
   isManualSport,
   isMotorSport,
@@ -45,13 +50,12 @@ describe("isManualSport", () => {
     expect(isManualSport("baloncesto")).toBe(false);
   });
 
-  it("COMPORTAMIENTO ACTUAL: da por deporte manual las claves del prototipo", () => {
-    // MANUAL_SPORT_BY_NAME es un objeto normal, así que "constructor" encuentra la
-    // función de Object.prototype y cuenta como deporte manual. Solo llega aquí un
-    // valor que mande un admin autenticado a mano: los desplegables no lo ofrecen.
-    // Se documenta y no se arregla en un commit de tests. Ver RCA-274.
-    expect(isManualSport("constructor")).toBe(true);
-    expect(isManualSport("toString")).toBe(true);
+  it("no da por deporte manual las claves del prototipo", () => {
+    // Antes sí: MANUAL_SPORT_BY_NAME era un objeto normal, y "constructor" encontraba
+    // la función de Object.prototype (RCA-274).
+    for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      expect(isManualSport(key), key).toBe(false);
+    }
   });
 });
 
@@ -98,6 +102,36 @@ describe("getSportEmoji", () => {
     for (const sport of MANUAL_SPORTS) {
       expect(sport.emoji, sport.name).not.toBe("");
     }
+  });
+});
+
+describe("los mapas por nombre no tienen prototipo (RCA-274)", () => {
+  const MAPS = {
+    COMPETITION_BY_CODE,
+    COMPETITION_BY_NAME,
+    TEAM_NAME_ALIASES,
+    LEGACY_COMPETITION_EMBLEM,
+    LEGACY_COMPETITION_EMBLEM_SOURCE,
+    COMPETITION_EMBLEM,
+    EMBLEM_SOURCES,
+    MANUAL_SPORT_BY_NAME,
+    COMPETITION_LEAGUES,
+  };
+
+  it.each(Object.entries(MAPS))(
+    "%s: una clave del prototipo no encuentra nada",
+    (_, map) => {
+      for (const key of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+        expect(map[key], key).toBeUndefined();
+      }
+    },
+  );
+
+  it("siguen encontrando sus claves de verdad", () => {
+    expect(COMPETITION_BY_NAME["La Liga"]?.code).toBe("esp.1");
+    expect(TEAM_NAME_ALIASES.Lyon).toBe("Olympique Lyonnais");
+    expect(COMPETITION_LEAGUES.Championship).toEqual(["Championship"]);
+    expect(Object.keys(MANUAL_SPORT_BY_NAME)).toEqual(MANUAL_SPORT_NAMES);
   });
 });
 
