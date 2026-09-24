@@ -145,13 +145,16 @@ export function NewEventForm({ teams }: NewEventFormProps) {
       );
 
       if (result.success) {
+        // Si ha ido bien NO se reactiva el botón: sigue «Guardando…» hasta que la
+        // navegación termina y la página se desmonta. Reactivarlo aquí dejaba un hueco en
+        // el que parecía que no había pasado nada, y un segundo toque repetía la acción.
         router.push("/admin/eventos");
       } else {
         setError(result.error || "Error al crear el evento");
+        setIsSaving(false);
       }
     } catch {
       setError("Error al crear el evento");
-    } finally {
       setIsSaving(false);
     }
   };
@@ -432,10 +435,10 @@ export function NewEventForm({ teams }: NewEventFormProps) {
       <Button
         data-testid="event-submit"
         type="submit"
-        disabled={isSaving}
+        loading={isSaving}
         className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"
       >
-        <Save className="w-4 h-4 mr-2" />
+        {!isSaving && <Save className="w-4 h-4 mr-2" />}
         {isSaving ? "Guardando..." : "Guardar Evento"}
       </Button>
     </form>

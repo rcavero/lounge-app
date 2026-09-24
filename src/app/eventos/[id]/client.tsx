@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatEuros } from "@/lib/utils";
 import { centsToEuros } from "@/modules/events/config/pricing";
@@ -337,19 +337,12 @@ export function EventReservationClient({
                 data-testid="pay-button"
                 type="submit"
                 disabled={
-                  isProcessing ||
                   normalizeCustomerName(customerName).length < CUSTOMER_NAME_MIN_LENGTH
                 }
+                loading={isProcessing}
                 className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {nameModal.processing}
-                  </>
-                ) : (
-                  nameModal.pay
-                )}
+                {isProcessing ? nameModal.processing : nameModal.pay}
               </Button>
             </form>
 

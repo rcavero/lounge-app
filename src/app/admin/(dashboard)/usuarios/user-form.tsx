@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Eye, EyeOff, Trash2, Save, UserPlus } from "lucide-react";
+import { Eye, EyeOff, Loader2, Trash2, Save, UserPlus } from "lucide-react";
 import {
   createUser,
   updateUser,
@@ -211,9 +211,12 @@ export function UserForm({ mode, user }: UserFormProps) {
         <button
           type="submit"
           disabled={isLoading}
+          aria-busy={isLoading || undefined}
           className="w-full flex items-center justify-center gap-2 bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
         >
-          {mode === "create" ? (
+          {isLoading ? (
+            <Loader2 className="w-4 h-4 motion-safe:animate-spin" />
+          ) : mode === "create" ? (
             <UserPlus className="w-4 h-4" />
           ) : (
             <Save className="w-4 h-4" />
@@ -275,8 +278,10 @@ export function UserForm({ mode, user }: UserFormProps) {
                 type="button"
                 onClick={handleDelete}
                 disabled={isDeleting}
-                className="flex-1 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
+                aria-busy={isDeleting || undefined}
+                className="flex-1 flex items-center justify-center gap-2 bg-red-500 hover:bg-red-600 text-white font-semibold py-3 rounded-xl transition-colors disabled:opacity-50"
               >
+                {isDeleting && <Loader2 className="w-4 h-4 motion-safe:animate-spin" />}
                 {isDeleting ? "Eliminando..." : "Sí"}
               </button>
             </div>

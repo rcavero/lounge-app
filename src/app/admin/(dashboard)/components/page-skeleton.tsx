@@ -11,15 +11,21 @@ import { LoadingRegion, Skeleton } from "@/components/ui/skeleton";
  * volverse sin esperar. Lo que falta, los datos, lo dibuja `body` con la forma que
  * tendrá:
  *
- * - `menu`: las tarjetas del panel principal.
  * - `list`: tarjetas de evento, de reserva o de usuario.
  * - `plan`: el plano del local, que es una imagen estática y ya se puede pintar.
  * - `form`: campos de formulario.
  * - `detail`: la tarjeta del evento y la de la reserva.
  *
  * El `AdminHeader` de arriba no está aquí: es del layout, y se queda en pantalla.
+ *
+ * ⚠️ El panel principal (`/admin`) NO tiene `loading.tsx`, a propósito. Con uno en
+ * `(dashboard)/`, la respuesta de «Ya está devuelto» a veces no se aplicaba: la base
+ * quedaba en REFUNDED y el aviso seguía en pantalla. Medido con el E2E repetido 30
+ * veces: 7–12 fallos con ese fichero, 0 sin él y 0 en el estado de P7. Pasaba igual con
+ * `router.refresh()` que con `revalidatePath`. El panel solo lee la sesión y los pagos a
+ * devolver, así que no se echa de menos. Si se vuelve a poner, repetir esa medición.
  */
-export type AdminSkeletonBody = "menu" | "list" | "plan" | "form" | "detail";
+export type AdminSkeletonBody = "list" | "plan" | "form" | "detail";
 
 export function AdminPageSkeleton({
   title,
@@ -89,23 +95,6 @@ function CardRow() {
 }
 
 const BODIES: Record<AdminSkeletonBody, React.ReactNode> = {
-  menu: (
-    <div className="space-y-3 pt-4">
-      <Skeleton className="w-48 h-6 mb-6" />
-      {[0, 1, 2, 3].map((i) => (
-        <div
-          key={i}
-          className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4"
-        >
-          <Skeleton className="w-12 h-12 rounded-lg" />
-          <div className="space-y-2">
-            <Skeleton className="w-36 h-3.5" />
-            <Skeleton className="w-48 h-3" />
-          </div>
-        </div>
-      ))}
-    </div>
-  ),
   list: (
     <div className="space-y-3">
       {[0, 1, 2, 3, 4].map((i) => (

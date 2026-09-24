@@ -8,8 +8,13 @@ import type { Page } from "@playwright/test";
  * Retiene la petición RSC de la navegación a `path` hasta que el test llame a la
  * función que devuelve. Las precargas (`next-router-prefetch`) pasan sin retener,
  * porque son justo lo que permite a `<Link>` pintar el skeleton sin esperar al servidor.
+ * Con `includePrefetch` también se retienen: es pulsar antes de que la precarga llegue.
  */
-export async function holdNavigation(page: Page, path: string): Promise<() => void> {
+export async function holdNavigation(
+  page: Page,
+  path: string,
+  { includePrefetch = false }: { includePrefetch?: boolean } = {},
+): Promise<() => void> {
   let release!: () => void;
   const released = new Promise<void>((resolve) => (release = resolve));
 
@@ -17,7 +22,8 @@ export async function holdNavigation(page: Page, path: string): Promise<() => vo
     (url) => url.pathname === path,
     async (route) => {
       const headers = route.request().headers();
-      if (headers["rsc"] === "1" && !headers["next-router-prefetch"]) await released;
+      const isPrefetch = !!headers["next-router-prefetch"];
+      if (headers["rsc"] === "1" && (includePrefetch || !isPrefetch)) await released;
       await route.continue();
     },
   );

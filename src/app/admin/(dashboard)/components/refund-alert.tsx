@@ -1,8 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { useRouter } from "next/navigation";
-import { AlertTriangle, Loader2 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
@@ -22,7 +21,6 @@ interface RefundAlertProps {
  * código de pedido y el de autorización son lo que se busca allí.
  */
 export function RefundAlert({ payments, isAdmin }: RefundAlertProps) {
-  const router = useRouter();
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, startTransition] = useTransition();
@@ -33,9 +31,11 @@ export function RefundAlert({ payments, isAdmin }: RefundAlertProps) {
     setPendingId(id);
     setError(null);
     startTransition(async () => {
+      // La acción revalida /admin: su respuesta ya trae el panel sin esta reserva.
+      // Ojo: eso deja de aplicarse a veces si el segmento del panel tiene un
+      // loading.tsx propio. Ver el comentario de admin/(dashboard)/components/page-skeleton.tsx.
       const result = await markReservationRefunded(id);
       if (!result.success) setError(result.error ?? "No se pudo marcar");
-      router.refresh();
       setPendingId(null);
     });
   }
@@ -87,10 +87,10 @@ export function RefundAlert({ payments, isAdmin }: RefundAlertProps) {
                 size="sm"
                 variant="outline"
                 disabled={pendingId !== null}
+                loading={pendingId === p.id}
                 onClick={() => markRefunded(p.id)}
                 className="mt-2 border-white/20 text-white/80 hover:text-white hover:bg-white/10"
               >
-                {pendingId === p.id && <Loader2 className="animate-spin" />}
                 Ya está devuelto
               </Button>
             )}

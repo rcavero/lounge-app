@@ -65,10 +65,10 @@ export function BlockSeatsClient({ eventId, seats, zoneLabels }: BlockSeatsClien
         <Button
           data-testid="save-blocks"
           onClick={handleSave}
-          disabled={isSaving}
+          loading={isSaving}
           className="bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
         >
-          <Save className="w-4 h-4 mr-2" />
+          {!isSaving && <Save className="w-4 h-4 mr-2" />}
           {isSaving ? "Guardando..." : "Guardar bloqueos"}
         </Button>
       </div>

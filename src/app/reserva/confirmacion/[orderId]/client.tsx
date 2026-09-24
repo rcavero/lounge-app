@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CheckCircle, Download, Home, Loader2, Receipt } from "lucide-react";
+import { CheckCircle, Download, Home, Receipt } from "lucide-react";
 import type { jsPDF as JsPdfDoc } from "jspdf";
 import { Button } from "@/components/ui/button";
 import type { ReservationTicketData } from "@/modules/payments/types";
@@ -502,14 +502,11 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           <Button
             data-testid="ticket-pdf"
             onClick={() => handleDownloadTicket({ openInNewTab: true })}
-            disabled={isGenerating}
+            loading={isGenerating}
             className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
           >
             {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generando ticket...
-              </>
+              "Generando ticket..."
             ) : (
               <>
                 <Download className="w-4 h-4 mr-2" />
@@ -521,14 +518,11 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           <Button
             data-testid="receipt-pdf"
             onClick={() => handleDownloadReceipt()}
-            disabled={isGeneratingReceipt}
+            loading={isGeneratingReceipt}
             className="w-full bg-[#1a1a1a] hover:bg-[#242424] text-white border border-white/15"
           >
             {isGeneratingReceipt ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generando recibo...
-              </>
+              "Generando recibo..."
             ) : (
               <>
                 <Receipt className="w-4 h-4 mr-2" />

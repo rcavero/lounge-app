@@ -8,6 +8,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { Event, Reservation, Seat } from "@/generated/prisma";
+import { revalidatePath } from "next/cache";
+
 import { requireAdmin, requireAuth } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
 import { PAID_WITHOUT_SEATS } from "@/modules/payments/domain/outcome";
@@ -22,6 +24,9 @@ import {
   makeSeatStatuses,
   makeSeats,
 } from "../fixtures/factories";
+
+// Fuera de una petición de Next, revalidatePath no tiene dónde apuntar.
+vi.mock("next/cache", () => ({ revalidatePath: vi.fn() }));
 
 vi.mock("@/lib/auth-guard", () => ({
   requireAuth: vi.fn(),
@@ -92,6 +97,8 @@ describe("markReservationRefunded", () => {
       await prisma.reservation.findUniqueOrThrow({ where: { id: reservation.id } }),
     ).toMatchObject({ status: "CANCELLED", paymentStatus: "REFUNDED" });
     expect(await getPaymentsToRefund()).toEqual([]);
+    // Y el panel se refresca en la misma respuesta.
+    expect(revalidatePath).toHaveBeenCalledWith("/admin");
   });
 
   it("no sirve para anular una reserva confirmada", async () => {
@@ -104,6 +111,7 @@ describe("markReservationRefunded", () => {
     expect(
       await prisma.reservation.findUniqueOrThrow({ where: { id: paid.id } }),
     ).toMatchObject({ status: "CONFIRMED", paymentStatus: "COMPLETED" });
+    expect(revalidatePath).not.toHaveBeenCalled();
   });
 
   it("un WORKER no puede marcarla: lanza antes de escribir", async () => {

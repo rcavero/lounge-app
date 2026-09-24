@@ -212,10 +212,11 @@ export function SeatPositionEditor({ seats, zoneLabels }: SeatPositionEditorProp
             data-testid="save-positions"
             size="sm"
             onClick={handleSave}
-            disabled={!hasChanges || isSaving}
+            disabled={!hasChanges}
+            loading={isSaving}
             className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
           >
-            <Save className="w-4 h-4 mr-1" />
+            {!isSaving && <Save className="w-4 h-4 mr-1" />}
             {isSaving ? "Guardando..." : "Guardar"}
           </Button>
         </div>

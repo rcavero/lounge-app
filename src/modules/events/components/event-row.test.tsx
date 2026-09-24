@@ -9,6 +9,7 @@ import { EventRow } from "./event-row";
 // Fuera del App Router no hay contexto de navegación: se sustituyen por sus
 // equivalentes HTML, que es lo único que este test necesita de ellos.
 vi.mock("next/link", () => ({
+  useLinkStatus: () => ({ pending: false }),
   default: ({
     href,
     children,

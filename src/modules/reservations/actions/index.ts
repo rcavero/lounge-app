@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "@/modules/events/types";
 import { requireAdmin, requireAuth } from "@/lib/auth-guard";
@@ -279,6 +280,9 @@ export async function markReservationRefunded(
     where: { id: reservationId, ...PAID_WITHOUT_SEATS },
     data: { paymentStatus: "REFUNDED" },
   });
+  // La respuesta de la acción trae ya el panel actualizado, sin una segunda petición
+  // (router.refresh) desde el cliente.
+  if (count === 1) revalidatePath("/admin");
   return count === 1
     ? { success: true }
     : { success: false, error: "Esta reserva no está pendiente de devolución" };

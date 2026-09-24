@@ -53,3 +53,23 @@ test("al volver a la portada, el skeleton de la lista sale antes que los eventos
   await expect(page.getByTestId("event-row").first()).toBeVisible();
   await expect(page.getByTestId("home-skeleton")).toHaveCount(0);
 });
+
+test("pulsando antes de que la precarga llegue, la tarjeta pulsada muestra su spinner", async ({
+  page,
+}) => {
+  const path = `/eventos/${IDS.open}`;
+  const release = await holdNavigation(page, path, { includePrefetch: true });
+
+  await page.goto("/");
+  const row = page.locator(`[data-event-id="${IDS.open}"]`);
+  await row.click();
+
+  // Sin precarga no hay skeleton que pintar: lo que responde es la propia tarjeta.
+  await expect(row.getByTestId("link-pending")).toHaveAttribute("data-pending", "true");
+  // Y solo la pulsada.
+  await expect(page.locator('[data-testid="link-pending"][data-pending]')).toHaveCount(1);
+
+  release();
+
+  await expect(page.getByTestId("seat").first()).toBeVisible();
+});

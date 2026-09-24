@@ -177,14 +177,10 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
           <Button
             size="sm"
             onClick={handleSync}
-            disabled={isSyncing}
+            loading={isSyncing}
             className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
           >
-            {isSyncing ? (
-              <Loader2 className="w-4 h-4 mr-1 animate-spin" />
-            ) : (
-              <RefreshCw className="w-4 h-4 mr-1" />
-            )}
+            {!isSyncing && <RefreshCw className="w-4 h-4 mr-1" />}
             {isSyncing ? "Sincronizando..." : "Sincronizar equipos"}
           </Button>
         </div>
@@ -226,14 +222,10 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
             </select>
             <Button
               onClick={handleFetchMatches}
-              disabled={isLoadingMatches}
+              loading={isLoadingMatches}
               className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
             >
-              {isLoadingMatches ? (
-                <Loader2 className="w-4 h-4 animate-spin" />
-              ) : (
-                <Download className="w-4 h-4" />
-              )}
+              {!isLoadingMatches && <Download className="w-4 h-4" />}
             </Button>
           </div>
         </div>
@@ -366,12 +358,10 @@ export function SuggestionsClient({ competitions }: SuggestionsClientProps) {
                             <Button
                               size="sm"
                               onClick={() => handleCreateEvent(match)}
-                              disabled={isCreating || selectedScreens.length === 0}
+                              disabled={selectedScreens.length === 0}
+                              loading={isCreating}
                               className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black text-xs"
                             >
-                              {isCreating ? (
-                                <Loader2 className="w-3 h-3 mr-1 animate-spin" />
-                              ) : null}
                               {isCreating ? "Creando..." : "Confirmar y crear evento"}
                             </Button>
                           </div>

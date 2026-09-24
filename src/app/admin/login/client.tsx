@@ -54,10 +54,10 @@ export function LoginForm() {
       <Button
         data-testid="login-submit"
         type="submit"
-        disabled={isPending}
+        loading={isPending}
         className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"
       >
-        <LogIn className="w-4 h-4 mr-2" />
+        {!isPending && <LogIn className="w-4 h-4 mr-2" />}
         {isPending ? "Iniciando sesion..." : "Iniciar sesion"}
       </Button>
     </form>

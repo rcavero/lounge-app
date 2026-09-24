@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
 import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
 import { formatEventDateMadrid } from "@/lib/utils";
 import { getEventWithReservations } from "@/modules/reservations/actions";
@@ -142,7 +143,7 @@ export default async function EventReservationsPage({ params }: Props) {
                   <Link
                     key={reservation.id}
                     href={`/admin/reservas/${event.id}/${reservation.id}`}
-                    className="block"
+                    className={`block relative ${PRESSABLE}`}
                   >
                     <div className="bg-[#1a1a1a] rounded-2xl p-4 hover:bg-[#222] transition-colors">
                       <div className="flex items-start justify-between mb-2">
@@ -174,6 +175,7 @@ export default async function EventReservationsPage({ params }: Props) {
                         <p className="text-white text-sm">{seatCodes}</p>
                       </div>
                     </div>
+                    <LinkPendingIndicator className="top-auto bottom-2" />
                   </Link>
                 );
               })}

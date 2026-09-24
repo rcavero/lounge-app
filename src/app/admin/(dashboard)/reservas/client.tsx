@@ -1,6 +1,7 @@
 "use client";
 
-import { Calendar, Download, FileText } from "lucide-react";
+import { useState } from "react";
+import { Calendar, Download, FileText, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -178,6 +179,19 @@ export function ReservasClient({
     window.open(url, "_blank");
   };
 
+  // Leer el mes y montar el PDF tarda: sin esto, el botón no daba ninguna señal y un
+  // segundo toque abría dos pestañas.
+  const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  const handleReport = async (year: number, month: number, label: string) => {
+    if (generatingKey) return;
+    setGeneratingKey(`${year}-${month}`);
+    try {
+      await generatePDF(year, month, label);
+    } finally {
+      setGeneratingKey(null);
+    }
+  };
+
   return (
     <div className="max-w-lg mx-auto space-y-6">
       {/* Upcoming Events Section */}
@@ -233,8 +247,10 @@ export function ReservasClient({
             {reportMonths.map((month) => (
               <button
                 key={`${month.year}-${month.month}`}
-                onClick={() => generatePDF(month.year, month.month, month.label)}
-                className="w-full flex items-center justify-between bg-[#222] hover:bg-[#2a2a2a] rounded-xl px-4 py-3 transition-colors"
+                onClick={() => handleReport(month.year, month.month, month.label)}
+                disabled={generatingKey !== null}
+                aria-busy={generatingKey === `${month.year}-${month.month}` || undefined}
+                className="w-full flex items-center justify-between bg-[#222] hover:bg-[#2a2a2a] rounded-xl px-4 py-3 transition-colors disabled:opacity-60"
               >
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-[#D4AF37]" />
@@ -247,7 +263,11 @@ export function ReservasClient({
                     </span>
                   </div>
                 </div>
-                <Download className="w-5 h-5 text-white/50" />
+                {generatingKey === `${month.year}-${month.month}` ? (
+                  <Loader2 className="w-5 h-5 text-[#D4AF37] motion-safe:animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5 text-white/50" />
+                )}
               </button>
             ))}
           </div>

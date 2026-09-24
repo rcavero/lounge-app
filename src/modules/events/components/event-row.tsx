@@ -9,6 +9,7 @@ import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
 import { CompetitionEmblem } from "./competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
 import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
 import { bookingWindowReason } from "../domain/booking-window";
 import { BOOKING_CLOSED_MESSAGES } from "./booking-messages";
@@ -169,9 +170,10 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
       data-event-id={event.id}
       data-locked="false"
       href={href || `/eventos/${event.id}`}
-      className="block"
+      className={`block relative ${PRESSABLE}`}
     >
       {cardContent}
+      <LinkPendingIndicator />
     </Link>
   );
 }
