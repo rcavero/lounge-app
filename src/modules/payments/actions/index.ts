@@ -16,6 +16,9 @@ import {
 } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
+/** Algún asiento pedido no se ha podido apartar dentro de la transacción. */
+class SeatsTakenError extends Error {}
+
 export async function initializePayment(data: {
   eventId: string;
   seatIds: string[];
@@ -104,31 +107,54 @@ export async function initializePayment(data: {
   const totalPrice = totalCents / 100;
   const orderId = generateOrderId();
 
-  // Create PENDING reservation and mark seats as RESERVED atomically
-  const reservation = await prisma.$transaction(async (tx) => {
-    const newReservation = await tx.reservation.create({
-      data: {
-        eventId,
-        customerName,
-        // La columna es NOT NULL y en este alcance no se pide email al cliente.
-        customerEmail: "cliente@lounge.com",
-        numberOfSeats: seatIds.length,
-        totalPrice,
-        seatPriceCents,
-        managementFeeCents,
-        status: "PENDING",
-        paymentStatus: "PENDING",
-        paymentId: orderId,
-      },
-    });
+  // Crea la reserva PENDING y aparta los asientos, todo o nada.
+  let reservation;
+  try {
+    reservation = await prisma.$transaction(async (tx) => {
+      const newReservation = await tx.reservation.create({
+        data: {
+          eventId,
+          customerName,
+          // La columna es NOT NULL y en este alcance no se pide email al cliente.
+          customerEmail: "cliente@lounge.com",
+          numberOfSeats: seatIds.length,
+          totalPrice,
+          seatPriceCents,
+          managementFeeCents,
+          status: "PENDING",
+          paymentStatus: "PENDING",
+          paymentId: orderId,
+        },
+      });
 
-    await tx.seatStatus.updateMany({
-      where: { eventId, seatId: { in: seatIds } },
-      data: { status: "RESERVED", reservationId: newReservation.id },
-    });
+      // Solo aparta los que SIGUEN libres. La comprobación de arriba va fuera de la
+      // transacción: dos clientes que pulsen a la vez la pasan los dos. Con este
+      // `where`, Postgres hace esperar al segundo hasta que el primero termina, vuelve
+      // a evaluarlo y ya no cuenta el asiento. Si falta uno, se deshace todo, reserva
+      // incluida: nunca se cobra un asiento que no se ha podido apartar.
+      const claimed = await tx.seatStatus.updateMany({
+        where: { eventId, seatId: { in: seatIds }, status: "AVAILABLE" },
+        data: { status: "RESERVED", reservationId: newReservation.id },
+      });
+      if (claimed.count !== seatIds.length) throw new SeatsTakenError();
 
-    return newReservation;
-  });
+      return newReservation;
+    });
+  } catch (error) {
+    if (!(error instanceof SeatsTakenError)) throw error;
+    // El mismo mensaje que la comprobación de arriba, con el asiento que se ha perdido.
+    const taken = await prisma.seatStatus.findMany({
+      where: { eventId, seatId: { in: seatIds }, status: { not: "AVAILABLE" } },
+      include: { seat: true },
+    });
+    return {
+      success: false,
+      error:
+        taken.length > 0
+          ? `Asientos no disponibles: ${taken.map((s) => s.seat.code).join(", ")}`
+          : "Alguno de los asientos ya no está disponible. Elige otros.",
+    };
+  }
 
   // Build Redsys signed redirect form
   const amountInCents = String(totalCents);
