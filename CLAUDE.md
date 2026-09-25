@@ -174,7 +174,8 @@ lounge-app/
 ├── backups/                        # Backups de base de datos
 ├── components.json                 # Configuración de shadcn/ui
 ├── vercel.json                     # Configuración de cron jobs
-├── DEVELOPMENT.md                  # Progreso del desarrollo
+├── docs/historico/                 # Planes y guías ya ejecutados, sin editar: lo que era cierto al escribirlos
+├── MASTER_IA.md                    # Plan y registro de la entrega del máster
 └── CLAUDE.md                       # Este archivo
 ```
 
@@ -477,7 +478,7 @@ npm run build
 
 5. **Cascade Delete**: Al eliminar Event, se eliminan Reservations y SeatStatuses automáticamente.
 
-6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `REDSYS.md` para la configuración por entorno.
+6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `docs/historico/REDSYS.md` para la configuración por entorno.
 
 7. **Gastos de gestión (`Event.managementFeeCents`)**: importe por asiento que se cobra junto a la
    reserva pero **no es descontable en consumiciones**. Se maneja siempre en céntimos enteros y solo

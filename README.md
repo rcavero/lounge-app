@@ -135,4 +135,4 @@ src/
 └── lib/          # Utilidades (prisma, redsys, utils)
 ```
 
-Consultar [CLAUDE.md](./CLAUDE.md) para arquitectura detallada y [DEVELOPMENT.md](./DEVELOPMENT.md) para el estado del desarrollo.
+Consultar [CLAUDE.md](./CLAUDE.md) para arquitectura detallada y [docs/historico/](./docs/historico/) para los planes y guías de cada etapa.
