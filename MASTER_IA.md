@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **P8** (estados de carga y animaciones) **y P9.1** (tres fallos de seguridad que sacó la documentación). **P9, la documentación, está en curso.** Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **P8** (estados de carga y animaciones) **y P9** (la documentación, y tres fallos de seguridad que sacó por el camino). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -35,7 +35,7 @@ Estado de partida el 21 de septiembre, verificado entonces:
 |---|---|
 | `initializePayment` comprueba la disponibilidad **fuera** de la transacción y el `updateMany` no filtra por `AVAILABLE`: dos clientes simultáneos sobre el mismo asiento pasan los dos | **Resuelto (P7)**, y en producción desde el 24 de septiembre por hotfix (P7.7) |
 | `cron/cleanup`: la variable `thirtyMinutesAgo` calcula 5 minutos | **Resuelto en P4**: el plazo vive en `reservations/domain/expiry.ts`, con nombre, y vale lo mismo |
-| Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | Abierto, se corrige al reescribir el README (Fase 4). Desde P2, un test fija las dos fronteras al minuto |
+| Ventana de reservas: el código usa **48h–4h**, la documentación dice 48h–5h | **Resuelto en P9**: el README dice 48h–4h. Desde P2, un test fija las dos fronteras al minuto, y desde P7 el servidor aplica la ventana |
 | Código muerto: `seat.tsx`, `seat-map.tsx`, `header.tsx`, `footer.tsx`, `createReservation` | **Resuelto en P4**, junto con `getSeatsByZone` |
 
 **Hallazgos nuevos, aparecidos durante la ejecución:**
@@ -811,11 +811,26 @@ Se quedó `revalidatePath`, porque ahorra una petición, pero ya no se presenta 
 
 ---
 
-## Paso P9 — Documentación · EN CURSO
+## Paso P9 — Documentación · EJECUTADO
 
-En Linear, «10 · Fase 7» (RCA-173). Empezó el 25 de septiembre.
+En Linear, «10 · Fase 7» (RCA-173), del 25 de septiembre. Todo lo del plan (Fase 4) está hecho, con los desvíos que se anotan abajo. La documentación se escribió **sobre el producto definitivo**, y al escribirla salieron fallos que obligaron a cambiarlo antes de seguir (P9.1 y P9.2).
 
-**Hecho hasta ahora:**
+| Tarjeta | Qué | Commit |
+|---|---|---|
+| RCA-251 | Los históricos, a `docs/historico/` | `167771f`, `c2a5899` |
+| RCA-254 | `LICENSE` | `92e0ace` |
+| RCA-256 | `docs/modelo-de-datos.md` | `7f577e0` |
+| RCA-255 | `docs/arquitectura.md` | `a8ce3cb` (+2 arreglos de Mermaid) |
+| RCA-257 | `docs/entornos.md`, `.env.example` y `CLAUDE.md` al día | `2bdcc9c` |
+| RCA-258 | `docs/testing.md` | `d17b623` |
+| RCA-259 | `docs/seguridad.md` | `2065c8e` |
+| RCA-260 | `docs/adr/`, siete ADR | `47e7aa5` |
+| RCA-252 | `README.md` | `bed7381` |
+| RCA-262 | `CONTRIBUTING.md` | `3633b5b` |
+| RCA-261 | `docs/desarrollo-asistido-por-ia.md` | `038fef1` |
+| RCA-253 | `CHANGELOG.md` | `3098d40` |
+
+**Detalle de los primeros:**
 - **RCA-251**: los históricos, a `docs/historico/`.
   - `167771f`: solo `git mv`, con 15 renombrados al 100 %. La tarjeta decía 13, pero dos documentos se añadieron el 2 de septiembre.
   - `c2a5899`: el índice de la carpeta, con el aviso de que en esos documentos `.env` era producción, y los enlaces corregidos.
@@ -864,6 +879,32 @@ Para escribir `docs/entornos.md` se comprobó con el propio cargador de Next (`@
 **Decisión de Ramón:** renombrar a `.env.prod`, que Next no carga nunca solo. Los scripts `:prod` lo cargan a propósito con `dotenv -e`. Verificado después del cambio con el mismo cargador: `next build` y `next start` cargan solo `.env` (`DB_ENV=local`), y `dotenv -e .env.prod` sigue dando `DB_ENV=production` con el ref de producción.
 
 En `main` y `testing` solo lo nombra un comentario de `scripts/backup-prod.ts`. No se toca: al fusionar lo sustituye `backup-db.ts`, que no nombra ningún fichero.
+
+### P9.3 Qué se desvió del plan
+
+1. **Siete ADR, no seis.** El séptimo es la llave de la reserva (P9.1), una decisión real y reciente. El sexto se reformuló: el plan decía «base de datos separada por rama», y lo que hay es **una base por entorno**, con `academic` compartiendo la de testing.
+2. **Sin insignia de cobertura en el README.** Pediría un servicio externo con un token, o que el CI commitease una imagen, lo que necesita permisos de escritura. En su lugar, una tabla con las cifras medidas.
+3. **La máquina de estados de `Reservation` vive en `modelo-de-datos.md`**, y `arquitectura.md` la enlaza en vez de repetirla.
+4. **Más ficheros de los previstos:**
+   - `.env.example` seguía describiendo el esquema anterior, con SQLite y sin `DB_ENV`;
+   - `CLAUDE.md` decía «`.env` → producción», recomendaba `db push` y afirmaba que en testing no llega el webhook.
+   Los dos se corrigieron.
+5. **Riesgos de seguridad sin arreglar, a propósito.** `seguridad.md` recoge ocho riesgos abiertos (R1–R8). Los cinco que son cambios de producto quedan en RCA-286, para que Ramón decida. El más relevante: la sesión del panel no se puede revocar.
+6. **Menos push.** A mitad del paso, Ramón pidió agruparlos, porque cada push despliega en Vercel y el almacenamiento de funciones está casi lleno. Desde RCA-259, los commits se acumularon en local y se subieron juntos.
+
+### P9.4 Cómo se comprobó
+
+- **Cada afirmación de los documentos se contrastó con el código** antes de commitear. Así cayeron tres afirmaciones falsas del borrador de la arquitectura y cuatro del de testing, y en seguridad se añadieron riesgos que la auditoría de abril no vio.
+- **Las cifras son medidas, no copiadas:**
+  - tests por capa;
+  - cobertura por capa, desde `coverage-summary.json`;
+  - duración del CI, desde Actions;
+  - número de escudos;
+  - cabeceras de la preview, con un `curl`;
+  - qué fichero `.env` carga cada comando de Next, con `@next/env`.
+- **Los enlaces**: un script comprobó que los enlaces relativos de toda la documentación apuntan a ficheros que existen (0 rotos), y los anclajes coinciden con los títulos.
+- **Los diagramas Mermaid**: se vieron en GitHub. Uno no se dibujaba por un `;` dentro de un mensaje, que en una secuencia separa instrucciones.
+- **El CHANGELOG sale del `git log`**: 185 commits de `academic` y los dos de `main` que `academic` no tiene.
 
 ---
 
@@ -1104,7 +1145,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
 | ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hecho todo**, con el hotfix de la carrera en producción; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
 | ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, y comprobado en el móvil. Ver P8 | — | 13 · UI/UX |
-| **P9** | Documentación. El CHANGELOG, el último. **En curso**: sacó tres fallos de seguridad, ya arreglados (P9.1) | — | 10 · Fase 7, 14 · Seguridad |
+| ~~**P9**~~ | ~~Documentación. El CHANGELOG, el último.~~ **Hecho.** Sacó tres fallos de seguridad, ya arreglados (P9.1), y el error de `.env.production` (P9.2). Ver P9 | — | 10 · Fase 7, 14 · Seguridad |
 | **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
