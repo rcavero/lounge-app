@@ -1,8 +1,11 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { UserForm } from "../user-form";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
-export default function NewUserPage() {
+export default async function NewUserPage() {
+  await redirectUnlessAdmin();
+
   return (
     <div className="min-h-screen bg-black flex flex-col">
       {/* Header */}

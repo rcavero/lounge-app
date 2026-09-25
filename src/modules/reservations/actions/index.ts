@@ -160,7 +160,7 @@ export async function getPastEventsLast35Days(): Promise<EventWithReservationCou
 
 // Get available months for reports (last 90 days)
 export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
-  await requireAuth();
+  await requireAdmin();
   const now = new Date();
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
@@ -184,7 +184,7 @@ export async function getMonthlyReportData(
   year: number,
   month: number,
 ): Promise<MonthlyReportEvent[]> {
-  await requireAuth();
+  await requireAdmin();
   const { startDate, endDate } = monthRange(year, month);
 
   const events = await prisma.event.findMany({

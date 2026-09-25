@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { requireAdmin, requireAuth } from "./auth-guard";
+import { redirectUnlessAdmin, requireAdmin, requireAuth } from "./auth-guard";
 
 /**
  * Los dos guardias que protegen las server actions del panel. Son la segunda capa: el
@@ -11,6 +11,9 @@ import { requireAdmin, requireAuth } from "./auth-guard";
  * prueba `session.test.ts`, y el login de verdad el E2E).
  */
 vi.mock("@/modules/auth/actions", () => ({ getSessionData: vi.fn() }));
+// El redirect de verdad lanza una excepción especial de Next; aquí basta con saber a dónde.
+vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+const { redirect } = await import("next/navigation");
 
 const { getSessionData } = await import("@/modules/auth/actions");
 const sessionMock = vi.mocked(getSessionData);
@@ -23,6 +26,7 @@ function withSession(session: Partial<Session>) {
 
 beforeEach(() => {
   sessionMock.mockReset();
+  vi.mocked(redirect).mockReset();
 });
 
 describe("requireAuth", () => {
@@ -51,5 +55,19 @@ describe("requireAdmin", () => {
   it("un ADMIN con sesión pasa", async () => {
     withSession({ isLoggedIn: true, role: "ADMIN" });
     await expect(requireAdmin()).resolves.toBeUndefined();
+  });
+});
+
+describe("redirectUnlessAdmin", () => {
+  it("a un WORKER lo manda al menú", async () => {
+    withSession({ isLoggedIn: true, role: "WORKER" });
+    await redirectUnlessAdmin();
+    expect(redirect).toHaveBeenCalledWith("/admin");
+  });
+
+  it("a un ADMIN lo deja pasar", async () => {
+    withSession({ isLoggedIn: true, role: "ADMIN" });
+    await redirectUnlessAdmin();
+    expect(redirect).not.toHaveBeenCalled();
   });
 });

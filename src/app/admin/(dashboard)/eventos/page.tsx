@@ -4,8 +4,11 @@ import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Button } from "@/components/ui/button";
 import { ENTER, staggerDelay } from "@/shared/components/motion";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 export default async function AdminEventsPage() {
+  await redirectUnlessAdmin();
+
   const events = await getUpcomingEvents();
 
   return (

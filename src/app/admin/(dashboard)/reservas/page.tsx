@@ -9,14 +9,15 @@ import { getSessionData } from "@/modules/auth/actions";
 import { ReservasClient } from "./client";
 
 export default async function AdminReservationsPage() {
-  const [upcomingEvents, pastEvents, reportMonths, session] = await Promise.all([
+  const session = await getSessionData();
+  const isAdmin = session.role === "ADMIN";
+
+  // Los informes son solo del ADMIN, y su acción lanza para un WORKER (RCA-285).
+  const [upcomingEvents, pastEvents, reportMonths] = await Promise.all([
     getEventsWithReservationCount(),
     getPastEventsLast35Days(),
-    getAvailableReportMonths(),
-    getSessionData(),
+    isAdmin ? getAvailableReportMonths() : [],
   ]);
-
-  const isAdmin = session.role === "ADMIN";
 
   return (
     <div className="min-h-screen bg-black flex flex-col">

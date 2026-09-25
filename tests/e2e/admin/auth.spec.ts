@@ -15,7 +15,7 @@ import { expect, test, type Browser } from "@playwright/test";
 
 import { TEST_PASSWORD } from "../../fixtures/factories";
 import { WORKER_STATE } from "../support/auth";
-import { ADMIN_EMAIL, seedBaseline } from "../support/db";
+import { ADMIN_EMAIL, IDS, seedBaseline } from "../support/db";
 
 const NO_SESSION = { cookies: [], origins: [] };
 
@@ -117,5 +117,29 @@ test.describe("como WORKER", () => {
     for (const card of ["events", "seats", "users"]) {
       await expect(page.getByTestId(`dashboard-${card}`)).toHaveCount(0);
     }
+  });
+
+  // Antes el menú las escondía, pero escribiendo la URL se entraba y se podía, por
+  // ejemplo, borrar un evento con sus reservas pagadas (RCA-285).
+  for (const path of [
+    "/admin/eventos",
+    "/admin/eventos/nuevo",
+    `/admin/eventos/${IDS.open}`,
+    "/admin/eventos/sugerencias",
+    "/admin/asientos",
+    "/admin/usuarios",
+    "/admin/usuarios/nuevo",
+    `/admin/usuarios/${IDS.worker}`,
+  ]) {
+    test(`por URL, ${path} lo devuelve al menú`, async ({ page }) => {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/admin$/);
+      await expect(page.getByTestId("dashboard-reservations")).toBeVisible();
+    });
+  }
+
+  test("entra en el bloqueo de asientos, que sí es suyo", async ({ page }) => {
+    await page.goto(`/admin/reservas/${IDS.open}/bloquear`);
+    await expect(page.getByTestId("save-blocks")).toBeVisible();
   });
 });

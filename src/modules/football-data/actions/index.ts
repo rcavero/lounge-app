@@ -1,7 +1,7 @@
 "use server";
 
 import prisma from "@/lib/prisma";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { getScheduledMatches } from "../lib/api-client";
 import { syncTeams, slugify } from "../lib/team-sync";
 import { toSuggestion } from "../lib/suggestions";
@@ -16,7 +16,7 @@ import type { SyncResult, MatchSuggestion } from "../types";
  * directamente, porque no tiene sesión de usuario.
  */
 export async function syncTeamsFromAPI(): Promise<SyncResult> {
-  await requireAuth();
+  await requireAdmin();
   return syncTeams();
 }
 
@@ -29,7 +29,7 @@ export async function syncTeamsFromAPI(): Promise<SyncResult> {
 export async function getMatchSuggestions(
   competitionCode?: string,
 ): Promise<MatchSuggestion[]> {
-  await requireAuth();
+  await requireAdmin();
 
   const competitions = competitionCode
     ? [COMPETITION_BY_CODE[competitionCode]].filter(Boolean)
@@ -143,7 +143,7 @@ export async function createEventFromSuggestion(
   suggestion: MatchSuggestion,
   screens: string[],
 ): Promise<{ success: boolean; eventId?: string; error?: string }> {
-  await requireAuth();
+  await requireAdmin();
 
   try {
     const existing = await prisma.event.findUnique({

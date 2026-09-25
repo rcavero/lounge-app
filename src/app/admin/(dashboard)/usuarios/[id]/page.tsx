@@ -3,12 +3,15 @@ import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getUserById } from "@/modules/users/actions";
 import { UserForm } from "../user-form";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 interface EditUserPageProps {
   params: Promise<{ id: string }>;
 }
 
 export default async function EditUserPage({ params }: EditUserPageProps) {
+  await redirectUnlessAdmin();
+
   const { id } = await params;
   const user = await getUserById(id);
 

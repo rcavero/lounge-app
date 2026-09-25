@@ -2,7 +2,7 @@
 
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "../types";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAdmin } from "@/lib/auth-guard";
 import { safeManagementFeeCents } from "../config/pricing";
 import { resolveEventNaming } from "../domain/title";
 
@@ -43,7 +43,7 @@ export async function getEventById(id: string): Promise<EventWithTeams | null> {
 }
 
 export async function getAllEvents(): Promise<EventWithTeams[]> {
-  await requireAuth();
+  await requireAdmin();
   const events = await prisma.event.findMany({
     include: {
       homeTeam: true,
@@ -59,7 +59,7 @@ export async function getAllEvents(): Promise<EventWithTeams[]> {
 
 // Get all teams for selection
 export async function getAllTeams() {
-  await requireAuth();
+  await requireAdmin();
   const teams = await prisma.team.findMany({
     orderBy: {
       name: "asc",
@@ -82,7 +82,7 @@ export async function createEvent(data: {
   managementFeeCents?: number;
   durationMinutes?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
-  await requireAuth();
+  await requireAdmin();
   try {
     const naming = await resolveEventNaming(data, (id) =>
       prisma.team.findUnique({ where: { id } }),
@@ -142,7 +142,7 @@ export async function updateEvent(
     durationMinutes?: number;
   },
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth();
+  await requireAdmin();
   try {
     const naming = await resolveEventNaming(data, (id) =>
       prisma.team.findUnique({ where: { id } }),
@@ -180,7 +180,7 @@ export async function updateEvent(
 export async function deleteEvent(
   id: string,
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth();
+  await requireAdmin();
   try {
     // First delete related seat statuses
     await prisma.seatStatus.deleteMany({

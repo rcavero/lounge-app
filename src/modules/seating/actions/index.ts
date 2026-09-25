@@ -3,7 +3,7 @@
 import prisma from "@/lib/prisma";
 import type { SeatWithStatus } from "../types";
 import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAdmin, requireAuth } from "@/lib/auth-guard";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { pendingExpiryCutoff } from "@/modules/reservations/domain/expiry";
 import { expirePendingReservation } from "@/modules/reservations/lib/expire";
@@ -112,7 +112,7 @@ export async function initializeSeatsForEvent(eventId: string): Promise<void> {
 
 // Get all seats (for admin purposes)
 export async function getAllSeats() {
-  await requireAuth();
+  await requireAdmin();
   const seats = await prisma.seat.findMany({
     orderBy: { code: "asc" },
   });
@@ -124,7 +124,7 @@ export async function getAllSeats() {
 export async function updateSeatPositions(
   positions: { id: string; posX: number; posY: number }[],
 ): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   // Update each seat position
   await Promise.all(
     positions.map((pos) =>
@@ -196,7 +196,7 @@ export async function getZoneLabels(): Promise<ZoneLabelConfig[]> {
 
 // Update zone labels configuration (admin function)
 export async function updateZoneLabels(labels: ZoneLabelConfig[]): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   await Promise.all(
     labels.map((label) =>
       prisma.zoneLabel.upsert({

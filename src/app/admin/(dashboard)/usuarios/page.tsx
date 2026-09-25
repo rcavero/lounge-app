@@ -4,6 +4,7 @@ import { ENTER, staggerDelay } from "@/shared/components/motion";
 import { ArrowLeft, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllUsers } from "@/modules/users/actions";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 const roleLabels = {
   ADMIN: "Admin",
@@ -16,6 +17,8 @@ const roleColors = {
 };
 
 export default async function AdminUsersPage() {
+  await redirectUnlessAdmin();
+
   const users = await getAllUsers();
 
   return (

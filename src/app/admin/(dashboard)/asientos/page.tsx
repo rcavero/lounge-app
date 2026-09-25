@@ -2,8 +2,11 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { getAllSeats, getZoneLabels } from "@/modules/seating/actions";
 import { SeatPositionEditor } from "./client";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 export default async function AdminSeatsPage() {
+  await redirectUnlessAdmin();
+
   const [seats, zoneLabels] = await Promise.all([getAllSeats(), getZoneLabels()]);
 
   return (
