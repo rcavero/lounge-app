@@ -149,7 +149,7 @@ sequenceDiagram
     alt Producción
         K->>DB: ¿ya confirmada?
         K-->>C: el ticket, o «procesando» y sondea hasta que llegue el webhook
-    else Local y testing (el webhook no llega)
+    else Fuera de producción (no se cuenta con el webhook)
         K->>DB: confirma ella misma si sigue PENDING
         K-->>C: el ticket
     end
