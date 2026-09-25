@@ -130,7 +130,7 @@ sequenceDiagram
     P->>A: eventId, asientos, nombre
     A->>A: valida nombre, ventana 48–4 h, estado del evento
     A->>DB: asientos libres aquí y en eventos solapados
-    A->>DB: transacción: reserva PENDING + asientos RESERVED<br/>(solo los que siguen AVAILABLE; si falta uno, se deshace)
+    A->>DB: transacción: reserva PENDING + asientos RESERVED<br/>(solo los que siguen AVAILABLE, y si falta uno, se deshace)
     A-->>P: formulario firmado (importe, pedido, URL de vuelta con la llave)
     P->>R: el navegador envía el formulario
     C->>R: paga con tarjeta
