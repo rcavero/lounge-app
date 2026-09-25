@@ -120,9 +120,11 @@ El problema de fondo no era la incantación `set -a && . ./.env.testing && set +
 | `.env` | Docker local, base `lounge_dev` | `local` |
 | `.env.test` | Docker local, base `lounge_test` | `test` |
 | `.env.testing` | Supabase testing *(sin tocar)* | `testing` |
-| `.env.production` | Supabase producción *(el `.env` de antes)* | `production` |
+| `.env.production` → **`.env.prod`** desde el 25 de septiembre (P9.2) | Supabase producción *(el `.env` de antes)* | `production` |
 
 **Son cuatro, no cinco.** No hay `.env.academic`: comparte base con testing.
+
+> **Corrección del 25 de septiembre (P9.2).** El nombre `.env.production` fue un error de esta fase: es uno de los que Next carga solo en `next build` y `next start`, así que un `npm start` en local arrancaba la app contra producción. Se renombró a `.env.prod`.
 
 **El guard**: `scripts/lib/require-db-env.ts` expone `requireDbEnv(...)`, que aborta si el entorno cargado no es uno de los esperados. **Falla cerrado**: sin `DB_ENV` declarado también aborta. Probado con los tres casos.
 
@@ -545,7 +547,7 @@ Tres commits, como pedía el plan, para que ninguno mezcle cosas:
 
 1. **Dos errores de lint silenciados.** Dos de los tres errores heredados (1.4) están en `event-row.tsx` y en la página del evento, y el hook de pre-commit no deja commitear un fichero con errores: P5 no podía tocarlos. **Decisión de Ramón: silenciarlos con `eslint-disable-next-line` y su motivo, y arreglarlos antes del lint bloqueante de CI** (RCA-273). La 1.4 decía que el de `event-row` lo arreglaría P4, y no fue así, porque P4 no tocó ese componente.
 2. **Más `data-testid` en el formulario de evento.** Ningún `<label>` está asociado a su campo, así que los selects y las fechas no tienen nombre accesible y solo se encontrarían por posición. Es el caso que el criterio del plan reserva para un `data-testid`. Asociar los labels sería lo correcto para accesibilidad, pero cambia el DOM de producción y no es de esta fase.
-3. **Una puerta más: el canario.** `requireDbEnv("test")` protege el proceso de Playwright, pero quien escribe al pagar es el servidor Next, y ese puede estar leyendo otra base: Next carga `.env.production` al arrancar, y en local `reuseExistingServer` aprovecha cualquier servidor que ya esté en el 3100. El setup siembra un evento con un id único y aborta si la portada no lo muestra. **Se probó a propósito** con un servidor contra `lounge_dev`: el canario falla y no corre ningún escenario.
+3. **Una puerta más: el canario.** `requireDbEnv("test")` protege el proceso de Playwright, pero quien escribe al pagar es el servidor Next, y ese puede estar leyendo otra base: Next cargaba entonces `.env.production` al arrancar, y en local `reuseExistingServer` aprovecha cualquier servidor que ya esté en el 3100. El setup siembra un evento con un id único y aborta si la portada no lo muestra. **Se probó a propósito** con un servidor contra `lounge_dev`: el canario falla y no corre ningún escenario.
 4. **Cada spec resiembra**, en vez de sembrar una vez en el setup. Los escenarios compran, bloquean y crean eventos, y así ninguno depende del orden. Los ids son fijos: la cookie de iron-session guarda el `adminId`, y el `storageState` del setup tiene que seguir valiendo tras resembrar.
 5. **`"a"` no da error: deshabilita PAGAR.** El plan esperaba un mensaje; la app no deja ni pulsar. El error se prueba con un carácter fuera de la lista blanca (`"Ana <3"`).
 6. **Los PDF que se abren en otra pestaña no se esperan como pestaña.** En Chromium headless no hay visor de PDF: abrir uno lo descarga, y la pestaña no termina de cargar nunca. `support/pdf.ts` sustituye `window.open` por uno que apunta la URL, y el blob se lee desde la página que lo creó.
@@ -849,6 +851,20 @@ Resultados: CI #19 y #20 en verde. 373 unitarios y de componente, 183 de integra
 
 **Para la fusión con `main`:** la migración `20260925120000_add_reservation_access_token` se aplica en producción **antes** que el código. Es aditiva y compatible hacia atrás.
 
+### P9.2 `.env.production` pasa a `.env.prod`: un error de la Fase 0
+
+Para escribir `docs/entornos.md` se comprobó con el propio cargador de Next (`@next/env`) qué fichero lee cada comando, en lugar de dar por buena la tabla de 0.2.
+
+**Resultado:** `next dev` carga `.env`, pero **`next build` y `next start` cargan `.env.production` por delante de `.env`**. Con el nombre elegido en la Fase 0, un `npm start` en local arrancaba la app contra la base de producción, y una compra de prueba habría apartado asientos reales.
+
+**Cómo pasó.** El error es de la IA. En la Fase 0 se eligió `.env.production` por claridad, sin tener en cuenta que es uno de los nombres que Next carga solo. En P5 ya se vio a medias: el canario del E2E existe porque «Next carga `.env.production` al arrancar». Se protegió el E2E, pero no se generalizó ni se avisó a Ramón de que su `npm start` corría el mismo riesgo.
+
+**Qué no pasó.** Ningún build de estos días leyó producción. `next build` solo prerenderiza páginas sin datos (login, 404 e icono), y la portada es dinámica. Los E2E ponen sus variables en el entorno, que ganan a los ficheros, y el canario lo comprueba.
+
+**Decisión de Ramón:** renombrar a `.env.prod`, que Next no carga nunca solo. Los scripts `:prod` lo cargan a propósito con `dotenv -e`. Verificado después del cambio con el mismo cargador: `next build` y `next start` cargan solo `.env` (`DB_ENV=local`), y `dotenv -e .env.prod` sigue dando `DB_ENV=production` con el ref de producción.
+
+En `main` y `testing` solo lo nombra un comentario de `scripts/backup-prod.ts`. No se toca: al fusionar lo sustituye `backup-db.ts`, que no nombra ningún fichero.
+
 ---
 
 ## Fase 2 — Extracción de capa de dominio
@@ -1101,7 +1117,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 
 1. `npm run ci:local` — lint, typecheck, unitarios, componentes e integración. Limpio.
 2. `npm run test:integration` **dos veces seguidas** — que pase dos veces es lo que demuestra el aislamiento entre tests.
-3. **Probar el guard a propósito, una vez**: lanzar la integración con `.env.production` cargado debe **abortar** por `DB_ENV`. Si no aborta, parar todo y arreglarlo antes de seguir.
+3. **Probar el guard a propósito, una vez**: lanzar la integración con `.env.prod` cargado (entonces `.env.production`) debe **abortar** por `DB_ENV`. Si no aborta, parar todo y arreglarlo antes de seguir.
 4. `npm run test:coverage` — la capa de dominio por encima del umbral.
 5. `npm run e2e` — en verde; revisar el reporte HTML.
 6. CI verde en el primer push a `academic`.

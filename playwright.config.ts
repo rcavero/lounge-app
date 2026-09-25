@@ -88,9 +88,10 @@ export default defineConfig({
    * ruta en el primer acceso, y el primer test de cada ruta se pasaría 20-40 s
    * esperando. Es la receta de un E2E inestable.
    *
-   * Next también lee `.env.production` al construir y al arrancar, pero las variables
-   * que ya están en el entorno ganan a las de los ficheros, y aquí van todas las que
-   * importan. Aun así no se da por hecho: el canario de `global.setup.ts` comprueba que
+   * Next lee por su cuenta `.env` (y `.env.production`, si existiera) al construir y al
+   * arrancar, pero las variables que ya están en el entorno ganan a las de los ficheros,
+   * y aquí van todas las que importan. El fichero de producción se llama `.env.prod`
+   * precisamente para que Next no lo cargue nunca solo (ver MASTER_IA, P9.2). Aun así no se da por hecho: el canario de `global.setup.ts` comprueba que
    * el servidor lee la misma base que acaba de sembrar el setup.
    *
    * En local se reutiliza un servidor que ya esté en el 3100, para iterar sin

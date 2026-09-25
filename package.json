@@ -29,12 +29,12 @@
     "db:reset": "prisma migrate reset",
     "db:whoami": "npx tsx scripts/db-whoami.ts",
     "db:whoami:testing": "dotenv -e .env.testing -- npx tsx scripts/db-whoami.ts",
-    "db:whoami:prod": "dotenv -e .env.production -- npx tsx scripts/db-whoami.ts",
+    "db:whoami:prod": "dotenv -e .env.prod -- npx tsx scripts/db-whoami.ts",
     "db:deploy:testing": "dotenv -e .env.testing -- prisma migrate deploy",
-    "db:deploy:prod": "dotenv -e .env.production -- prisma migrate deploy",
+    "db:deploy:prod": "dotenv -e .env.prod -- prisma migrate deploy",
     "db:studio:testing": "dotenv -e .env.testing -- prisma studio",
     "db:backup:testing": "dotenv -e .env.testing -- npx tsx scripts/backup-db.ts",
-    "db:backup:prod": "dotenv -e .env.production -- npx tsx scripts/backup-db.ts"
+    "db:backup:prod": "dotenv -e .env.prod -- npx tsx scripts/backup-db.ts"
   },
   "engines": {
     "node": "24.x"

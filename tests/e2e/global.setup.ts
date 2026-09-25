@@ -19,7 +19,7 @@ setup("sembrar la base de tests", async () => {
 /**
  * La puerta del lado del servidor. `requireDbEnv` protege el proceso de Playwright,
  * pero el que escribe cuando un spec pulsa PAGAR es el servidor Next, que es otro
- * proceso y podría estar leyendo otra base: un `.env.production` que se colara, o un
+ * proceso y podría estar leyendo otra base: un fichero `.env` de otro entorno que Next cargara, o un
  * servidor ya levantado en el 3100 con otro entorno (`reuseExistingServer`).
  *
  * El canario es un evento con un id que solo existe en la base recién sembrada. Si la
