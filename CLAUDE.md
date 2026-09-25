@@ -14,7 +14,7 @@
 | React | 19.2.3 | UI Library |
 | TypeScript | 5.x | Tipado estático |
 | Prisma | 6.19.2 | ORM para base de datos |
-| PostgreSQL (Supabase) | - | Base de datos en los dos entornos: `.env` → producción, `.env.testing` → testing |
+| PostgreSQL (Supabase) | - | Testing y producción en Supabase; local y tests en Docker. Un `.env*` por base, con `DB_ENV`: ver `docs/entornos.md` |
 | qrcode | 1.5.x | Generación de QR codes en cliente |
 | redsys-easy | - | Integración pasarela de pago Redsys (firma HMAC-SHA256) |
 | Tailwind CSS | 4.x | Estilos |
@@ -449,24 +449,26 @@ if (!session.isLoggedIn) redirect("/admin/login");
 
 ## Comandos de Desarrollo
 
+Sin sufijo es local (Docker); con sufijo `:testing` o `:prod`, remoto. Lista completa y
+procedimiento de migración en `docs/entornos.md`.
+
 ```bash
-# Iniciar desarrollo
-npm run dev
+npm run db:up               # Postgres local en Docker (puerto 5433)
+npm run dev                 # la app contra lounge_dev
+npm run db:migrate          # crear una migración nueva tras cambiar schema.prisma
+npm run db:deploy           # aplicar las migraciones a lounge_dev
+npm test                    # unitarios y componentes
+npm run test:integration    # contra lounge_test
+npm run e2e                 # build + Playwright en el 3100
 
-# Regenerar Prisma (si cambia schema)
-# IMPORTANTE: Detener servidor primero en Windows
-npx prisma db push
-npx prisma generate
-
-# Ver base de datos
-npx prisma studio
-
-# Seed de datos
-npm run db:seed
-
-# Build producción
-npm run build
+npm run db:whoami:testing   # SIEMPRE antes de tocar una base remota
 ```
+
+- **Nunca `db push` contra una base con datos**: el `CHECK` de importes vive en una migración
+  y `db push` no lo crea.
+- **Nunca un fichero `.env.production`**: Next lo carga solo en `build` y `start`, y un
+  `npm start` local arrancaría contra producción. El de producción se llama `.env.prod`.
+- En Windows, parar el servidor antes de `prisma generate` (punto 1).
 
 ---
 
@@ -558,8 +560,9 @@ npm run build
       el envío de parámetros en las URLs de respuesta, sin esa ruta se rompería la pantalla de todos
       los clientes que acaban de pagar. La ruta **no confirma ni cancela nada**: solo anota el recibo.
 
-    - **En local y en testing el recibo sale con guiones**, porque ahí el webhook no llega y la
-      página autoconfirma. Para probarlo:
+    - **En local el recibo sale con guiones**, porque ahí el webhook no llega (Redsys no alcanza
+      `localhost`) y la página autoconfirma. En las previews de Vercel sí llega. Para probarlo en
+      local:
       `npx tsx scripts/simulate-redsys-notify.ts <orderId> [ok|ko]`, que firma una notificación con
       la clave del entorno y la manda a localhost. Aborta si `REDSYS_ENV=production` o si el destino
       no es localhost, y pide `--force` para un `ko` sobre una reserva ya confirmada (la cancelaría
