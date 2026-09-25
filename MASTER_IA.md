@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **y P8** (estados de carga y animaciones). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **P8** (estados de carga y animaciones) **y P9.1** (tres fallos de seguridad que sacó la documentación). **P9, la documentación, está en curso.** Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -44,6 +44,7 @@ Estado de partida el 21 de septiembre, verificado entonces:
 - **Dos fugas de seguridad en el repositorio**, ya resueltas (ver 0.6).
 - **Una tercera, que la auditoría de 0.6 no vio**: `prisma/seed.ts` crea un admin con el email real y la contraseña `12345678`, en claro y en todo el historial. **Abierta (RCA-275, urgente)**: hay que comprobar que ninguna cuenta viva la usa **antes de publicar el repositorio**. Ver P2.4.
 - **Un pago que llega después de expirar la reserva se cobra sin asientos.** Bug de producción que sacó a la luz la integración. **Resuelto en `academic` (P7)**: se rescatan los asientos o la reserva queda para devolver. Sigue en producción hasta el hotfix (RCA-269).
+- **Tres fallos de seguridad que sacó la documentación**: el rol WORKER solo se limitaba en la interfaz, el nº de pedido abría la reserva de otro, y confirmar era una server action. **Resueltos en `academic` (P9.1)**.
 - **`initializePayment` no comprueba en servidor la ventana de reserva ni el estado del evento**: la ventana solo la aplica la portada, y por enlace directo se puede comprar un partido que empieza en una hora. **Resuelto en `academic` (P7)**. Sigue en producción hasta el hotfix (RCA-269).
 
 ---
@@ -704,7 +705,7 @@ Los tres son de probabilidad baja y se anotan sin tarjeta, porque Linear va just
 
 - **Dos partidos solapados.** La comprobación de que un asiento no está vendido en otro partido que se solapa sigue fuera de la transacción, igual en la reserva que en el rescate. Dos clientes que paguen el mismo asiento en dos partidos solapados, en el mismo instante, podrían pasar los dos.
 - **El número de pedido son los 12 últimos dígitos del reloj en milisegundos, y `paymentId` no es único.** Dos reservas creadas en el mismo milisegundo compartirían pedido; Redsys rechazaría el segundo pago como pedido repetido.
-- **La página de error cancela por número de pedido, sin más comprobación.** Quien conozca, o adivine, el pedido de una reserva pendiente ajena puede cancelarla. Como el pedido sale del reloj, se puede adivinar.
+- **La página de error cancela por número de pedido, sin más comprobación.** Quien conozca, o adivine, el pedido de una reserva pendiente ajena puede cancelarla. Como el pedido sale del reloj, se puede adivinar. **Resuelto en P9.1** con una llave por reserva.
 
 ### P7.6 Verificación de cierre
 
@@ -805,6 +806,48 @@ Se quedó `revalidatePath`, porque ahorra una petición, pero ya no se presenta 
 | `npm run build` | limpio, las mismas 24 rutas |
 | A mano, Ramón desde el móvil en la preview de `academic`: skeleton al pulsar un evento, el panel como ADMIN y como WORKER, «reducir movimiento» | hecho el 24 de septiembre |
 | CI #14 (`d94a159`) | verde |
+
+---
+
+## Paso P9 — Documentación · EN CURSO
+
+En Linear, «10 · Fase 7» (RCA-173). Empezó el 25 de septiembre.
+
+**Hecho hasta ahora:**
+- **RCA-251**: los históricos, a `docs/historico/`.
+  - `167771f`: solo `git mv`, con 15 renombrados al 100 %. La tarjeta decía 13, pero dos documentos se añadieron el 2 de septiembre.
+  - `c2a5899`: el índice de la carpeta, con el aviso de que en esos documentos `.env` era producción, y los enlaces corregidos.
+- **RCA-254**, `92e0ace`: `LICENSE` propietaria, con permiso expreso de lectura para la evaluación académica, y `"license": "UNLICENSED"`.
+- **RCA-256**, `7f577e0`: `docs/modelo-de-datos.md`, con los diagramas Mermaid comprobados en GitHub.
+  - **Hallazgo:** ninguna parte de la app escribe `LIVE`, `FINISHED` ni `CANCELLED` en `Event.status`.
+
+### P9.1 Lo que la documentación sacó: tres fallos de seguridad (RCA-285)
+
+Aparecieron al repasar la autenticación y el flujo de pago para escribir `docs/arquitectura.md`. **Ramón decidió arreglar los tres antes de seguir**: cambian el producto, y no se documenta un producto que va a cambiar.
+
+| Fallo | Arreglo | Commits |
+|---|---|---|
+| **A · El rol WORKER solo estaba limitado en la interfaz.** El menú le escondía eventos, plano, usuarios e informes, pero las 13 acciones solo pedían sesión y las páginas no miraban el rol. Un WORKER que entrara por URL podía borrar un evento, y con él sus reservas pagadas | `requireAdmin` en las 13 acciones y `redirectUnlessAdmin()` en las 8 páginas. El WORKER conserva bloquear asientos, cuyo botón está en su vista | `6019226`, `cdb5c6b` |
+| **B · El nº de pedido abría la reserva.** Son los 12 últimos dígitos de `Date.now()`, así que se adivina. Con él se veía el ticket de otro, y la página de error le cancelaba la reserva mientras pagaba, **también en producción** | Una llave aleatoria por reserva (`accessToken`) en las URL de vuelta que se firman para Redsys, que exigen las páginas y el sondeo. Las reservas anteriores (`NULL`) se abren como antes. Lleva **migración** | `37338d9` |
+| **C · `confirmReservationByOrderId` era una server action** con la guarda de producción en la página. No era explotable, porque su id no llegaba al navegador, pero lo habría sido con un solo `import` desde un componente de cliente | Confirmar y cancelar pasan a `payments/lib/return-pages.ts`, con la guarda dentro. Un test fija que `payments/actions` solo exporta dos funciones | `37338d9` |
+
+**Cómo se comprobó que los tests sirven.**
+- A: `roles.test.ts` usa los guardias reales con una sesión de WORKER, y fallaban las 13 acciones antes del arreglo. Tiene controles positivos: el WORKER bloquea asientos y el ADMIN borra.
+- B y C: los tests de `order-access` se vieron fallar antes de implementar. No quedaron en un commit aparte porque sin la columna no compilan, y el pre-commit pasa `typecheck`.
+- Mutaciones sobre B y C: al quitar la comprobación de la página de confirmación, la de la página de error, la del ticket o la guarda de producción, falla su test.
+
+**Un desvío técnico.** Con `loading.tsx`, `notFound()` responde **200** con la pantalla de 404, porque el streaming ya ha empezado cuando salta. El E2E comprueba lo que se entrega (la pantalla de 404 y ningún dato de la reserva), no el estado HTTP.
+
+**La puerta.**
+1. Primer pago antes del push: pedido `790328111676`.
+2. La migración se aplicó en la base de testing, que comparte `academic`, con el OK de Ramón y después de comprobar el destino con `db:whoami:testing`.
+3. Push y segundo pago: pedido `790328513476`. La reserva nueva tiene llave de 22 caracteres, y la anterior, `NULL`.
+4. Ramón comprobó en el navegador que la URL lleva `?t=…` y que sin ella sale el 404.
+5. `verify-management-fee report`: 0 descuadres.
+
+Resultados: CI #19 y #20 en verde. 373 unitarios y de componente, 183 de integración y 48 E2E.
+
+**Para la fusión con `main`:** la migración `20260925120000_add_reservation_access_token` se aplica en producción **antes** que el código. Es aditiva y compatible hacia atrás.
 
 ---
 
@@ -1045,7 +1088,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P6**~~ | ~~Los 3 errores de lint (quitando los dos `eslint-disable` de P5), el workflow de CI con sus dos jobs, umbrales de cobertura y cierre.~~ **Hecho.** Ver P6 | — | 09 · Fase 6 |
 | ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hecho todo**, con el hotfix de la carrera en producción; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
 | ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, y comprobado en el móvil. Ver P8 | — | 13 · UI/UX |
-| **P9** | Documentación. El CHANGELOG, el último | — | 10 · Fase 7 |
+| **P9** | Documentación. El CHANGELOG, el último. **En curso**: sacó tres fallos de seguridad, ya arreglados (P9.1) | — | 10 · Fase 7, 14 · Seguridad |
 | **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
