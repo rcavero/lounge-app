@@ -2,6 +2,7 @@
   "name": "lounge-app",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
     "dev:testing": "dotenv -e .env.testing -- next dev",
