@@ -15,6 +15,8 @@ const MAX_ATTEMPTS = 16; // ~40s waiting for the Redsys webhook
 
 interface Props {
   orderId: string;
+  /** La llave de la reserva: sin ella, el sondeo no recibe nada (RCA-285). */
+  token?: string;
   /** Datos del comercio para el recibo: solo se leen en el servidor. */
   merchant: MerchantInfo;
 }
@@ -26,7 +28,7 @@ type PollState =
   | { phase: "refund" }
   | { phase: "timeout" };
 
-export function ProcessingClient({ orderId, merchant }: Props) {
+export function ProcessingClient({ orderId, token, merchant }: Props) {
   const [state, setState] = useState<PollState>({ phase: "polling" });
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
 
       let reservation: ReservationTicketData | null = null;
       try {
-        reservation = await getReservationByOrderId(orderId);
+        reservation = await getReservationByOrderId(orderId, token);
       } catch {
         // Transient network error — retry until attempts run out
       }
@@ -75,7 +77,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [orderId]);
+  }, [orderId, token]);
 
   if (state.phase === "confirmed") {
     return (

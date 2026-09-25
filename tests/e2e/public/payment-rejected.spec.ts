@@ -20,7 +20,10 @@ test("pago rechazado: reserva cancelada y asientos liberados", async ({ page }) 
   await page.getByTestId("pay-button").click();
   const { orderId } = await sent;
 
-  await expect(page).toHaveURL(`/reserva/error?orderId=${orderId}&eventId=${IDS.open}`);
+  // Con la llave de la reserva (`t`): sin ella, la página no cancelaría (RCA-285).
+  await expect(page).toHaveURL(
+    new RegExp(`/reserva/error\\?orderId=${orderId}&eventId=${IDS.open}&t=[\\w-]{22}$`),
+  );
   await expect(page.getByRole("heading", { name: "Pago no completado" })).toBeVisible();
 
   const reservation = await prisma.reservation.findFirstOrThrow({

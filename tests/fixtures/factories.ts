@@ -113,6 +113,8 @@ interface MakeReservationInput {
   status?: ReservationStatus;
   paymentId?: string;
   createdAt?: Date;
+  /** La llave de las páginas de vuelta. Sin ella, la reserva es de antes de RCA-285. */
+  accessToken?: string | null;
 }
 
 /**
@@ -129,6 +131,7 @@ export async function makeReservation({
   status = "PENDING",
   paymentId = nextOrderId(),
   createdAt = TEST_NOW,
+  accessToken = null,
 }: MakeReservationInput): Promise<Reservation> {
   const seatPriceCents = event.pricePerSeat * 100;
   const managementFeeCents = event.managementFeeCents;
@@ -151,6 +154,7 @@ export async function makeReservation({
             ? "FAILED"
             : "PENDING",
       paymentId,
+      accessToken,
       confirmedAt: status === "CONFIRMED" ? createdAt : null,
       createdAt,
     },

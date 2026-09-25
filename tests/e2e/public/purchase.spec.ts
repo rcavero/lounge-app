@@ -68,7 +68,10 @@ test("compra de dos asientos: ticket, importe y estado en BD", async ({ page }) 
   expect(orderId).toMatch(/^\d{12}$/);
   expect(amountCents).toBe("2300");
 
-  await expect(page).toHaveURL(`/reserva/confirmacion/${orderId}`);
+  // Con la llave de la reserva (`t`): sin ella, la página no existe (RCA-285).
+  await expect(page).toHaveURL(
+    new RegExp(`/reserva/confirmacion/${orderId}\\?t=[\\w-]{22}$`),
+  );
   const ticket = page.getByTestId("ticket");
   await expect(ticket).toContainText("Ana García");
   await expect(page.getByTestId("ticket-seats")).toHaveText(/T1-A1/);

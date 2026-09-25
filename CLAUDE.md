@@ -144,9 +144,11 @@ lounge-app/
 │   │   │   └── types/index.ts
 │   │   │
 │   │   ├── payments/               # Módulo de pagos Redsys
-│   │   │   ├── actions/index.ts    # initializePayment, confirmReservationByOrderId, cancelReservationByOrderId, getReservationByOrderId
+│   │   │   ├── actions/index.ts    # initializePayment y getReservationByOrderId (exige la llave). Nada más: ver punto 13
 │   │   │   ├── lib/customer-name.ts # Normaliza/valida el nombre. Módulo PLANO, no action
 │   │   │   ├── lib/receipt.ts      # Guarda el recibo firmado. Módulo PLANO, no action
+│   │   │   ├── lib/access-token.ts # La llave de las páginas de vuelta. Módulo PLANO
+│   │   │   ├── lib/return-pages.ts # Confirmar/cancelar desde las páginas de vuelta. Módulo PLANO
 │   │   │   └── types/index.ts      # InitializePaymentResult, ReservationTicketData
 │   │   │
 │   │   └── users/
@@ -269,6 +271,7 @@ model Reservation {
   status          ReservationStatus @default(PENDING)
   paymentId       String?           // orderId de Redsys (12 dígitos) para relacionar webhook con reserva
   paymentStatus   PaymentStatus     @default(PENDING)
+  accessToken     String?           // Llave de las páginas de vuelta. NULL en las anteriores. Ver punto 13
   authorisationCode   String?       // Ds_AuthorisationCode. Ver punto 11
   paymentDateTime     String?       // Ds_Date + Ds_Hour: "28/08/2026 21:34". Texto a propósito
   paymentResponseCode String?       // Ds_Response ("0000".."0099" = autorizada)
@@ -429,8 +432,9 @@ if (!session.isLoggedIn) redirect("/admin/login");
    - OK (código 0000-0099): reserva → `CONFIRMED`, asientos → `OCCUPIED`
    - KO: reserva → `CANCELLED`, asientos → `AVAILABLE`
 6. Redsys redirige al cliente:
-   - OK → `/reserva/confirmacion/[orderId]`: confirma si el webhook no llegó (fallback local) + muestra ticket + descarga PDF
-   - KO → `/reserva/error`: cancela si el webhook no llegó (fallback local) + botón reintentar
+   - OK → `/reserva/confirmacion/[orderId]?t=<llave>`: confirma si el webhook no llegó (fallback local, **nunca en producción**) + muestra ticket + descarga PDF
+   - KO → `/reserva/error?…&t=<llave>`: cancela si el webhook no llegó (fallback local) + botón reintentar
+   - Sin la llave de la reserva, ninguna de las dos enseña ni toca nada (punto 13)
 
 **Nota sobre el webhook en local**: Redsys no puede alcanzar `localhost`. El fallback en las páginas de OK/KO es idempotente: si el webhook ya actuó, las páginas detectan que la reserva no está en estado `PENDING` y no hacen nada.
 
@@ -564,3 +568,9 @@ npm run build
 12. **Estados de carga** (septiembre 2026). Cada página tiene un `loading.tsx` que imita su forma: en producción `<Link>` lo precarga y sale en cuanto se pulsa. Las piezas están en `components/ui/skeleton.tsx` (`Skeleton`, `LoadingRegion`), en `admin/(dashboard)/components/page-skeleton.tsx` (`AdminPageSkeleton`), en `shared/components/link-pending.tsx` (el spinner de la tarjeta pulsada, con `useLinkStatus`) y en `shared/components/motion.ts` (animaciones, todas `motion-safe:`). Los botones de acción usan `<Button loading>`, y **si tras la acción se navega, el botón no se reactiva en el éxito**: solo en el error.
     - **El menú del panel (`/admin`) no tiene `loading.tsx`, a propósito.** Con uno en `(dashboard)/`, la respuesta de «Ya está devuelto» a veces no se aplicaba (medido: 7–12 fallos de 30 frente a 0). Si se vuelve a poner, repetir el E2E de `admin/refunds.spec.ts` 30 veces.
     - La portada vive en el grupo `(inicio)` para que su skeleton no haga de pantalla de carga de las demás rutas.
+
+13. **Roles y llave de las reservas** (septiembre 2026, RCA-285).
+    - **Las acciones del ADMIN exigen `requireAdmin`, no solo sesión**: eventos, sugerencias, plano, carteles, informes y usuarios. Sus páginas llaman a `redirectUnlessAdmin()` para devolver al WORKER al menú, pero lo que protege es la acción, que es un endpoint. El WORKER conserva las reservas y **bloquear asientos**, cuyo botón está en su vista. `tests/integration/roles.test.ts` recorre cada acción con la sesión de un WORKER: una acción nueva del panel va ahí.
+    - **El nº de pedido no basta para abrir una reserva.** Sale del reloj y se adivina. Cada reserva lleva `accessToken`, aleatorio, que `initializePayment` mete en la URLOK y la URLKO (`&t=`). La ruta de retorno lo pasa a las páginas, y estas y `getReservationByOrderId` lo exigen. Las reservas anteriores tienen `NULL` y se abren sin él, porque sus URL ya estaban repartidas.
+    - **`payments/actions` solo exporta `initializePayment` y `getReservationByOrderId`.** Confirmar y cancelar desde las páginas viven en `payments/lib/return-pages.ts`, y confirmar lleva dentro la guarda de producción. Un test comprueba la lista de exportaciones: si se añade una acción a ese fichero, que sea a propósito.
+    - Con `loading.tsx`, `notFound()` responde **200** con la pantalla de 404, porque el streaming ya ha empezado. No es un fallo: lo que cuenta es que no sale ningún dato.

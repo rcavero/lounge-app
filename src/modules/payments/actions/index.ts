@@ -15,7 +15,7 @@ import { bookingClosedReason } from "@/modules/events/domain/booking-window";
 import { overlappingEventIds } from "@/modules/events/domain/overlap";
 import { computeReservationAmount, toRedsysAmount } from "../domain/amount";
 import { needsRefund } from "../domain/outcome";
-import { applyPaymentOutcome } from "../lib/apply-payment-outcome";
+import { accessTokenMatches, newAccessToken } from "../lib/access-token";
 import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
@@ -123,6 +123,8 @@ export async function initializePayment(data: {
   }
 
   const orderId = generateOrderId();
+  // La llave de las páginas de vuelta: el nº de pedido se adivina, esta no (RCA-285).
+  const accessToken = newAccessToken();
 
   // Crea la reserva PENDING y aparta los asientos, todo o nada.
   let reservation;
@@ -141,6 +143,7 @@ export async function initializePayment(data: {
           status: "PENDING",
           paymentStatus: "PENDING",
           paymentId: orderId,
+          accessToken,
         },
       });
 
@@ -173,8 +176,10 @@ export async function initializePayment(data: {
   // contra ellas devuelve 405; si CaixaBank activa el envío de parámetros en las URLs de
   // respuesta, sin esta ruta se rompería la pantalla de todos los que acaban de pagar.
   // De paso, la ruta aprovecha esos parámetros para guardar el recibo.
-  const okUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ok`;
-  const koUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ko&eventId=${eventId}`;
+  // Las dos llevan la llave de la reserva: es el único camino por el que llega al
+  // cliente, y sin ella las páginas no enseñan ni cancelan nada (RCA-285).
+  const okUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ok&t=${accessToken}`;
+  const koUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ko&eventId=${eventId}&t=${accessToken}`;
   const notifyUrl = `${BASE_URL}/api/payments/notify`;
 
   const form = createRedirectForm({
@@ -202,48 +207,15 @@ export async function initializePayment(data: {
   };
 }
 
-export async function confirmReservationByOrderId(orderId: string): Promise<void> {
-  // Only act on PENDING reservations — if the webhook already confirmed it, this is a no-op
-  const reservation = await prisma.reservation.findFirst({
-    where: { paymentId: orderId, status: "PENDING" },
-    select: { id: true },
-  });
-
-  if (!reservation) return;
-
-  await applyPaymentOutcome({ outcome: "ok", reservationId: reservation.id });
-
-  console.log(`[Payment] Reservation ${reservation.id} confirmed from success page`);
-}
-
-export async function cancelReservationByOrderId(orderId: string): Promise<void> {
-  const reservation = await prisma.reservation.findFirst({
-    where: { paymentId: orderId, status: { in: ["PENDING", "CONFIRMED"] } },
-    select: {
-      id: true,
-      eventId: true,
-      status: true,
-      seatStatuses: { select: { seatId: true } },
-    },
-  });
-
-  // Only cancel if the payment hasn't already been confirmed by the webhook
-  if (!reservation || reservation.status === "CONFIRMED") return;
-
-  const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
-
-  await applyPaymentOutcome({
-    outcome: "ko",
-    reservationId: reservation.id,
-    eventId: reservation.eventId,
-    seatIds,
-  });
-
-  console.log(`[Payment] Reservation ${reservation.id} cancelled from error page`);
-}
-
+/**
+ * El ticket de una reserva. Es pública —la llama el sondeo de la página de confirmación—,
+ * así que exige la llave de la reserva: con el nº de pedido solo, que se adivina, se
+ * leía el ticket de cualquiera (RCA-285). Sin la llave, `null`, igual que un pedido que
+ * no existe, para no confirmar que existe.
+ */
 export async function getReservationByOrderId(
   orderId: string,
+  token?: string | null,
 ): Promise<ReservationTicketData | null> {
   const reservation = await prisma.reservation.findFirst({
     where: { paymentId: orderId },
@@ -260,7 +232,7 @@ export async function getReservationByOrderId(
     },
   });
 
-  if (!reservation) return null;
+  if (!reservation || !accessTokenMatches(reservation.accessToken, token)) return null;
 
   return {
     id: reservation.id,

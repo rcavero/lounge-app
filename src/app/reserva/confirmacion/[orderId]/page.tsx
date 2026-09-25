@@ -1,8 +1,9 @@
 import { notFound } from "next/navigation";
+import { getReservationByOrderId } from "@/modules/payments/actions";
 import {
   confirmReservationByOrderId,
-  getReservationByOrderId,
-} from "@/modules/payments/actions";
+  hasReservationAccess,
+} from "@/modules/payments/lib/return-pages";
 import { MERCHANT_INFO } from "@/lib/redsys";
 import { ConfirmationClient } from "./client";
 import { ProcessingClient } from "./processing-client";
@@ -10,20 +11,22 @@ import { RefundNotice } from "./refund-notice";
 
 interface Props {
   params: Promise<{ orderId: string }>;
+  searchParams: Promise<{ t?: string }>;
 }
 
-export default async function ConfirmationPage({ params }: Props) {
+export default async function ConfirmationPage({ params, searchParams }: Props) {
   const { orderId } = await params;
+  const { t: token } = await searchParams;
 
-  // Auto-confirm when not in real payment mode (sandbox or local dev).
-  // When REDSYS_ENV=production, the webhook is the sole source of truth.
-  if (process.env.REDSYS_ENV !== "production") {
-    await confirmReservationByOrderId(orderId);
-  }
+  // Sin la llave de la reserva, la página no existe: el nº de pedido se adivina, y con
+  // él se veía el ticket de otro (RCA-285). Antes que nada, también antes de confirmar.
+  if (!(await hasReservationAccess(orderId, token))) notFound();
 
-  const reservation = await getReservationByOrderId(orderId);
+  // Fuera de producción, el webhook no llega y la página confirma. En producción esto no
+  // hace nada: allí la única prueba del cobro es la notificación firmada de Redsys.
+  await confirmReservationByOrderId(orderId);
 
-  // Unknown order — genuinely invalid URL.
+  const reservation = await getReservationByOrderId(orderId, token);
   if (!reservation) notFound();
 
   // Already confirmed (sandbox auto-confirm, or the webhook already arrived).
@@ -42,5 +45,5 @@ export default async function ConfirmationPage({ params }: Props) {
 
   // In production the browser can reach this page before the Redsys webhook
   // confirms the reservation. Poll for the webhook instead of showing a 404.
-  return <ProcessingClient orderId={orderId} merchant={MERCHANT_INFO} />;
+  return <ProcessingClient orderId={orderId} token={token} merchant={MERCHANT_INFO} />;
 }

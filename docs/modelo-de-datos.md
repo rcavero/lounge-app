@@ -1,7 +1,7 @@
 # Modelo de datos
 
 PostgreSQL en Supabase, con Prisma 6 como ORM. La fuente de verdad es
-[`prisma/schema.prisma`](../prisma/schema.prisma), más las cinco migraciones de
+[`prisma/schema.prisma`](../prisma/schema.prisma), más las seis migraciones de
 [`prisma/migrations/`](../prisma/migrations/). Una de ellas añade un `CHECK` que el esquema de
 Prisma no sabe expresar. Este documento no repite cada campo: explica cómo encajan las piezas y
 qué reglas hay que respetar al tocarlas.
@@ -60,6 +60,7 @@ erDiagram
         enum status
         enum paymentStatus
         string paymentId "nº de pedido Redsys"
+        string accessToken "llave de las páginas de vuelta"
         string authorisationCode "recibo"
     }
 ```
@@ -205,6 +206,10 @@ Borrar un equipo deja los eventos sin equipo (`ON DELETE SET NULL`), no los borr
 - **`Reservation.paymentDateTime` es texto, no `DateTime`.** Guarda literalmente la fecha y la
   hora que manda Redsys, en hora española, para que el recibo diga lo mismo que el banco. El
   instante de máquina es `confirmedAt`.
+- **`Reservation.accessToken`** es la llave aleatoria que abre las páginas de vuelta del pago,
+  porque el nº de pedido sale del reloj y se adivina. Viaja solo en las URL de vuelta firmadas
+  para Redsys. Vale `NULL` en las reservas anteriores a septiembre de 2026, que se siguen abriendo
+  con el nº de pedido solo: sus URL ya estaban repartidas.
 - **`Reservation.customerName`** vale `"Cliente"` en las reservas anteriores a agosto de 2026, y
   la app lo muestra como «Sin nombre».
 - **`Reservation.customerEmail`** vale siempre `cliente@lounge.com`: la app no pide el email.

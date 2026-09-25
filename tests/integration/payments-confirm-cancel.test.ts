@@ -13,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 import {
   cancelReservationByOrderId,
   confirmReservationByOrderId,
-} from "@/modules/payments/actions";
+} from "@/modules/payments/lib/return-pages";
 
 import { freezeClock } from "../fixtures/clock";
 import {

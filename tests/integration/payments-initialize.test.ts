@@ -132,14 +132,15 @@ describe("initializePayment — camino feliz", () => {
       customerName: "Ana",
     });
 
-    const { paymentId } = await prisma.reservation.findFirstOrThrow();
+    const { paymentId, accessToken } = await prisma.reservation.findFirstOrThrow();
     const params = signedParams(result.formBody);
 
+    // La llave de la reserva (`t`) la prueba order-access.test.ts.
     expect(params.DS_MERCHANT_URLOK).toBe(
-      `http://localhost:3100/api/payments/return/${paymentId}?r=ok`,
+      `http://localhost:3100/api/payments/return/${paymentId}?r=ok&t=${accessToken}`,
     );
     expect(params.DS_MERCHANT_URLKO).toBe(
-      `http://localhost:3100/api/payments/return/${paymentId}?r=ko&eventId=${event.id}`,
+      `http://localhost:3100/api/payments/return/${paymentId}?r=ko&eventId=${event.id}&t=${accessToken}`,
     );
     expect(params.DS_MERCHANT_MERCHANTURL).toBe(
       "http://localhost:3100/api/payments/notify",
@@ -493,7 +494,10 @@ describe("congelación del desglose", () => {
     expect(reservation.totalPrice.toString()).toBe("23");
 
     // Y el ticket lee la reserva, no el evento.
-    const ticket = await getReservationByOrderId(reservation.paymentId!);
+    const ticket = await getReservationByOrderId(
+      reservation.paymentId!,
+      reservation.accessToken,
+    );
     expect(ticket).toMatchObject({
       seatPriceCents: 1000,
       managementFeeCents: 150,
