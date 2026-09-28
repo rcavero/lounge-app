@@ -4,6 +4,12 @@ Planes, guías de migración y notas que se escribieron mientras la app se const
 septiembre de 2026. Estaban en la raíz del repositorio y se trasladaron aquí con `git mv` y **sin
 editar**, así que `git log --follow` conserva su historia entera.
 
+La única excepción son los datos privados, que se quitaron en septiembre de 2026, antes de
+publicar el repositorio. El correo de la propietaria, el código de comercio (FUC) de producción,
+claves y contraseñas se sustituyeron por marcadores entre `<…>`, y el guion de la reunión con
+la propietaria del 19 de agosto se retiró. `tests/unit/no-private-data.test.ts` impide que
+vuelvan a entrar.
+
 **Son el registro de lo que era cierto cuando se escribieron, no de lo que es cierto hoy.** Los
 estados que declaran («sin implementar», «pendiente de paso a producción»…) son de su fecha. Lo
 vigente está en el código, en [`CLAUDE.md`](../../CLAUDE.md) y en el resto de [`docs/`](../).
@@ -31,7 +37,6 @@ vigente está en el código, en [`CLAUDE.md`](../../CLAUDE.md) y en el resto de 
 | [`PLAN_GASTOS_GESTION.md`](PLAN_GASTOS_GESTION.md) | ago 2026 | Gastos de gestión por asiento, importes en céntimos y desglose congelado |
 | [`PLAN_EDITOR_ASIENTOS_V2.md`](PLAN_EDITOR_ASIENTOS_V2.md) | ago 2026 | Nombres reales de los asientos y editor para crear, editar y borrar |
 | [`PLAN_IMPLEMENTACION_NOMBRE_CLIENTE.md`](PLAN_IMPLEMENTACION_NOMBRE_CLIENTE.md) | ago 2026 | Nombre del cliente en la reserva y recibo de pago que pide CaixaBank |
-| [`REUNION_SUSANA_2026-08-19.md`](REUNION_SUSANA_2026-08-19.md) | ago 2026 | Guion de la reunión con la propietaria para decidir la versión 2 |
 | [`PLAN_IMPLEMENTACION_MAIL_CLIENTE.md`](PLAN_IMPLEMENTACION_MAIL_CLIENTE.md) | sep 2026 | Email de confirmación con el ticket en PDF adjunto |
 
 ## Por qué se conservan

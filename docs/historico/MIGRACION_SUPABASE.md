@@ -84,8 +84,8 @@ DIRECT_URL="postgresql://postgres.XXXX:[PASSWORD]@db.XXXX.supabase.co:5432/postg
 
 # Resto de variables (sin cambios)
 AUTH_SECRET="***REMOVED***"
-CRON_SECRET="your-secure-cron-secret-change-in-production"
-FOOTBALL_DATA_API_KEY="7979b2ac558f4cc7a322ffb917ef686d"
+CRON_SECRET="<CRON_SECRET>"
+FOOTBALL_DATA_API_KEY="<clave de football-data>"
 ```
 
 > **Nota:** El `AUTH_SECRET` y `CRON_SECRET` se quedan igual por ahora. Para producción, `CRON_SECRET` deberá cambiarse por un valor seguro real.
@@ -151,7 +151,7 @@ npm run db:seed
 
 Esto crea en Supabase:
 - **47 asientos** distribuidos en zonas TV1, TV2 y PROYECTOR con sus posiciones exactas
-- **1 usuario admin** → email: `ramoncaveroaras@gmail.com` / contraseña: `12345678`
+- **1 usuario admin** → email: `<email del admin>` / contraseña: `<contraseña del admin>`
 
 **Salida esperada:**
 ```
@@ -162,7 +162,7 @@ Esto crea en Supabase:
 🎉 Seeding completed!
 ```
 
-> **Importante:** La contraseña del admin en el seed es `12345678`. Recuerda cambiarla desde el panel de administración antes de abrir la aplicación a usuarios reales.
+> **Importante:** La contraseña del admin la fijaba el seed. Recuerda cambiarla desde el panel de administración antes de abrir la aplicación a usuarios reales.
 
 ---
 
@@ -186,7 +186,7 @@ npm run dev
 ```
 
 Prueba:
-1. **Login:** Ve a `http://localhost:3000/admin/login` → entra con `ramoncaveroaras@gmail.com` / `12345678`
+1. **Login:** Ve a `http://localhost:3000/admin/login` → entra con `<email del admin>` / `<contraseña del admin>`
 2. **Sincronizar equipos:** Ve a `/admin/eventos` → botón "API" → "Sincronizar equipos" → debe importar equipos desde football-data.org a Supabase
 3. **Crear evento:** Crea un evento de prueba desde sugerencias de la API
 4. **Vista pública:** Ve a `http://localhost:3000/eventos/[id]` → verifica que el mapa de asientos carga

@@ -80,7 +80,7 @@ eso, aprovecha los parámetros si llegan.
 
 ## Paso 0 — Llamada a CaixaBank (sin código, antes de desplegar)
 
-Datos: FUC `352464580`, terminal `1`, portal `canales.redsys.es/lacaixa`.
+Datos: FUC `<FUC de producción>`, terminal `1`, portal `canales.redsys.es/lacaixa`.
 
 Dos preguntas, no una:
 
@@ -919,7 +919,7 @@ El script pide ahora `--force` para ese caso concreto. Con `ok` no hay riesgo.
   `fecha=28/08/2026 11:03`).
 - Cerrojo «gana el primero»: una segunda notificación **no** reescribe el recibo.
 - Pantalla de confirmación con nombre de 24 caracteres: pinta el bloque «Nombre / Alias», el desglose
-  con «(descontable)» y la tarjeta de recibo completa (FUC `352464580`, autorización, fecha, pedido,
+  con «(descontable)» y la tarjeta de recibo completa (FUC `<FUC de producción>`, autorización, fecha, pedido,
   producto, URL) y los tres botones.
 - Reserva histórica sin recibo: **omite** el bloque del nombre y pinta la tarjeta con dos guiones.
 - Pantalla de error: tarjeta «Datos de la operación» con FUC, pedido, código de respuesta y estado.

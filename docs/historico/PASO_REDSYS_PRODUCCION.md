@@ -1,7 +1,7 @@
 # Plan de acción — Paso de Redsys a entorno REAL (producción)
 
 > **Contexto:** CaixaBank / Comercia Global Payments confirmó por correo el 2026-05-17 que
-> el entorno real del TPV virtual de The Lounge Beerhouse (FUC `352464580`) está disponible.
+> el entorno real del TPV virtual de The Lounge Beerhouse (FUC `<FUC de producción>`) está disponible.
 > Este documento es el plan para activar los pagos reales en la rama `main` manteniendo
 > `testing` en el entorno sandbox.
 
@@ -38,7 +38,7 @@ Las ramas `main` y `testing` quedan **idénticas en código**. Motivos:
 
 | Dato | Valor producción | Estado actual en el repo |
 |------|------------------|--------------------------|
-| `REDSYS_MERCHANT_CODE` (FUC) | `352464580` | `352464580` — igual |
+| `REDSYS_MERCHANT_CODE` (FUC) | `<FUC de producción>` | `<FUC de producción>` — igual |
 | `REDSYS_TERMINAL` | `1` | `001` — a alinear |
 | `REDSYS_MERCHANT_CURRENCY` | `978` (EUR) | hardcodeado `978` — OK |
 | `REDSYS_TRANSACTIONTYPE` | `0` | hardcodeado `0` — OK |
@@ -54,9 +54,9 @@ no la envía por correo: se obtiene manualmente en `https://canales.redsys.es/la
 
 ### Fase 1 — Obtener la clave SHA-256 de producción · *manual*
 
-1. Acceder a `https://canales.redsys.es/lacaixa` con usuario `352464580`.
+1. Acceder a `https://canales.redsys.es/lacaixa` con usuario `<FUC de producción>`.
 2. Contraseña: pulsar **"¿Ha olvidado su contraseña?"** → llega al correo autorizado
-   (`susanaesteve@outlook.es`). Requiere coordinación con Susana para el acceso.
+   (el correo autorizado de la propietaria). Requiere coordinación con Susana para el acceso.
 3. **Administración** (icono maletín) → **Comercio** → **Buscar** → botón **Detalles**
    del terminal `1`.
 4. En "Datos de configuración" → **Ver clave** → introducir la contraseña de Canales.
@@ -91,7 +91,7 @@ En Vercel → proyecto → **Settings → Environment Variables**, **solo en sco
 |----------|-------|-------|
 | `REDSYS_ENV` | `production` | **Production únicamente** |
 | `REDSYS_SECRET_KEY` | clave SHA-256 real (Fase 1) | Production |
-| `REDSYS_MERCHANT_CODE` | `352464580` | Production |
+| `REDSYS_MERCHANT_CODE` | `<FUC de producción>` | Production |
 | `REDSYS_TERMINAL` | `1` | Production |
 | `NEXT_PUBLIC_BASE_URL` | `https://lounge-app-neon.vercel.app` | Production |
 
@@ -170,7 +170,7 @@ git push origin main
 
 - **Entorno `testing` con clave genérica:** `.env` y `.env.testing` usan la clave pública
   genérica de Redsys (`sq7Hjr…`), no la clave **sandbox específica** del comercio
-  `352464580`. Para que las pruebas en `testing` sean fiables conviene obtener también la
+  `<FUC de producción>`. Para que las pruebas en `testing` sean fiables conviene obtener también la
   clave SHA-256 *de pruebas* del portal. Es secundario y no bloquea el paso a producción.
 
 - **Local siempre en sandbox:** la clave de producción vive solo en Vercel scope

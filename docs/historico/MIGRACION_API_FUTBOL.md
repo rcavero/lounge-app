@@ -266,7 +266,7 @@ puede retirarse de `.env`, `.env.testing` y Vercel tras confirmar la estabilidad
 
 ## 7. Estado de verificación
 
-Ejecutado el 14/08/2026 contra la base de datos de **testing** (`tdkiretmgyftlnffkeer`):
+Ejecutado el 14/08/2026 contra la base de datos de **testing** (`<ref de testing>`):
 
 - ✅ `npx tsc --noEmit` sin errores y `npm run build` correcto
 - ✅ `scripts/espn-smoke-test.ts` — 82 sugerencias, **1230 comprobaciones, 0 fallos**, 680 ms

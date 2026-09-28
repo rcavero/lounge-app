@@ -2,7 +2,7 @@
 
 ## Estado actual (Mayo 2026)
 
-CaixaBank confirmó el **2026-05-17** que el entorno **real** del TPV está disponible (FUC `352464580`, terminal `1`). Configuración por entorno:
+CaixaBank confirmó el **2026-05-17** que el entorno **real** del TPV está disponible (FUC `<FUC de producción>`, terminal `1`). Configuración por entorno:
 
 - **Producción** (rama `main`, Vercel scope Production): entorno real de Redsys (`sis.redsys.es`), `REDSYS_ENV=production`. Cobra pagos reales.
 - **Testing** (rama `testing`, Vercel scope Preview) y **local**: entorno sandbox (`sis-t.redsys.es`), `REDSYS_ENV` sin definir. No se cobran pagos reales.
@@ -112,7 +112,7 @@ reserva ya confirmada (la cancelaría y liberaría sus asientos de forma irrever
 
 ```env
 REDSYS_SECRET_KEY=<clave SHA-256 de pruebas — portal Canales>
-REDSYS_MERCHANT_CODE=352464580
+REDSYS_MERCHANT_CODE=<FUC de producción>
 REDSYS_TERMINAL=1
 NEXT_PUBLIC_BASE_URL=http://localhost:3000
 # REDSYS_ENV → no definida (usa sandbox)
@@ -128,7 +128,7 @@ Configurado en Vercel → Settings → Environment Variables → entorno **Previ
 
 ```
 REDSYS_SECRET_KEY    = <clave SHA-256 de pruebas — configurar en Vercel>
-REDSYS_MERCHANT_CODE = 352464580
+REDSYS_MERCHANT_CODE = <FUC de producción>
 REDSYS_TERMINAL      = 1
 NEXT_PUBLIC_BASE_URL = https://lounge-app-titanium.vercel.app
 # REDSYS_ENV → no definida (usa sandbox)
@@ -141,7 +141,7 @@ Configurado en Vercel → Settings → Environment Variables → entorno **Produ
 ```
 REDSYS_ENV           = production
 REDSYS_SECRET_KEY    = <clave SHA-256 real — portal Canales — configurar en Vercel>
-REDSYS_MERCHANT_CODE = 352464580
+REDSYS_MERCHANT_CODE = <FUC de producción>
 REDSYS_TERMINAL      = 1
 NEXT_PUBLIC_BASE_URL = https://lounge-app-neon.vercel.app
 ```
@@ -178,7 +178,7 @@ Cuando CaixaBank valide la web y proporcione las credenciales definitivas de pro
 ### Paso 1 — Datos del banco (recibidos el 2026-05-17)
 
 CaixaBank confirmó el entorno real con estos datos:
-- `REDSYS_MERCHANT_CODE` (FUC) = `352464580` (el mismo que en pruebas)
+- `REDSYS_MERCHANT_CODE` (FUC) = `<FUC de producción>` (el mismo que en pruebas)
 - `REDSYS_TERMINAL` = `1`
 - `REDSYS_MERCHANT_CURRENCY` = `978` (EUR)
 - `REDSYS_SECRET_KEY` — **clave SHA-256 de producción**, distinta de la de pruebas. No se envía por correo: se obtiene del portal `https://canales.redsys.es/lacaixa` (Administración → Comercio → Detalles del terminal → Ver clave).
@@ -189,7 +189,7 @@ En Vercel → proyecto → Settings → Environment Variables, modificar **solo 
 
 | Variable | Valor actual (TPV pruebas) | Nuevo valor (producción) |
 |----------|--------------------------|--------------------------|
-| `REDSYS_MERCHANT_CODE` | `352464580` | `352464580` (sin cambios) |
+| `REDSYS_MERCHANT_CODE` | `<FUC de producción>` | `<FUC de producción>` (sin cambios) |
 | `REDSYS_TERMINAL` | `1` | `1` (sin cambios) |
 | `REDSYS_SECRET_KEY` | *(clave sandbox en Vercel)* | Clave SHA-256 real del portal Canales |
 

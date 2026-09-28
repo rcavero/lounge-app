@@ -76,8 +76,8 @@ Poner en `.env` las URLs del proyecto `lounge-app-testing`:
 DATABASE_URL="postgresql://postgres.XXXX:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://postgres.XXXX:[PASSWORD]@db.XXXX.supabase.co:5432/postgres"
 AUTH_SECRET="***REMOVED***"
-CRON_SECRET="testing-cron-secret-change-this"
-FOOTBALL_DATA_API_KEY="7979b2ac558f4cc7a322ffb917ef686d"
+CRON_SECRET="<CRON_SECRET>"
+FOOTBALL_DATA_API_KEY="<clave de football-data>"
 ```
 
 Guarda también este contenido como `.env.testing` (copia de seguridad para cuando estés en otra rama y necesites operar sobre esta BD).
@@ -99,7 +99,7 @@ Conecta a Supabase testing, crea `prisma/migrations/` limpio y aplica todo el sc
 npm run db:seed
 ```
 
-Crea 47 asientos + usuario admin (`ramoncaveroaras@gmail.com` / `12345678`).
+Crea 47 asientos + usuario admin (`<email del admin>` / `<contraseña del admin>`).
 
 ### 2.7 Verificar
 ```bash
@@ -113,7 +113,7 @@ Comprueba: 47 registros en `Seat`, 1 en `AdminUser`, resto de tablas vacías.
 npm run dev
 ```
 
-1. Login en `http://localhost:3000/admin/login` con `ramoncaveroaras@gmail.com` / `12345678`
+1. Login en `http://localhost:3000/admin/login` con `<email del admin>` / `<contraseña del admin>`
 2. Sincronizar equipos: `/admin/eventos` → botón "API" → "Sincronizar equipos"
 3. Crear un evento de prueba
 4. Verificar que el mapa de asientos carga en `/eventos/[id]`
@@ -150,8 +150,8 @@ Sustituir el contenido de `.env` con las URLs del proyecto `lounge-app-prod`:
 DATABASE_URL="postgresql://postgres.XXXX:[PASSWORD]@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://postgres.XXXX:[PASSWORD]@db.XXXX.supabase.co:5432/postgres"
 AUTH_SECRET="GENERA-UN-VALOR-NUEVO-DIFERENTE-AL-DE-TESTING"
-CRON_SECRET="prod-cron-secret-diferente-al-de-testing"
-FOOTBALL_DATA_API_KEY="7979b2ac558f4cc7a322ffb917ef686d"
+CRON_SECRET="<CRON_SECRET>"
+FOOTBALL_DATA_API_KEY="<clave de football-data>"
 ```
 
 > `AUTH_SECRET` en producción debe ser un valor nuevo. Genera uno con `openssl rand -hex 32` desde Git Bash.
@@ -256,7 +256,7 @@ En **Vercel → Project → Settings → Git**:
 ### Testing
 1. Haz push de la rama `testing` a GitHub
 2. Vercel despliega automáticamente
-3. Entra en la URL de preview → login con `ramoncaveroaras@gmail.com` / `12345678`
+3. Entra en la URL de preview → login con `<email del admin>` / `<contraseña del admin>`
 4. Sincroniza equipos → crea un evento de prueba → crea una reserva de prueba
 5. Verifica en el Supabase dashboard (Table Editor) que los datos aparecen
 
