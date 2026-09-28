@@ -1189,7 +1189,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
-**Antes de publicar el repositorio**, con independencia del orden anterior: RCA-275, la contraseña del seed, que sigue pospuesta hasta que Ramón lo pida, y el punto 6 de la verificación manual.
+**Antes de publicar el repositorio**, con independencia del orden anterior: RCA-275, la contraseña del seed, que sigue pospuesta hasta que Ramón lo pida. El punto 6 de la verificación manual ya está hecho (28 de septiembre).
 
 ---
 
@@ -1210,7 +1210,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 3. ~~Que `cleanup` sigue expirando a los **5** minutos y no a los 30: el paso que renombra la variable mentirosa es justo donde podría colarse el error.~~ **Hecho el 23 de septiembre**, por el otro camino que usa el mismo plazo: el cron de Vercel solo corre en el despliegue de producción, pero la página del evento caduca las pendientes al abrirse, con la misma `pendingExpiryCutoff`. Ramón abandonó un pago en la pasarela de la preview de `academic`, sin pagar ni cancelar, y el asiento siguió ocupado a los 3-4 minutos y quedó libre a los 5.
 4. ~~Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.~~ **Hecho el 23 de septiembre**, en la preview de `academic`.
 5. ~~Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.~~ **Hecho en P5.5.**
-6. Que `db:whoami:prod` sigue imprimiendo lo mismo al final de todo que al principio. **Punto de partida tomado el 23 de septiembre, tras P5**, y guardado en la tarjeta de «09 · Fase 6» (RCA-172) y no aquí, porque los conteos de producción son datos del negocio. Las 5 migraciones de producción coinciden con las de `prisma/migrations/`. Al final tienen que coincidir el ref, las migraciones, los 47 asientos y los admins; eventos, reservas y equipos pueden subir, porque el bar sigue funcionando.
+6. ~~Que `db:whoami:prod` sigue imprimiendo lo mismo al final de todo que al principio.~~ **Hecho el 28 de septiembre, tras P10, y correcto.** Coinciden el ref, las 5 migraciones, los asientos y los admins. Los eventos y las reservas bajaron. El punto de partida daba por hecho que solo podían subir, y no tuvo en cuenta que el cron de producción borra los eventos de más de 90 días con sus reservas. Se comprobó contra el volcado del 2 de septiembre que la bajada es exactamente eso, más lo creado desde entonces. Las cifras, en RCA-172. **Punto de partida tomado el 23 de septiembre, tras P5**, y guardado en la tarjeta de «09 · Fase 6» (RCA-172) y no aquí, porque los conteos de producción son datos del negocio. Las 5 migraciones de producción coinciden con las de `prisma/migrations/`. Al final tienen que coincidir el ref, las migraciones, los 47 asientos y los admins; eventos, reservas y equipos pueden subir, porque el bar sigue funcionando.
 
 ---
 
