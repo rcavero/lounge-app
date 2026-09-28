@@ -1,10 +1,7 @@
 import { notFound } from "next/navigation";
 import { getEventById } from "@/modules/events/actions";
-import {
-  getSeatsForEvent,
-  initializeSeatsForEvent,
-  getZoneLabels,
-} from "@/modules/seating/actions";
+import { getSeatsForEvent, getZoneLabels } from "@/modules/seating/actions";
+import { initializeSeatsForEvent } from "@/modules/seating/lib/initialize-seats";
 import { bookingClosedReason } from "@/modules/events/domain/booking-window";
 import { BookingClosed } from "./booking-closed";
 import { EventReservationClient } from "./client";

@@ -11,11 +11,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Event, Seat } from "@/generated/prisma";
 import { requireAuth } from "@/lib/auth-guard";
 import { prisma } from "@/lib/prisma";
-import {
-  getSeatsForEvent,
-  initializeSeatsForEvent,
-  saveBlockedSeats,
-} from "@/modules/seating/actions";
+import { getSeatsForEvent, saveBlockedSeats } from "@/modules/seating/actions";
+import { initializeSeatsForEvent } from "@/modules/seating/lib/initialize-seats";
 
 import { freezeClock } from "../fixtures/clock";
 import {
@@ -300,5 +297,10 @@ describe("initializeSeatsForEvent", () => {
       seats.length,
     );
     expect((await seatStatesOf(event.id))[seats[0].id].status).toBe("BLOCKED");
+  });
+
+  it("no es una server action: seating/actions no la exporta (RCA-286, R7)", async () => {
+    const actions = await import("@/modules/seating/actions");
+    expect(Object.keys(actions)).not.toContain("initializeSeatsForEvent");
   });
 });

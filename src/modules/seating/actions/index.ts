@@ -88,28 +88,6 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
   }));
 }
 
-export async function initializeSeatsForEvent(eventId: string): Promise<void> {
-  // Check if seat statuses already exist for this event
-  const existingCount = await prisma.seatStatus.count({
-    where: { eventId },
-  });
-
-  if (existingCount > 0) {
-    return; // Already initialized
-  }
-
-  const seats = await prisma.seat.findMany();
-
-  // Create seat statuses for all seats
-  await prisma.seatStatus.createMany({
-    data: seats.map((seat) => ({
-      eventId,
-      seatId: seat.id,
-      status: "AVAILABLE" as const,
-    })),
-  });
-}
-
 // Get all seats (for admin purposes)
 export async function getAllSeats() {
   await requireAdmin();
