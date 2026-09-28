@@ -9,7 +9,6 @@
  * Los defaults son los de un partido corriente: 10 € por asiento, 1,50 € de gastos de
  * gestión, dos horas de duración y mañana a esta hora.
  */
-import bcrypt from "bcryptjs";
 
 import type {
   AdminRole,
@@ -177,6 +176,16 @@ export async function makeReservation({
  */
 export const TEST_PASSWORD = "e2e-contrasena-de-usar-y-tirar";
 
+/**
+ * `bcrypt.hash(TEST_PASSWORD, 10)`, calculado una vez y fijo. Tiene que ser siempre el
+ * mismo: la sesión guarda una huella del hash de la contraseña (RCA-286, R1), y el E2E
+ * resiembra los usuarios antes de cada test. Con un hash nuevo en cada resiembra, las
+ * sesiones que el setup guardó en `storageState` dejarían de valer.
+ * `tests/unit/andamiaje.test.ts` comprueba que corresponde a `TEST_PASSWORD`.
+ */
+export const TEST_PASSWORD_HASH =
+  "$2b$10$UUFK7mm1P94NqTDLbA5QX.t4Ltj5wMcVqGBkv4T60PG/tjknZ5.v.";
+
 interface MakeAdminInput {
   role?: AdminRole;
   email?: string;
@@ -186,7 +195,8 @@ interface MakeAdminInput {
 
 /**
  * Un usuario del panel con `TEST_PASSWORD`, hasheada igual que la guarda la app
- * (`bcrypt`, coste 10), para que el login de verdad la acepte.
+ * (`bcrypt`, coste 10), para que el login de verdad la acepte. El hash es fijo: ver
+ * `TEST_PASSWORD_HASH`.
  */
 export async function makeAdmin({
   role = "ADMIN",
@@ -199,7 +209,7 @@ export async function makeAdmin({
       email,
       name: role === "ADMIN" ? "Admin E2E" : "Worker E2E",
       role,
-      password: await bcrypt.hash(TEST_PASSWORD, 10),
+      password: TEST_PASSWORD_HASH,
     },
   });
 }

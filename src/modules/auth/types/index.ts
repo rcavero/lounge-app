@@ -5,4 +5,6 @@ export interface SessionData {
   email: string;
   adminId: string;
   role: AdminRole;
+  /** Huella del hash de la contraseña al entrar (RCA-286, R1). Ver `passwordFingerprint`. */
+  pwd?: string;
 }

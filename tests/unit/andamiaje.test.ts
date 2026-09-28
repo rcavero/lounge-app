@@ -6,7 +6,11 @@
  */
 import { describe, expect, it } from "vitest";
 
+import bcrypt from "bcryptjs";
+
 import { formatEuros } from "@/lib/utils";
+
+import { TEST_PASSWORD, TEST_PASSWORD_HASH } from "../fixtures/factories";
 
 describe("andamiaje de tests", () => {
   it("resuelve el alias @/ contra src/", () => {
@@ -29,6 +33,12 @@ describe("andamiaje de tests", () => {
 
     // Y en verano el desfase es de dos horas, no de una.
     expect(new Date(2026, 6, 1, 0, 0, 0).toISOString()).toBe("2026-06-30T22:00:00.000Z");
+  });
+
+  it("el hash fijo de los usuarios de test corresponde a TEST_PASSWORD", async () => {
+    // Si alguien cambia la contraseña y no el hash, el login del E2E falla sin explicar
+    // por qué.
+    expect(await bcrypt.compare(TEST_PASSWORD, TEST_PASSWORD_HASH)).toBe(true);
   });
 
   it("usa el sandbox público de Redsys y nunca el comercio real", () => {

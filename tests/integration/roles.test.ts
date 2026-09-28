@@ -64,6 +64,7 @@ function signedInAs(role: "ADMIN" | "WORKER") {
     isLoggedIn: true,
     email: `${role.toLowerCase()}@lounge.test`,
     role,
+    adminId: `sesion-de-${role.toLowerCase()}`,
   });
 }
 

@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma";
 import type { AdminRole } from "@/modules/auth/types";
 import { requireAdmin } from "@/lib/auth-guard";
+import { getSessionData } from "@/modules/auth/actions";
 
 export interface AdminUserData {
   id: string;
@@ -147,6 +148,22 @@ export async function updateUser(
       return { success: false, error: "Ya existe otro usuario con este email" };
     }
 
+    // Desde que la sesión se comprueba en cada petición (RCA-286, R1), quitar el rol
+    // surte efecto al instante: quitárselo al último ADMIN dejaría el panel sin nadie
+    // que pueda gestionar usuarios.
+    if (role !== "ADMIN") {
+      const target = await prisma.adminUser.findUnique({
+        where: { id },
+        select: { role: true },
+      });
+      if (
+        target?.role === "ADMIN" &&
+        (await prisma.adminUser.count({ where: { role: "ADMIN" } })) <= 1
+      ) {
+        return { success: false, error: "Tiene que quedar al menos un administrador" };
+      }
+    }
+
     // Prepare update data
     const updateData: {
       email: string;
@@ -190,6 +207,12 @@ export interface DeleteUserResult {
 export async function deleteUser(id: string): Promise<DeleteUserResult> {
   await requireAdmin();
   try {
+    // Borrarse a uno mismo cierra la sesión en el acto (RCA-286, R1), y si era el único
+    // ADMIN deja el panel sin nadie que pueda gestionar usuarios.
+    if (id === (await getSessionData()).adminId) {
+      return { success: false, error: "No puedes eliminar tu propio usuario" };
+    }
+
     // Check if user exists
     const user = await prisma.adminUser.findUnique({
       where: { id },

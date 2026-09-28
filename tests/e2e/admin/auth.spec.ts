@@ -1,21 +1,17 @@
 /**
- * Escenario 4: login, rate limit por IP y roles.
+ * Escenario 4: login, rate limit por IP, roles y revocación de la sesión.
  *
- * El rate limit vive en un `Map` en memoria del servidor y dura 15 minutos. Dos
- * consecuencias para estos tests:
- *
- * - Cada test que falla logins usa su propia IP en `x-forwarded-for`, que es de donde
- *   la action la saca. Sin eso, los fallos se acumularían sobre 127.0.0.1 —la IP del
- *   login del setup— y con un servidor reutilizado la siguiente ejecución no podría ni
- *   entrar.
- * - Las IPs llevan un componente aleatorio: el `Map` sobrevive entre ejecuciones mientras
- *   no se reinicie el servidor.
+ * El rate limit vive en la tabla `LoginAttempt` (RCA-286, R2), que `seedBaseline` vacía
+ * antes de cada test. Aun así, cada test que falla logins usa su propia IP en
+ * `x-forwarded-for`, que es de donde la action la saca: sin eso, los fallos se
+ * acumularían sobre 127.0.0.1, la IP del login del setup.
  */
 import { expect, test, type Browser } from "@playwright/test";
+import bcrypt from "bcryptjs";
 
 import { TEST_PASSWORD } from "../../fixtures/factories";
 import { WORKER_STATE } from "../support/auth";
-import { ADMIN_EMAIL, IDS, seedBaseline } from "../support/db";
+import { ADMIN_EMAIL, IDS, prisma, seedBaseline } from "../support/db";
 
 const NO_SESSION = { cookies: [], origins: [] };
 
@@ -101,6 +97,11 @@ test("5 fallos desde una IP la bloquean; desde otra se entra", async ({ browser 
   await other.context.close();
 });
 
+test("con la sesión abierta, el login lleva al panel", async ({ page }) => {
+  await page.goto("/admin/login");
+  await expect(page).toHaveURL(/\/admin$/);
+});
+
 test("ADMIN ve las cuatro secciones del panel", async ({ page }) => {
   await page.goto("/admin");
   for (const card of ["events", "reservations", "seats", "users"]) {
@@ -137,6 +138,30 @@ test.describe("como WORKER", () => {
       await expect(page.getByTestId("dashboard-reservations")).toBeVisible();
     });
   }
+
+  // La cookie dura 7 días, pero se comprueba contra la base en cada petición (RCA-286,
+  // R1). `seedBaseline` devuelve el hash de siempre, así que el siguiente test vuelve a
+  // tener sesión.
+  test("si le cambian la contraseña, su sesión cae al instante", async ({ page }) => {
+    await page.goto("/admin");
+    await expect(page.getByTestId("dashboard-reservations")).toBeVisible();
+
+    await prisma.adminUser.update({
+      where: { id: IDS.worker },
+      data: { password: await bcrypt.hash("otra-contrasena-cualquiera", 10) },
+    });
+
+    await page.goto("/admin/reservas");
+    await expect(page).toHaveURL("/admin/login");
+    await expect(page.getByTestId("login-submit")).toBeVisible();
+  });
+
+  test("si borran su usuario, su sesión cae al instante", async ({ page }) => {
+    await prisma.adminUser.delete({ where: { id: IDS.worker } });
+
+    await page.goto("/admin");
+    await expect(page).toHaveURL("/admin/login");
+  });
 
   test("entra en el bloqueo de asientos, que sí es suyo", async ({ page }) => {
     await page.goto(`/admin/reservas/${IDS.open}/bloquear`);
