@@ -13,7 +13,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { Event, Seat } from "@/generated/prisma";
+import type { AdminUser, Event, Seat } from "@/generated/prisma";
 import { getSessionData } from "@/modules/auth/actions";
 import { prisma } from "@/lib/prisma";
 import {
@@ -40,6 +40,15 @@ import {
   updateSeatPositions,
   updateZoneLabels,
 } from "@/modules/seating/actions";
+import {
+  changeUserPassword,
+  createUser,
+  deleteUser,
+  getAllUsers,
+  getUserById,
+  getUserForEdit,
+  updateUser,
+} from "@/modules/users/actions";
 
 import {
   at,
@@ -47,7 +56,9 @@ import {
   makeEvent,
   makeReservation,
   makeSeatStatuses,
+  makeAdmin,
   makeSeats,
+  TEST_PASSWORD,
 } from "../fixtures/factories";
 
 vi.mock("@/modules/auth/actions", () => ({ getSessionData: vi.fn() }));
@@ -70,6 +81,7 @@ function signedInAs(role: "ADMIN" | "WORKER") {
 
 let event: Event;
 let seats: Seat[];
+let staff: AdminUser;
 
 beforeEach(async () => {
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -77,6 +89,7 @@ beforeEach(async () => {
   event = await makeEvent({ eventDate: at(days(1)) });
   await makeSeatStatuses(event.id, seats);
   await makeReservation({ event, seats: [seats[0]], status: "CONFIRMED" });
+  staff = await makeAdmin({ role: "WORKER", email: "companero@lounge.test" });
 });
 
 afterEach(() => {
@@ -139,6 +152,28 @@ const ADMIN_ONLY: Record<string, () => Promise<unknown>> = {
     const d = at(0);
     return getMonthlyReportData(d.getFullYear(), d.getMonth() + 1);
   },
+  // Usuarios (P12). Antes no estaban aquí, aunque ya eran del ADMIN.
+  getAllUsers: () => getAllUsers(),
+  getUserById: () => getUserById(staff.id),
+  getUserForEdit: () => getUserForEdit(staff.id),
+  createUser: () =>
+    createUser({
+      email: "colado@lounge.test",
+      name: "Colado",
+      role: "ADMIN",
+      password: "una-contrasena-larga",
+      confirmPassword: "una-contrasena-larga",
+      currentPassword: TEST_PASSWORD,
+    }),
+  updateUser: () =>
+    updateUser(staff.id, { email: staff.email, name: "Otro nombre", role: "ADMIN" }),
+  changeUserPassword: () =>
+    changeUserPassword(staff.id, {
+      currentPassword: TEST_PASSWORD,
+      newPassword: "una-contrasena-larga",
+      confirmPassword: "una-contrasena-larga",
+    }),
+  deleteUser: () => deleteUser(staff.id),
 };
 
 /** Todo lo que esas acciones podrían haber cambiado. */
@@ -148,6 +183,7 @@ async function snapshot() {
     reservations: await prisma.reservation.count(),
     seats: await prisma.seat.findMany({ orderBy: { id: "asc" } }),
     zoneLabels: await prisma.zoneLabel.findMany(),
+    adminUsers: await prisma.adminUser.findMany({ orderBy: { id: "asc" } }),
   };
 }
 

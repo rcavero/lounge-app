@@ -1,6 +1,6 @@
 /**
  * La sesión del panel se comprueba contra la base (RCA-286, R1), el login tarda lo mismo
- * exista o no el email (R6), y el panel no se puede quedar sin ADMIN.
+ * exista o no el email (R6). Las reglas sobre usuarios están en `users.test.ts` (P12).
  *
  * La cookie de iron-session se sustituye por un objeto en memoria: lo que se prueba es
  * qué se guarda en ella al entrar y qué se decide al leerla, con la base de verdad.
@@ -13,7 +13,6 @@ import { prisma } from "@/lib/prisma";
 import { getSessionData, login } from "@/modules/auth/actions";
 import { passwordFingerprint } from "@/modules/auth/lib/session-data";
 import type { SessionData } from "@/modules/auth/types";
-import { deleteUser, updateUser } from "@/modules/users/actions";
 
 import { makeAdmin, TEST_PASSWORD } from "../fixtures/factories";
 
@@ -141,44 +140,5 @@ describe("getSessionData comprueba la cookie contra la base (R1)", () => {
 
   it("sin cookie, no hay sesión", async () => {
     expect(await getSessionData()).toMatchObject({ isLoggedIn: false, role: "WORKER" });
-  });
-});
-
-describe("el panel no se queda sin ADMIN", () => {
-  beforeEach(async () => {
-    await signIn(admin);
-  });
-
-  const asWorker = (user: AdminUser) => ({
-    email: user.email,
-    name: user.name,
-    role: "WORKER" as const,
-  });
-
-  it("no se le puede quitar el rol al último ADMIN", async () => {
-    expect(await updateUser(admin.id, asWorker(admin))).toEqual({
-      success: false,
-      error: "Tiene que quedar al menos un administrador",
-    });
-    expect(
-      (await prisma.adminUser.findUniqueOrThrow({ where: { id: admin.id } })).role,
-    ).toBe("ADMIN");
-  });
-
-  it("con otro ADMIN, sí", async () => {
-    await makeAdmin({ role: "ADMIN", email: "otro-admin@lounge.test" });
-    expect(await updateUser(admin.id, asWorker(admin))).toEqual({ success: true });
-  });
-
-  it("nadie se puede borrar a sí mismo", async () => {
-    expect(await deleteUser(admin.id)).toEqual({
-      success: false,
-      error: "No puedes eliminar tu propio usuario",
-    });
-    expect(await prisma.adminUser.count({ where: { id: admin.id } })).toBe(1);
-  });
-
-  it("borrar a otro usuario sigue funcionando", async () => {
-    expect(await deleteUser(worker.id)).toEqual({ success: true });
   });
 });
