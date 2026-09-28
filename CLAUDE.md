@@ -66,10 +66,11 @@ lounge-app/
 │   │   │   │   │       └── [reservationId]/    # Detalle reserva
 │   │   │   │   ├── asientos/       # Editor de asientos
 │   │   │   │   │   ├── page.tsx, client.tsx
-│   │   │   │   └── usuarios/       # Gestión de usuarios
-│   │   │   │       ├── page.tsx, user-form.tsx
+│   │   │   │   └── usuarios/       # Gestión de usuarios (punto 15)
+│   │   │   │       ├── page.tsx            # Listado, con «Tú» y los avisos ?aviso=
+│   │   │   │       ├── components/         # Formularios, modales (contraseña, confirmar) y campos
 │   │   │   │       ├── nuevo/      # Crear usuario
-│   │   │   │       └── [id]/       # Editar usuario
+│   │   │   │       └── [id]/       # Ficha: datos, contraseña y eliminar
 │   │   │   └── login/              # Página de login (pública)
 │   │   │       ├── page.tsx, client.tsx
 │   │   ├── eventos/[id]/           # Vista pública de evento (selección de asientos + pago) + loading.tsx
@@ -154,14 +155,18 @@ lounge-app/
 │   │   │   └── types/index.ts      # InitializePaymentResult, ReservationTicketData
 │   │   │
 │   │   └── users/
-│   │       └── actions/index.ts    # CRUD de usuarios
+│   │       ├── actions/index.ts    # CRUD de usuarios y changeUserPassword
+│   │       ├── domain/permissions.ts # Qué puede hacer un ADMIN con cada ficha (punto 15)
+│   │       ├── lib/validation.ts   # Email, nombre y contraseña. Módulo PLANO
+│   │       └── lib/reauth.ts       # La contraseña del ADMIN conectado. Módulo PLANO
 │   │
 │   ├── shared/                     # Componentes y utilidades compartidas
 │   │   ├── components/
 │   │   │   ├── header.tsx          # Header público
 │   │   │   ├── footer.tsx          # Footer público
 │   │   │   ├── logo.tsx            # Logo de la app
-│   │   │   └── info-banner.tsx     # Banner informativo bilingüe (cierra con X)
+│   │   │   ├── info-banner.tsx     # Banner informativo bilingüe (cierra con X)
+│   │   │   └── toast.tsx           # Toast propio, useToast y FlashToast (?aviso=)
 │   │   └── hooks/
 │   │       ├── index.ts
 │   │       └── use-reservation-store.ts  # Store de reservas (Zustand)
@@ -590,7 +595,7 @@ npm run db:whoami:testing   # SIEMPRE antes de tocar una base remota
     - Con `loading.tsx`, `notFound()` responde **200** con la pantalla de 404, porque el streaming ya ha empezado. No es un fallo: lo que cuenta es que no sale ningún dato.
 
 14. **Sesión revocable, login y datos privados** (septiembre 2026, RCA-286 y RCA-275).
-    - **La sesión se comprueba contra la base en cada petición del panel** (`auth/lib/session-data.ts`, con `cache()` de React). Al entrar, la cookie guarda una huella del hash de la contraseña. Si el usuario ya no existe o la huella no coincide, no hay sesión. El rol se lee siempre de la base. Borrar a un usuario, cambiarle el rol o la contraseña surte efecto **al instante**; por eso `updateUser` no deja sin ADMIN al panel y `deleteUser` no deja borrarse a uno mismo.
+    - **La sesión se comprueba contra la base en cada petición del panel** (`auth/lib/session-data.ts`, con `cache()` de React). Al entrar, la cookie guarda una huella del hash de la contraseña. Si el usuario ya no existe o la huella no coincide, no hay sesión. El rol se lee siempre de la base. Borrar a un usuario, cambiarle el rol o la contraseña surte efecto **al instante**; por eso el último ADMIN no se puede bajar de rol ni borrar (punto 15).
     - **El middleware ya no manda de `/admin/login` a `/admin`**: solo ve la cookie, y con una que la base rechaza habría un bucle. Lo hace la página del login; el layout del panel manda al login si la sesión no vale.
     - **Sin sesión, `requireAuth` y `requireAdmin` hacen `redirect("/admin/login")`, no lanzan.** En una navegación con `<Link>` el layout no se vuelve a pintar, solo la página, así que la redirección del layout no basta. Con un error, un WORKER revocado veía «Application error» (lo encontró Ramón en la preview). Un WORKER con sesión que llama a una acción del ADMIN sigue recibiendo `Forbidden`.
     - **Los usuarios de test llevan un hash fijo (`TEST_PASSWORD_HASH`)**: el E2E resiembra antes de cada test, y un hash nuevo invalidaría las sesiones del setup.
@@ -598,3 +603,11 @@ npm run db:whoami:testing   # SIEMPRE antes de tocar una base remota
     - **`initializeSeatsForEvent` está en `seating/lib/`**, fuera de `"use server"`, como confirmar y cancelar.
     - **Cabeceras de seguridad** en `next.config.ts`: `frame-ancestors 'none'`, `X-Frame-Options` y tres más. Sin CSP de scripts, a propósito (ver `docs/seguridad.md`).
     - **Nada privado en el árbol**: ni el FUC de producción, ni correos de terceros, ni claves, ni contraseñas. `tests/unit/no-private-data.test.ts` lo vigila por huella SHA-256; si hay que añadir un dato a la lista negra, se añade su huella, **nunca el valor**. El seed saca el primer ADMIN de `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`. Los commits antiguos sí conservan esos datos: el propietario decidió no reescribir el historial.
+
+15. **Usuarios del panel** (septiembre 2026, P12). Todo es del ADMIN, y dentro de eso manda `users/domain/permissions.ts`, que usan la página y las acciones:
+    - **Otro ADMIN es de solo lectura**: ni datos, ni rol, ni contraseña, ni borrarlo. Si se le pudiera quitar el rol, se le podría degradar y después cambiarle la contraseña: cualquier regla sobre admins se saltaría en dos pasos. **Uno mismo** y **los WORKER**, todo.
+    - **El último ADMIN** no se puede bajar a WORKER ni borrar. Puede pulsar «Eliminar mi cuenta», y un toast le explica por qué no.
+    - **Piden la contraseña del ADMIN conectado** (`users/lib/reauth.ts`): cambiar cualquier contraseña, dar el rol ADMIN (al crear o ascender) y borrarse a sí mismo. Tiene el límite del login con la clave `reauth:<id>`. Borrar un WORKER solo pide confirmar en el modal.
+    - **La contraseña se cambia solo con `changeUserPassword`**; `updateUser` ya no la acepta. Al cambiar la propia se renueva la huella de la cookie; si no, R1 cerraría la sesión de quien la cambia.
+    - **Validación** en `users/lib/validation.ts`, compartida por el formulario y la acción: de 8 caracteres a **72 bytes** (bcrypt descarta el resto sin avisar), y la repetición tiene que coincidir.
+    - **Avisos**: `shared/components/toast.tsx`, sin librería. Tras navegar, con `?aviso=<código>` y `FlashToast`, que limpia la URL. Los errores de validación se quedan junto al formulario.

@@ -13,6 +13,13 @@ entrega del máster y todavía no se ha fusionado. Lo que solo está en `academi
 ### Solo en `academic` (entrega del máster)
 
 #### Seguridad
+- Usuarios del panel (P12):
+  - la ficha de otro ADMIN es de solo lectura;
+  - cambiar cualquier contraseña, dar el rol de ADMIN y borrarse a sí mismo piden la contraseña
+    del ADMIN conectado;
+  - el último ADMIN no se puede bajar de rol ni borrar;
+  - la contraseña nueva se escribe dos veces y no puede pasar de 72 bytes, el límite de bcrypt;
+  - las acciones de usuarios entran en el test de roles.
 - La sesión del panel se comprueba contra la base en cada petición. Borrar a un usuario, quitarle
   el rol o cambiarle la contraseña le cierra la sesión al instante, sin esperar los 7 días de la
   cookie. El panel no deja quitarle el rol al último ADMIN ni borrarse a uno mismo. (RCA-286)
@@ -36,6 +43,12 @@ entrega del máster y todavía no se ha fusionado. Lo que solo está en `academi
   `npm start` en local arrancaba contra la base de producción.
 - Entornos aislados: un fichero `.env` por base de datos, con `DB_ENV`, y scripts que abortan si
   el entorno cargado no es el esperado. `.env` deja de apuntar a producción.
+
+#### Cambiado
+- Las pantallas de usuarios siguen el estilo del resto del panel:
+  - la ficha tiene tres bloques, datos, contraseña y eliminar;
+  - la contraseña se cambia con un botón y un modal, no con un campo vacío;
+  - hay avisos (toast) al crear, guardar, cambiar la contraseña y eliminar.
 
 #### Corregido
 - **Un pago que llegaba con la reserva caducada se cobraba sin asientos.** Ahora recupera esos

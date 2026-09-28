@@ -69,7 +69,17 @@ producción y siete días de vida. **No es la verdad durante esos siete días**:
 (`auth/lib/session-data.ts`) relee al usuario en la base en cada petición del panel. Si lo han
 borrado, o su contraseña ya no es la de cuando entró, no hay sesión, y el rol se lee siempre de
 la base. Para lo de la contraseña, la cookie guarda una huella del hash, no el hash. Como el cambio
-es instantáneo, el panel no deja quitarle el rol al último ADMIN ni borrarse a uno mismo.
+es instantáneo, el panel no deja bajar de rol ni borrar al último ADMIN.
+
+**Entre administradores** (P12), la regla la decide una sola función, `users/domain/permissions.ts`,
+que usan la página y las acciones:
+
+- La ficha de otro ADMIN es de solo lectura. Si se le pudiera quitar el rol, se le podría degradar
+  y luego cambiarle la contraseña o borrarlo.
+- Tres acciones piden otra vez la contraseña del ADMIN conectado: cambiar cualquier contraseña,
+  dar el rol de ADMIN y borrarse a sí mismo. Así una sesión que se ha quedado abierta no basta.
+  Esa comprobación tiene el mismo límite que el login (5 fallos, 15 minutos), con su propia clave
+  por usuario.
 
 Las contraseñas se guardan con bcrypt (coste 10). El login da el mismo mensaje, y tarda lo mismo,
 si el email no existe que si la contraseña es incorrecta: en los dos casos calcula bcrypt. Tras 5

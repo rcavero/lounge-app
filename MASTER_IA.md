@@ -1010,6 +1010,71 @@ En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiemb
 
 ---
 
+## Paso P12 — Usuarios del panel (RCA-287) · EJECUTADO, pendiente de la preview
+
+28 de septiembre. Lo pidió Ramón: revisar `/admin/usuarios` en cinco puntos.
+
+1. Una interfaz coherente con el resto del panel.
+2. Un alta con buenas prácticas, con la contraseña repetida.
+3. Cambiar la contraseña con un botón y un modal que pida la del admin, con reglas entre administradores.
+4. Avisos en cada acción.
+5. Que el último ADMIN no se pueda borrar.
+
+Se hizo con un plan previo aprobado, y con un solo push.
+
+### P12.1 Lo que había
+
+- **Cualquier ADMIN podía editar, degradar, cambiar la contraseña o borrar a otro ADMIN.** Degradándolo primero a WORKER, cualquier regla sobre admins se saltaba en dos pasos.
+- **La contraseña se cambiaba en un input vacío del formulario** («dejar vacío para mantener»), sin repetirla y sin confirmar nada.
+- **Las acciones de usuarios no estaban en `roles.test.ts`**, aunque CLAUDE.md decía que el panel entero lo estaba. Nadie lo había contrastado.
+- **Ningún aviso de éxito**, y botones y modal distintos de los de eventos.
+
+### P12.2 Qué decidió Ramón y qué decidió la IA
+
+- **Ramón**, con opciones de la IA y la recomendada marcada, que eligió en los cuatro casos:
+  - otro ADMIN, solo lectura;
+  - la contraseña del admin conectado también para dar el rol ADMIN y para borrarse a sí mismo;
+  - un WORKER no cambia su propia contraseña;
+  - toast propio.
+- **Ramón, en el propio encargo:** un admin puede borrarse, salvo que sea el último. Choca con la guarda de P11 «nadie se borra a sí mismo», así que la sustituye.
+- **La IA, en lo técnico:**
+  - una sola función de permisos para la página y las acciones;
+  - el límite de 72 bytes de bcrypt;
+  - el límite de intentos también en la reautenticación;
+  - renovar la huella de la cookie al cambiar la propia contraseña;
+  - navegar con recarga tras guardar, porque el rol cambia la ficha;
+  - el diseño de los tres bloques y de los modales, sobre el de eventos.
+
+### P12.3 Desvíos y tropiezos
+
+1. **El guardarraíl de P11 cazó a la IA.** En un test de validación usó como ejemplo de contraseña de 8 caracteres la del antiguo seed, y `no-private-data.test.ts` lo marcó como «contraseña del antiguo seed». Se cambió por otra. Es justo el caso para el que se escribió. Volvió a saltar al escribir esta misma sección, que citaba la contraseña para contarlo.
+2. **El mismo error de P11 con `git rm`.** Otra vez: el borrado de `user-form.tsx`, hecho a mitad de trabajo, entró en el primer commit. Se rehicieron los cinco commits locales antes del push, y queda anotado para no repetirlo.
+3. **El test del toast se colgaba.** No eran los temporizadores falsos: en el test, `useRouter()` devolvía un objeto nuevo en cada render, y `FlashToast` entraba en bucle. Se arregló en el componente, no solo en el test: cada aviso se atiende una sola vez.
+4. **Un E2E más de lo previsto:** el ascenso de un WORKER, que es el otro camino que usa el modal de contraseña.
+
+### P12.4 Cómo se comprobó
+
+- **Mutaciones en el servidor**, que se ponen en rojo y vuelven a verde al restaurar:
+  - otro ADMIN editable: 4 tests en rojo;
+  - sin reautenticación al cambiar una contraseña: 2;
+  - sin renovar la huella propia: 1.
+- **E2E de usuarios (8), todo con clics**, y con los logs del servidor revisados: ningún error durante la ejecución (lección de P11).
+- **Capturas en móvil (412 px)** del listado, el alta, la ficha de un WORKER, el modal, la cuenta propia y la de otro ADMIN, revisadas antes de commitear. De ahí salió poner en rojo «No coinciden», que antes salía en gris.
+- **Suites:** 389 unitarios y de componentes, 231 de integración y 62 E2E. Lint y typecheck limpios.
+- **Pendiente:** la verificación de Ramón en la preview (ver «Lo que hay que verificar a mano», punto 8).
+
+### P12.5 Impacto en producción
+
+- **Sin migración:** la reautenticación usa la tabla `LoginAttempt` de P11.
+- **Cambia la forma de trabajar de quien gestiona usuarios**, que en producción es la dueña:
+  - no puede editar a otro admin;
+  - la contraseña se cambia con el botón «Cambiar contraseña»;
+  - crear o ascender a un admin le pedirá su contraseña.
+
+  Avisarla al fusionar.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -1252,6 +1317,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P9**~~ | ~~Documentación. El CHANGELOG, el último.~~ **Hecho.** Sacó tres fallos de seguridad, ya arreglados (P9.1), y el error de `.env.production` (P9.2). Ver P9 | — | 10 · Fase 7, 14 · Seguridad |
 | ~~**P10**~~ | ~~Presentación. Las capturas, después de P8.~~ **Hecho**: 26 diapositivas, en Presentaciones de Google. Ver P10 | — | 11 · Fase 8 |
 | ~~**P11**~~ | ~~Seguridad antes de la entrega: la contraseña del seed, los datos privados del árbol y R1, R2, R5, R6 y R7.~~ **Hecho**, y verificado en la preview. Ver P11 | Sesión del panel | RCA-275, RCA-286 |
+| **P12** | Usuarios del panel: permisos entre admins, contraseñas con reautenticación, alta con repetición y avisos. **Hecho**, pendiente de la preview. Ver P12 | Panel | RCA-287 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
@@ -1284,6 +1350,14 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
      - las cabeceras, con `curl` contra la preview;
      - el informe de importes contra testing: 80 reservas, 0 sin precio unitario y 0 con el total distinto del desglose;
      - el CI #29 y el #30, en verde.
+8. **P12, en la preview de `academic`:**
+   - crear un WORKER, con la repetición mal y luego bien, y un ADMIN, con el modal de contraseña;
+   - cambiar la contraseña de un WORKER y la propia (tras cambiar la propia sigue dentro);
+   - ver la ficha de otro ADMIN, en solo lectura;
+   - ascender a un WORKER;
+   - borrar a un WORKER;
+   - intentar borrarse siendo el último ADMIN;
+   - en el móvil, que cada acción dé su aviso.
 
 ---
 

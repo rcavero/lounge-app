@@ -102,7 +102,8 @@ puede esquivar llamando directamente a una acción:
 | Crear, editar y borrar eventos; sugerencias de ESPN | ✓ | |
 | Mover asientos y carteles del plano | ✓ | |
 | Informes mensuales en PDF | ✓ | |
-| Gestionar usuarios | ✓ | |
+| Gestionar usuarios: los WORKER y su propia cuenta | ✓ | |
+| La cuenta de otro ADMIN | Solo verla | |
 
 La sesión es una cookie cifrada con `iron-session`: `httpOnly`, `sameSite=lax`, siete días de
 vida y `secure` en producción. La contraseña se guarda con bcrypt. El login limita los intentos
