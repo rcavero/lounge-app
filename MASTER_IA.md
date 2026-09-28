@@ -1010,7 +1010,7 @@ En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiemb
 
 ---
 
-## Paso P12 — Usuarios del panel (RCA-287) · EJECUTADO, pendiente de la preview
+## Paso P12 — Usuarios del panel (RCA-287) · EJECUTADO
 
 28 de septiembre. Lo pidió Ramón: revisar `/admin/usuarios` en cinco puntos.
 
@@ -1061,7 +1061,7 @@ Se hizo con un plan previo aprobado, y con un solo push.
 - **E2E de usuarios (8), todo con clics**, y con los logs del servidor revisados: ningún error durante la ejecución (lección de P11).
 - **Capturas en móvil (412 px)** del listado, el alta, la ficha de un WORKER, el modal, la cuenta propia y la de otro ADMIN, revisadas antes de commitear. De ahí salió poner en rojo «No coinciden», que antes salía en gris.
 - **Suites:** 389 unitarios y de componentes, 231 de integración y 62 E2E. Lint y typecheck limpios.
-- **Pendiente:** la verificación de Ramón en la preview (ver «Lo que hay que verificar a mano», punto 8).
+- **En la preview:** Ramón lo verificó entero, con todo correcto (ver «Lo que hay que verificar a mano», punto 8).
 
 ### P12.5 Impacto en producción
 
@@ -1317,7 +1317,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P9**~~ | ~~Documentación. El CHANGELOG, el último.~~ **Hecho.** Sacó tres fallos de seguridad, ya arreglados (P9.1), y el error de `.env.production` (P9.2). Ver P9 | — | 10 · Fase 7, 14 · Seguridad |
 | ~~**P10**~~ | ~~Presentación. Las capturas, después de P8.~~ **Hecho**: 26 diapositivas, en Presentaciones de Google. Ver P10 | — | 11 · Fase 8 |
 | ~~**P11**~~ | ~~Seguridad antes de la entrega: la contraseña del seed, los datos privados del árbol y R1, R2, R5, R6 y R7.~~ **Hecho**, y verificado en la preview. Ver P11 | Sesión del panel | RCA-275, RCA-286 |
-| **P12** | Usuarios del panel: permisos entre admins, contraseñas con reautenticación, alta con repetición y avisos. **Hecho**, pendiente de la preview. Ver P12 | Panel | RCA-287 |
+| **P12** | Usuarios del panel: permisos entre admins, contraseñas con reautenticación, alta con repetición y avisos. **Hecho**, y verificado en la preview. Ver P12 | Panel | RCA-287 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
@@ -1350,14 +1350,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
      - las cabeceras, con `curl` contra la preview;
      - el informe de importes contra testing: 80 reservas, 0 sin precio unitario y 0 con el total distinto del desglose;
      - el CI #29 y el #30, en verde.
-8. **P12, en la preview de `academic`:**
-   - crear un WORKER, con la repetición mal y luego bien, y un ADMIN, con el modal de contraseña;
-   - cambiar la contraseña de un WORKER y la propia (tras cambiar la propia sigue dentro);
-   - ver la ficha de otro ADMIN, en solo lectura;
-   - ascender a un WORKER;
-   - borrar a un WORKER;
-   - intentar borrarse siendo el último ADMIN;
-   - en el móvil, que cada acción dé su aviso.
+8. ~~**P12, en la preview de `academic`**: alta de un WORKER y de un ADMIN, cambio de contraseñas, la ficha de otro ADMIN, ascenso, borrado, el último ADMIN y los avisos en el móvil.~~ **Hecho por Ramón el 28 de septiembre, con todo correcto.** CI #31, en verde.
 
 ---
 
