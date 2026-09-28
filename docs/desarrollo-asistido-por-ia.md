@@ -137,8 +137,9 @@ Contarlos es el objetivo de este documento, no un gesto de humildad.
 | 10 | **Borró parte de `node_modules`** al limpiar un worktree temporal con un enlace a la carpeta real | La propia IA, al revisar. Lo contó sin esperar a que se notara, restauró y lo dejó como regla |
 | 11 | **Eligió `.env.production` como nombre** del fichero de producción, sin comprobar que Next lo carga solo al arrancar. Lo vio a medias en P5, protegió solo los tests y no avisó | Escribir la documentación de entornos, comprobando qué carga cada comando |
 | 12 | En el borrador de la arquitectura afirmó tres cosas falsas: que Zustand no se usaba, que la web solo estaba en español y que en las previews no llega el webhook | Contrastar cada afirmación con el código antes de commitear |
+| 13 | Dio por «ruido» los `Unauthorized` que aparecían en el servidor durante el E2E al revocar una sesión, sin comprobar qué veía el usuario: al pulsar un enlace del panel salía la pantalla de error de Next | **Ramón**, probándolo en la preview como lo haría un usuario (P11) |
 
-**El patrón es el titular: los doce los detectó una comprobación posterior, nunca el
+**El patrón es el titular: los trece los detectó una comprobación posterior, nunca el
 razonamiento previo.** El sexto, el único que habría tocado producción directamente, lo paró una
 persona. Y el undécimo, el más cercano a producción después de ese, lo destapó el propio proceso
 de documentar.

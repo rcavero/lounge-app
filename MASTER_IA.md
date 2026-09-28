@@ -943,6 +943,36 @@ En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiemb
   Se corrigió en el origen, no a mano sobre la copia: más margen, textos más cortos e IBM Plex Mono, que no tiene ligaduras. Después se volvió a exportar.
 - **La segunda conversión, ya como presentación nativa de Google**, se revisó entera otra vez. Estaba bien.
 
+### P10.4 Revisión del 29 de septiembre, tras P11 y P12
+
+Ramón pidió revisar el deck entero con los cambios de P11 y P12. Queda en 33 diapositivas, desde 26. Se editó el Artifact, que es el origen; la copia de Google se sustituye exportándolo otra vez.
+
+- **El panel pasa de 2 diapositivas a 5,** a propuesta de la IA y con la decisión de Ramón:
+  - los dos roles, con sus menús;
+  - una diapositiva por módulo: reservas, eventos, asientos y usuarios.
+- **Capturas nuevas del panel,** en la preview de `academic`:
+  - Ramón abrió la sesión a mano, como ADMIN y como WORKER, y un script temporal solo navegó y capturó;
+  - las primeras salieron con los skeletons, porque `networkidle` llega antes que el streaming, y se repitieron esperando a que no quedara ninguno;
+  - el editor del plano se capturó entero, porque el de P10 cortaba TV3.
+- **El FUC de producción salía en dos capturas del cliente,** en el recibo de la confirmación. Se tapó con un recuadro de «oculto», coherente con haberlo sacado del repositorio en P11.
+- **Tres diapositivas técnicas nuevas:**
+  - la organización del código;
+  - las tecnologías y librerías, con sus versiones de `package.json`;
+  - la seguridad tras P11 y P12.
+- **Al día:**
+  - las cifras: 389 unitarios y de componentes, 231 de integración, 62 E2E, y la cobertura;
+  - los pasos, de P0 a P12;
+  - los hallazgos;
+  - los errores de la IA, que pasan a 13 por decisión de Ramón. El 13 es el de P11, y está también en `docs/desarrollo-asistido-por-ia.md`.
+- **«Quién decidió qué»,** con el énfasis que pidió Ramón: las decisiones son suyas, y la IA las asiste con opciones, planes y verificación.
+- **El cierre:** lo que se resolvió al final, lo que sigue abierto, y la v3 que pidió Ramón:
+  - un editor de asientos completo;
+  - la configuración del comercio: nombre, logo y plano;
+  - tema oscuro o claro;
+  - español o inglés;
+  - el color corporativo.
+- **Revisado con Chrome** en el Artifact, diapositiva a diapositiva. Al comprobar el texto del editor del plano se corrigió una afirmación: «Resetear» vuelve a las posiciones por defecto, no a la última versión guardada.
+
 ## Paso P11 — Seguridad antes de la entrega (RCA-275 y RCA-286) · EJECUTADO
 
 28 de septiembre. Las dos tarjetas que quedaban abiertas. RCA-275 era la contraseña del seed y los datos de terceros; RCA-286, los cinco riesgos residuales que salieron al escribir `seguridad.md` en P9. Se trabajó con un plan previo, aprobado por Ramón, y con un solo push al final, por el límite de almacenamiento de funciones de Vercel.
