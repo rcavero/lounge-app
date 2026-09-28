@@ -3,8 +3,8 @@
  * ¿Contra qué base de datos estoy trabajando?
  *
  * Antes de aplicar una migración o lanzar el sync hay que estar seguro del
- * entorno: `.env` apunta a producción y `.env.testing` a testing, así que un
- * despiste escribe en la base de datos real.
+ * entorno: `.env` es el Docker local, `.env.testing` testing y `.env.prod`
+ * producción, y un despiste con el `-e` de dotenv escribe en la base real.
  *
  * Solo lee. Nunca imprime credenciales: del DATABASE_URL únicamente extrae el
  * identificador del proyecto Supabase, que no es secreto.

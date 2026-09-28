@@ -7,12 +7,10 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("🌱 Seeding database...");
 
-  // Teams are synced from football-data.org API (run "Sincronizar equipos" from /admin/eventos/sugerencias)
+  // Teams are synced from the ESPN API (run "Sincronizar equipos" from /admin/eventos/sugerencias)
   // No hardcoded teams — the API is the single source of truth.
 
-  console.log(
-    `ℹ️  Teams are managed via football-data.org API sync. Skipping team creation.`,
-  );
+  console.log(`ℹ️  Teams are managed via the ESPN API sync. Skipping team creation.`);
 
   // Note: Demo events are not created here. Use the Suggestions page to create events from API matches.
 
@@ -42,17 +40,31 @@ async function main() {
     console.log(`✅ Created ${SEED_SEATS.length} seats`);
   }
 
-  // Create Admin User
-  const hashedPassword = await bcrypt.hash("12345678", 12);
-  await prisma.adminUser.upsert({
-    where: { email: "ramoncaveroaras@gmail.com" },
-    update: {},
-    create: {
-      email: "ramoncaveroaras@gmail.com",
-      password: hashedPassword,
-    },
-  });
-  console.log("✅ Created admin user");
+  // El primer ADMIN sale del entorno, nunca del código (RCA-275): una contraseña escrita
+  // aquí queda en el historial de git para siempre. Sin las dos variables no se crea.
+  // `update: {}` a propósito: re-sembrar no cambia la contraseña de una cuenta que ya existe.
+  const adminEmail = process.env.SEED_ADMIN_EMAIL?.toLowerCase().trim();
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
+
+  if (!adminEmail || !adminPassword) {
+    console.log(
+      "ℹ️  Sin SEED_ADMIN_EMAIL y SEED_ADMIN_PASSWORD no se crea ningún administrador.",
+    );
+  } else if (adminPassword.length < 8) {
+    throw new Error("SEED_ADMIN_PASSWORD debe tener al menos 8 caracteres");
+  } else {
+    const hashedPassword = await bcrypt.hash(adminPassword, 10);
+    await prisma.adminUser.upsert({
+      where: { email: adminEmail },
+      update: {},
+      create: {
+        email: adminEmail,
+        password: hashedPassword,
+        role: "ADMIN",
+      },
+    });
+    console.log(`✅ Administrador ${adminEmail} listo`);
+  }
 
   console.log("🎉 Seeding completed!");
 }

@@ -133,7 +133,7 @@ npm ci
 cp .env.example .env        # y rellenar: DB_ENV=local, la URL de Docker, secretos de prueba
 npm run db:up               # Postgres 17 en el puerto 5433, con lounge_dev y lounge_test
 npm run db:deploy           # las migraciones, con su CHECK
-npm run db:seed             # los 47 asientos y un usuario administrador
+npm run db:seed             # los 47 asientos, y el primer ADMIN con SEED_ADMIN_EMAIL/PASSWORD
 npm run dev
 ```
 

@@ -68,7 +68,8 @@ cp .env.example .env     # la plantilla ya apunta al Postgres de Docker y al san
                          # solo hay que rellenar AUTH_SECRET (openssl rand -hex 32)
 npm run db:up            # Postgres 17 en el puerto 5433
 npm run db:deploy        # migraciones
-npm run db:seed          # los 47 asientos del local y un usuario administrador
+npm run db:seed          # los 47 asientos del local, y el primer administrador si en .env
+                         # están SEED_ADMIN_EMAIL y SEED_ADMIN_PASSWORD
 npm run dev              # http://localhost:3000
 ```
 
