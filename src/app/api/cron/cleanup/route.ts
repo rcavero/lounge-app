@@ -5,6 +5,7 @@ import {
   pendingExpiryCutoff,
 } from "@/modules/reservations/domain/expiry";
 import { expirePendingReservation } from "@/modules/reservations/lib/expire";
+import { deleteExpiredLoginAttempts } from "@/lib/rate-limit";
 
 export async function GET(request: Request) {
   // Verify the request is from Vercel Cron or has the correct secret
@@ -39,10 +40,14 @@ export async function GET(request: Request) {
       if (await expirePendingReservation(reservation.id)) expiredCount++;
     }
 
+    // Ventanas del límite de login ya vencidas: no bloquean a nadie, solo ocupan sitio
+    const deletedLoginAttempts = await deleteExpiredLoginAttempts(now);
+
     return NextResponse.json({
       success: true,
       deletedEvents: deletedEvents.count,
       expiredReservations: expiredCount,
+      deletedLoginAttempts,
       cutoffDate: retentionCutoff.toISOString(),
     });
   } catch (error) {

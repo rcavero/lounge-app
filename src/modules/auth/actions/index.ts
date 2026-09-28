@@ -14,7 +14,7 @@ export async function login(
   const headersList = await headers();
   const ip = headersList.get("x-forwarded-for")?.split(",")[0]?.trim() ?? "127.0.0.1";
 
-  if (isLoginBlocked(ip)) {
+  if (await isLoginBlocked(ip)) {
     return { error: "Demasiados intentos fallidos. Inténtalo de nuevo en 15 minutos." };
   }
 
@@ -30,18 +30,18 @@ export async function login(
   });
 
   if (!adminUser) {
-    recordFailedLogin(ip);
+    await recordFailedLogin(ip);
     return { error: "Credenciales incorrectas" };
   }
 
   const isValidPassword = await bcrypt.compare(password, adminUser.password);
 
   if (!isValidPassword) {
-    recordFailedLogin(ip);
+    await recordFailedLogin(ip);
     return { error: "Credenciales incorrectas" };
   }
 
-  clearLoginAttempts(ip);
+  await clearLoginAttempts(ip);
 
   const session = await getSession();
   session.isLoggedIn = true;

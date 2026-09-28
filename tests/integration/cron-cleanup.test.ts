@@ -51,6 +51,7 @@ async function snapshot() {
     events: await prisma.event.findMany({ orderBy: { id: "asc" } }),
     reservations: await prisma.reservation.findMany({ orderBy: { id: "asc" } }),
     seatStatuses: await prisma.seatStatus.findMany({ orderBy: { id: "asc" } }),
+    loginAttempts: await prisma.loginAttempt.findMany({ orderBy: { key: "asc" } }),
   };
 }
 
@@ -59,6 +60,9 @@ async function workToDo() {
   await makeReservation({ event, seats: [seats[0]], createdAt: at(-minutes(6)) });
   const old = await makeEvent({ title: "Partido viejo", eventDate: at(-days(91)) });
   await makeSeatStatuses(old.id, seats);
+  await prisma.loginAttempt.create({
+    data: { key: "203.0.113.7", count: 5, resetAt: at(-minutes(1)) },
+  });
 }
 
 describe("GET /api/cron/cleanup — autorización", () => {
@@ -248,5 +252,23 @@ describe("GET /api/cron/cleanup — eventos antiguos", () => {
     const body = await (await callCron(AUTHORIZED)).json();
 
     expect(body.cutoffDate).toBe(at(-days(90)).toISOString());
+  });
+});
+
+describe("GET /api/cron/cleanup — límite de login (RCA-286, R2)", () => {
+  it("borra las ventanas vencidas y deja las que siguen abiertas", async () => {
+    await prisma.loginAttempt.createMany({
+      data: [
+        { key: "203.0.113.7", count: 5, resetAt: at(-minutes(1)) },
+        { key: "198.51.100.23", count: 2, resetAt: at(minutes(10)) },
+      ],
+    });
+
+    const body = await (await callCron(AUTHORIZED)).json();
+
+    expect(body).toMatchObject({ success: true, deletedLoginAttempts: 1 });
+    expect(await prisma.loginAttempt.findMany({ select: { key: true } })).toEqual([
+      { key: "198.51.100.23" },
+    ]);
   });
 });
