@@ -2,7 +2,7 @@
 
 > **Plan original: 21 de septiembre de 2026.**
 >
-> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **P8** (estados de carga y animaciones) **y P9** (la documentación, y tres fallos de seguridad que sacó por el camino). Esas secciones
+> **Ejecutado: las fases −1, 0 y 1, y los pasos P2** (tests de caracterización), **P3** (tests de integración), **P4** (extracción de dominio), **P5** (E2E con Playwright), **P6** (CI y cobertura), **P7** (los tres fallos de dinero) **P8** (estados de carga y animaciones), **P9** (la documentación, y tres fallos de seguridad que sacó por el camino) **y P10** (la presentación). Esas secciones
 > describen **lo que realmente se hizo**, que en varios puntos no fue lo planeado. El resto del
 > texto es el plan tal como se concibió.
 >
@@ -908,6 +908,43 @@ En `main` y `testing` solo lo nombra un comentario de `scripts/backup-prod.ts`. 
 
 ---
 
+## Paso P10 — Presentación · EJECUTADO
+
+En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiembre. **El deck final es una presentación de Google en el Drive de Ramón**, de 26 diapositivas en 16:9: once de producto, ocho técnicas, cuatro de desarrollo con IA y tres de cierre. Se escribió como un Artifact de Claude y se exportó a PowerPoint, y de ahí a Presentaciones de Google. **Desde la conversión, la copia buena es la de Google.** Lo que se cambie allí no vuelve al Artifact.
+
+### P10.1 Las capturas (RCA-263)
+
+- **Decisión de Ramón:** en la preview de `academic` y no en local. Usó eventos y reservas de prueba creados por él, que se pueden enseñar enteros.
+  - Las pantallas principales salen de Spain – Croatia, con las reservas de Brais Moure y de Ramón Cavero.
+  - Scotland – Switzerland y Czechia – England son a la misma hora. Así el plano enseña el solape: 17 asientos ocupados.
+- **Con Playwright y no con el Chrome de Ramón.** La ventana maximizada no baja de unos 500 px y captura a 1×. Playwright emula el Pixel 10 que pidió Ramón (360 px a 3×, 1080 × 2196), y además tablet y escritorio.
+- **El panel, con una sesión que abrió Ramón a mano** en una ventana de Chromium, guardada solo en memoria. El script solo leía: no pulsó PAGAR, guardar ni borrar. La llave de la confirmación se leyó de testing en solo lectura y no se imprimió.
+- **Los tickets PDF de Descargas**, pasados a PNG con pdf.js. El QR solo lleva a la ficha de la reserva en el panel, que pide sesión.
+- **Sin captura de la pasarela de Redsys**, porque habría que pulsar PAGAR y crear una reserva.
+- **Decisión de Ramón:** el email de la cabecera del panel se queda en las capturas.
+- **Los scripts eran temporales** y se borraron al cerrar el paso: no están en el repositorio.
+
+### P10.2 Lo que salió al capturar
+
+- **La parte pública no es tan bilingüe como decía la documentación.** Con el navegador en inglés, la portada solo traduce el aviso. `useIsSpanish` cubre los textos que explican reglas: aviso, tooltip, condiciones, modal del nombre y reserva cerrada. Los títulos, la leyenda, la confirmación y el ticket están solo en español.
+  - El README, `arquitectura.md` y `CONTRIBUTING.md` decían más, y los había escrito la IA en P9.
+  - Corregido en `4c37ee0`.
+- **El 404 sin llave es el genérico de Next**, en blanco, y desentona con la app. No se ha tocado, porque cambia el producto. Queda como hallazgo menor, sin tarjeta.
+
+### P10.3 El deck y su conversión (RCA-264 a RCA-266)
+
+- **Estilo:** el de la propia app, negro cálido y dorado `#D4AF37`, con Oswald y DM Sans, que existen en Presentaciones de Google. Sin notas del orador.
+- **Cierre del bloque técnico:** la carrera de asientos, como pedía el plan.
+- **Primera conversión revisada con Chrome, diapositiva a diapositiva.** Presentaciones pinta esas tipografías con más interlineado, y las cajas conservan la altura del original:
+  - un título se montaba sobre su párrafo;
+  - la última línea del código se salía de su recuadro;
+  - en tres tarjetas el texto tocaba el borde.
+  - Además, JetBrains Mono convertía `!==` en una ligadura.
+  Se corrigió en el origen, no a mano sobre la copia: más margen, textos más cortos e IBM Plex Mono, que no tiene ligaduras. Después se volvió a exportar.
+- **La segunda conversión, ya como presentación nativa de Google**, se revisó entera otra vez. Estaba bien.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -1098,6 +1135,8 @@ Deck de ~20 diapositivas 16:9 publicado como Artifact (enlace propio, navegable 
 
 Antes de montarlo hay que capturar pantallas de la app desplegada en `academic`.
 
+> **Ejecutado en [Paso P10](#paso-p10--presentación--ejecutado).** Salieron 26 diapositivas y no unas 20, y el resultado final está en Presentaciones de Google, no como Artifact.
+
 ---
 
 ## Revisión de UI/UX — estados de carga
@@ -1146,7 +1185,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P7**~~ | Fallos de dinero: carrera de asientos (test que falla primero, luego el `where` con `AVAILABLE` y el `count`), pago tras expirar (RCA-276) y validación en servidor de `initializePayment` (RCA-277). **Una sola puerta de pago real para los tres.** Después, la decisión del hotfix a `main` (RCA-269, de Ramón) y los menores RCA-279 y RCA-274. **Hecho todo**, con el hotfix de la carrera en producción; ver P7 | **Dinero** | 12 · Carrera, RCA-276, RCA-277 |
 | ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, y comprobado en el móvil. Ver P8 | — | 13 · UI/UX |
 | ~~**P9**~~ | ~~Documentación. El CHANGELOG, el último.~~ **Hecho.** Sacó tres fallos de seguridad, ya arreglados (P9.1), y el error de `.env.production` (P9.2). Ver P9 | — | 10 · Fase 7, 14 · Seguridad |
-| **P10** | Presentación. Las capturas, después de P8 | — | 11 · Fase 8 |
+| ~~**P10**~~ | ~~Presentación. Las capturas, después de P8.~~ **Hecho**: 26 diapositivas, en Presentaciones de Google. Ver P10 | — | 11 · Fase 8 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
