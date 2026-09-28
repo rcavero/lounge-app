@@ -90,8 +90,9 @@ Y además, según lo que se toque:
 - **TypeScript estricto** y el formato de Prettier. No se discute: lo aplica el hook.
 - **Los comentarios explican el porqué**, no el qué, sobre todo donde una decisión no es obvia o
   ya costó un error. Muchos comentarios del código cuentan precisamente eso.
-- **La interfaz, los mensajes y la documentación, en español.** La parte pública también tiene
-  los textos en inglés.
+- **La interfaz, los mensajes y la documentación, en español.** En la parte pública, los textos
+  que explican reglas (avisos, condiciones, el modal del nombre) tienen también su versión en
+  inglés, con `useIsSpanish`. Un texto nuevo de ese tipo lleva las dos.
 - **La arquitectura que hay que respetar está en [`CLAUDE.md`](CLAUDE.md)**, que es también lo que
   lee la IA antes de tocar nada. Si un cambio la modifica, se actualiza ese fichero en el mismo
   commit.

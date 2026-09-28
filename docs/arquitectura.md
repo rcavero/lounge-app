@@ -206,10 +206,11 @@ secreto.
   enlace a la reserva en el panel, para que el personal la abra al escanearlo.
 - **Tras una acción que navega**, el botón se queda pendiente hasta que la navegación termina y
   solo se reactiva si hay error. Así un segundo toque no repite la acción.
-- **Dos idiomas en la parte pública.** La portada y la página del evento salen en español o en
-  inglés según el idioma del navegador (`useIsSpanish`). El servidor pinta siempre en español,
-  para que la hidratación coincida, y el cliente cambia a inglés justo después. El panel está
-  solo en español.
+- **Dos idiomas, solo en los textos que explican reglas.** El aviso de la portada, el tooltip de
+  un evento cerrado, las condiciones, el modal del nombre y el aviso de reserva cerrada salen en
+  español o en inglés según el idioma del navegador (`useIsSpanish`). El servidor pinta siempre
+  en español, para que la hidratación coincida, y el cliente cambia a inglés justo después. Los
+  títulos, la leyenda del plano, la confirmación, el ticket y el panel están solo en español.
 - **La selección de asientos** vive en un store de Zustand (`use-reservation-store.ts`) mientras
   el cliente elige. Lo demás se lee del servidor en cada pantalla.
 

@@ -14,8 +14,9 @@ dominio, los fallos que esos tests sacaron a la luz ya corregidos, y esta docume
 ## Qué hace
 
 **Para el cliente**
-- Portada con los partidos de los próximos días, con escudos y competición. En inglés o en
-  español, según el idioma del navegador.
+- Portada con los partidos de los próximos días, con escudos y competición. Los avisos, las
+  condiciones y el modal del nombre salen en inglés o en español, según el idioma del navegador;
+  los títulos, el plano, la confirmación y el ticket, solo en español.
 - Reservas abiertas **de 48 h a 4 h antes** de cada evento. Fuera de esa ventana la tarjeta del
   evento aparece bloqueada, y el servidor tampoco deja pagar.
 - Plano interactivo del local: cada asiento con su estado, y los asientos vendidos en un partido
