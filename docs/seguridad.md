@@ -57,7 +57,10 @@ llamando directamente a una acción:
 1. **`middleware.ts`**: sin cookie de sesión, `/admin` redirige al login. Solo ve la cookie; el
    layout del panel la comprueba contra la base y, si ya no vale, también manda al login.
 2. **Las páginas del ADMIN** llaman a `redirectUnlessAdmin()`.
-3. **Cada server action** exige `requireAuth()` o `requireAdmin()` como primera instrucción.
+3. **Cada server action** exige `requireAuth()` o `requireAdmin()` como primera instrucción. Sin
+   sesión, los dos mandan al login con `redirect`. No lanzan un error, porque en una navegación
+   con `<Link>` el layout no se vuelve a pintar y el usuario vería la pantalla de error de Next.
+   Con sesión pero sin rol, `requireAdmin` lanza `Forbidden`.
    `tests/integration/roles.test.ts` recorre las acciones del ADMIN con la sesión de un WORKER y
    con los guardias reales.
 

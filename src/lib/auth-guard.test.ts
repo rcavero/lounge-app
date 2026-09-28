@@ -11,8 +11,13 @@ import { redirectUnlessAdmin, requireAdmin, requireAuth } from "./auth-guard";
  * prueba `session.test.ts`, y el login de verdad el E2E).
  */
 vi.mock("@/modules/auth/actions", () => ({ getSessionData: vi.fn() }));
-// El redirect de verdad lanza una excepción especial de Next; aquí basta con saber a dónde.
-vi.mock("next/navigation", () => ({ redirect: vi.fn() }));
+// El redirect de verdad lanza una excepción especial de Next que corta la función; el
+// doble hace lo mismo, para que el test vea exactamente a dónde manda y que no sigue.
+vi.mock("next/navigation", () => ({
+  redirect: vi.fn((url: string) => {
+    throw new Error(`REDIRECT ${url}`);
+  }),
+}));
 const { redirect } = await import("next/navigation");
 
 const { getSessionData } = await import("@/modules/auth/actions");
@@ -30,9 +35,11 @@ beforeEach(() => {
 });
 
 describe("requireAuth", () => {
-  it("sin sesión lanza Unauthorized", async () => {
+  it("sin sesión manda al login, no lanza un error (RCA-286)", async () => {
+    // Un error saldría como la pantalla de error de Next en una navegación con <Link>,
+    // donde el layout que redirige no se vuelve a pintar.
     withSession({ isLoggedIn: false });
-    await expect(requireAuth()).rejects.toThrow("Unauthorized");
+    await expect(requireAuth()).rejects.toThrow("REDIRECT /admin/login");
   });
 
   it("con sesión deja pasar, sea cual sea el rol", async () => {
@@ -42,9 +49,9 @@ describe("requireAuth", () => {
 });
 
 describe("requireAdmin", () => {
-  it("sin sesión lanza Forbidden", async () => {
+  it("sin sesión manda al login, aunque la cookie dijera ADMIN", async () => {
     withSession({ isLoggedIn: false, role: "ADMIN" });
-    await expect(requireAdmin()).rejects.toThrow("Forbidden");
+    await expect(requireAdmin()).rejects.toThrow("REDIRECT /admin/login");
   });
 
   it("un WORKER con sesión no pasa", async () => {
@@ -61,8 +68,13 @@ describe("requireAdmin", () => {
 describe("redirectUnlessAdmin", () => {
   it("a un WORKER lo manda al menú", async () => {
     withSession({ isLoggedIn: true, role: "WORKER" });
-    await redirectUnlessAdmin();
+    await expect(redirectUnlessAdmin()).rejects.toThrow("REDIRECT /admin");
     expect(redirect).toHaveBeenCalledWith("/admin");
+  });
+
+  it("sin sesión, al login y no al menú", async () => {
+    withSession({ isLoggedIn: false });
+    await expect(redirectUnlessAdmin()).rejects.toThrow("REDIRECT /admin/login");
   });
 
   it("a un ADMIN lo deja pasar", async () => {

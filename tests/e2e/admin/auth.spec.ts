@@ -156,6 +156,26 @@ test.describe("como WORKER", () => {
     await expect(page.getByTestId("login-submit")).toBeVisible();
   });
 
+  // El caso que encontró Ramón en la preview: con el menú ya abierto, pulsar una tarjeta
+  // navega en el cliente, y el layout que redirige no se vuelve a pintar. Con el guardia
+  // lanzando un error, salía la pantalla «Application error».
+  test("con el panel abierto, al pulsar un enlace tras el cambio de contraseña va al login", async ({
+    page,
+  }) => {
+    await page.goto("/admin");
+    await expect(page.getByTestId("dashboard-reservations")).toBeVisible();
+
+    await prisma.adminUser.update({
+      where: { id: IDS.worker },
+      data: { password: await bcrypt.hash("otra-contrasena-cualquiera", 10) },
+    });
+
+    await page.getByTestId("dashboard-reservations").click();
+    await expect(page).toHaveURL("/admin/login");
+    await expect(page.getByTestId("login-submit")).toBeVisible();
+    await expect(page.getByText("Application error")).toHaveCount(0);
+  });
+
   test("si borran su usuario, su sesión cae al instante", async ({ page }) => {
     await prisma.adminUser.delete({ where: { id: IDS.worker } });
 

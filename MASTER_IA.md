@@ -980,16 +980,22 @@ En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiemb
 4. **Dos tropiezos, corregidos antes del push:**
    - el borrado del guion entró en el commit del seed, y se rehicieron los tres commits locales;
    - la migración se generó dos veces, y se borró la vacía.
-5. **Ruido conocido:** con una sesión revocada, el servidor registra un `Unauthorized`. La página empieza a pedir datos a la vez que el layout redirige, pero el usuario llega al login.
+5. **Un fallo que la IA dio por bueno y encontró Ramón en la preview.**
+   - **El síntoma:** con el panel ya abierto, a un WORKER se le cambió la contraseña y pulsó una tarjeta. Salió «Application error».
+   - **La causa:** en una navegación con `<Link>` el layout no se vuelve a pintar, solo la página, así que la redirección del layout no llegaba a ejecutarse. La página pedía datos, `requireAuth` lanzaba `Unauthorized` y Next pintaba su pantalla de error.
+   - **Por qué no lo vio el E2E:** cargaba la URL desde cero, con `page.goto`, y ahí el layout sí se ejecuta.
+   - **El error de la IA:** los `Unauthorized` del log del E2E estaban ahí, y los descartó como ruido sin comprobar qué veía el usuario.
+   - **El arreglo:** sin sesión, los guardias hacen `redirect("/admin/login")` en vez de lanzar.
+   - **La prueba:** un E2E nuevo pulsa el enlace, como hizo Ramón. Falla con el guardia anterior y pasa con el nuevo. Tras el arreglo, el servidor ya no registra ningún `Unauthorized`.
 
 ### P11.4 Cómo se comprobó
 
 - **Mutaciones sobre `auth-session.test.ts`**, con cuatro cambios a propósito: sin comparar la huella, con el rol leído de la cookie, sin bcrypt de relleno y sin la guarda del último ADMIN. Cada una pone en rojo al menos un test, y al restaurar vuelve a verde.
 - **El guardarraíl de datos**, con una mutación: un `.md` con el FUC lo pone en rojo, señalando el fichero y la línea, pero sin el valor.
 - **Suites:**
-  - 368 unitarios y de componentes;
+  - 369 unitarios y de componentes;
   - 210 de integración;
-  - 53 E2E, con dos pruebas nuevas de revocación, una del login con sesión y dos de cabeceras.
+  - 54 E2E, con tres pruebas nuevas de revocación (una con navegación en el cliente, añadida tras el fallo del punto 5), una del login con sesión y dos de cabeceras.
 - **Pendiente, en la preview tras el push** (ver «Lo que hay que verificar a mano», punto 7).
 
 ### P11.5 Impacto en producción al fusionar con `main`
