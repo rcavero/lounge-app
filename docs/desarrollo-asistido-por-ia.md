@@ -164,13 +164,14 @@ de documentar.
 
 Por honestidad, lo que este trabajo no ha resuelto:
 
-- **Los riesgos abiertos de [`seguridad.md`](seguridad.md)**, R1 a R8. El más relevante es que la
-  sesión del panel no se puede revocar. Están en Linear, pendientes de decisión.
+- **Los riesgos residuales de [`seguridad.md`](seguridad.md).** R1, R2 y R4 a R7 se cerraron antes de la
+  entrega (RCA-275 y RCA-286). Quedan, aceptados a propósito: cerrar sesión no invalida una
+  cookie robada, no hay CSP de scripts, y los datos de terceros siguen en commits antiguos.
 - **El incidente del 17 de julio de 2026.** En la apertura de reservas de la final del Mundial, el
   pool de conexiones a la base se agotó durante diez minutos. La IA analizó 1850 registros de
   Vercel y propuso un plan con prioridades: sacar escrituras de las páginas públicas, cachear
   lecturas y ajustar el pool. **Ese plan no se ha aplicado.** La página del evento sigue
   escribiendo en la base al abrirse, y el pago sigue usando una transacción interactiva, que el
   pooler lleva mal. Un pico parecido hoy podría repetirlo.
-- **La contraseña del seed y los datos de terceros en el historial**, que hay que resolver antes de
-  publicar el repositorio.
+- **Los datos de terceros siguen en commits antiguos.** Se quitaron del árbol, y un test impide que
+  vuelvan, pero el historial no se reescribió: lo decidió el propietario del repo.

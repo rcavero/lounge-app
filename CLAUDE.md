@@ -106,6 +106,7 @@ lounge-app/
 │   │   ├── auth/
 │   │   │   ├── actions/index.ts    # Server actions (login, logout)
 │   │   │   ├── lib/session.ts      # Configuración de sesión
+│   │   │   ├── lib/session-data.ts # La sesión comprobada contra la base (punto 14)
 │   │   │   └── types/index.ts      # Tipos (SessionData, AdminRole)
 │   │   │
 │   │   ├── football-data/          # Integración con la API de ESPN + deportes manuales
@@ -134,6 +135,7 @@ lounge-app/
 │   │   │
 │   │   ├── seating/
 │   │   │   ├── actions/index.ts    # Gestión de asientos y ZoneLabels
+│   │   │   ├── lib/initialize-seats.ts # Crea los SeatStatus de un evento. Módulo PLANO, no action
 │   │   │   ├── components/         # Componentes del mapa de asientos
 │   │   │   │   ├── floor-plan-map.tsx
 │   │   │   │   ├── floor-plan-view.tsx
@@ -355,6 +357,15 @@ model ZoneLabel {
 }
 ```
 
+### LoginAttempt
+```prisma
+model LoginAttempt {
+  key     String   @id // la IP
+  count   Int
+  resetAt DateTime // fin de la ventana de 15 minutos
+}
+```
+
 ---
 
 ## Patrones y Convenciones
@@ -478,7 +489,7 @@ npm run db:whoami:testing   # SIEMPRE antes de tocar una base remota
 
 2. **Decimal de Prisma**: No se puede serializar a cliente. Convertir a `Number()` antes de retornar.
 
-3. **Sesiones legacy**: Si la sesión no tiene `role`, se busca en BD automáticamente.
+3. **La cookie de sesión no es la verdad**: `getSessionData` relee al usuario en la base en cada petición (punto 14). Las cookies antiguas, sin rol o sin huella, ya no valen.
 
 4. **Navegación post-action**: Usar `window.location.href` para navegación confiable.
 
@@ -577,3 +588,12 @@ npm run db:whoami:testing   # SIEMPRE antes de tocar una base remota
     - **El nº de pedido no basta para abrir una reserva.** Sale del reloj y se adivina. Cada reserva lleva `accessToken`, aleatorio, que `initializePayment` mete en la URLOK y la URLKO (`&t=`). La ruta de retorno lo pasa a las páginas, y estas y `getReservationByOrderId` lo exigen. Las reservas anteriores tienen `NULL` y se abren sin él, porque sus URL ya estaban repartidas.
     - **`payments/actions` solo exporta `initializePayment` y `getReservationByOrderId`.** Confirmar y cancelar desde las páginas viven en `payments/lib/return-pages.ts`, y confirmar lleva dentro la guarda de producción. Un test comprueba la lista de exportaciones: si se añade una acción a ese fichero, que sea a propósito.
     - Con `loading.tsx`, `notFound()` responde **200** con la pantalla de 404, porque el streaming ya ha empezado. No es un fallo: lo que cuenta es que no sale ningún dato.
+
+14. **Sesión revocable, login y datos privados** (septiembre 2026, RCA-286 y RCA-275).
+    - **La sesión se comprueba contra la base en cada petición del panel** (`auth/lib/session-data.ts`, con `cache()` de React). Al entrar, la cookie guarda una huella del hash de la contraseña. Si el usuario ya no existe o la huella no coincide, no hay sesión. El rol se lee siempre de la base. Borrar a un usuario, cambiarle el rol o la contraseña surte efecto **al instante**; por eso `updateUser` no deja sin ADMIN al panel y `deleteUser` no deja borrarse a uno mismo.
+    - **El middleware ya no manda de `/admin/login` a `/admin`**: solo ve la cookie, y con una que la base rechaza habría un bucle. Lo hace la página del login; el layout del panel manda al login si la sesión no vale. Con una sesión revocada, el servidor registra un `Unauthorized` de la página, que empieza a pedir datos a la vez que el layout redirige: es ruido, no un fallo.
+    - **Los usuarios de test llevan un hash fijo (`TEST_PASSWORD_HASH`)**: el E2E resiembra antes de cada test, y un hash nuevo invalidaría las sesiones del setup.
+    - **El límite del login vive en la tabla `LoginAttempt`** (`lib/rate-limit.ts`), con una suma atómica en SQL. El cron de limpieza borra las ventanas vencidas. Con un email inexistente, el login calcula bcrypt igualmente.
+    - **`initializeSeatsForEvent` está en `seating/lib/`**, fuera de `"use server"`, como confirmar y cancelar.
+    - **Cabeceras de seguridad** en `next.config.ts`: `frame-ancestors 'none'`, `X-Frame-Options` y tres más. Sin CSP de scripts, a propósito (ver `docs/seguridad.md`).
+    - **Nada privado en el árbol**: ni el FUC de producción, ni correos de terceros, ni claves, ni contraseñas. `tests/unit/no-private-data.test.ts` lo vigila por huella SHA-256; si hay que añadir un dato a la lista negra, se añade su huella, **nunca el valor**. El seed saca el primer ADMIN de `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`. Los commits antiguos sí conservan esos datos: el propietario decidió no reescribir el historial.

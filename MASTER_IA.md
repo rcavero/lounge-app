@@ -943,6 +943,65 @@ En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiemb
   Se corrigió en el origen, no a mano sobre la copia: más margen, textos más cortos e IBM Plex Mono, que no tiene ligaduras. Después se volvió a exportar.
 - **La segunda conversión, ya como presentación nativa de Google**, se revisó entera otra vez. Estaba bien.
 
+## Paso P11 — Seguridad antes de la entrega (RCA-275 y RCA-286) · EJECUTADO
+
+28 de septiembre. Las dos tarjetas que quedaban abiertas. RCA-275 era la contraseña del seed y los datos de terceros; RCA-286, los cinco riesgos residuales que salieron al escribir `seguridad.md` en P9. Se trabajó con un plan previo, aprobado por Ramón, y con un solo push al final, por el límite de almacenamiento de funciones de Vercel.
+
+### P11.1 Qué decidió Ramón
+
+- **El historial de git no se reescribe y no se crea otro repositorio.** La IA recomendaba publicar una copia con el historial limpio en un repo nuevo. Ramón prefirió no tocar el repositorio: lo privado sale **del árbol actual** y no vuelve a entrar, y lo que quede en commits antiguos lo acepta.
+- **Qué sale del árbol:** el correo de la propietaria, el guion de la reunión del 19 de agosto y el FUC de producción. Primero decidió dejar el correo y el guion; después cambió de opinión e incluyó también el FUC. **El nombre de la propietaria se queda.**
+- **R2 va a la base**, con una migración nueva, en vez de aceptarlo como riesgo.
+- **La contraseña del seed** la usaba de verdad su cuenta en testing. La cambia él desde el panel. Autorizó comprobar producción en solo lectura.
+
+### P11.2 Qué quedó
+
+- **RCA-275:**
+  - Producción comprobada en solo lectura: ninguna de sus 3 cuentas usa la contraseña del seed. En testing coincidía la de Ramón, como él ya sabía.
+  - El seed saca el primer ADMIN de `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`, y sin ellas no crea ninguno. **De paso salió un fallo:** el seed creaba al usuario sin rol, así que era WORKER, el valor por defecto. Ahora es ADMIN.
+  - Del árbol salen el guion, el correo, el FUC de producción, la clave de football-data, los `CRON_SECRET` literales de las guías, el ref de Supabase de testing y la contraseña. **La clave, los `CRON_SECRET` y el ref no estaban en la tarjeta**: los encontró un barrido del historial completo.
+  - `tests/unit/no-private-data.test.ts` impide que vuelvan. Va por huella SHA-256, sin los valores, y con una lista blanca de correos.
+- **RCA-286:**
+  - **R1:** la sesión se comprueba contra la base en cada petición, con una huella de la contraseña en la cookie. De paso se añadieron dos guardas: no se le puede quitar el rol al último ADMIN ni borrarse a uno mismo.
+  - **R2:** tabla `LoginAttempt`, con una suma atómica.
+  - **R5:** cabeceras de seguridad.
+  - **R6:** siempre se calcula bcrypt.
+  - **R7:** `initializeSeatsForEvent` sale a `seating/lib/`.
+- **Lo que queda abierto a propósito** está en `seguridad.md`:
+  - cerrar sesión no invalida una cookie robada (R1');
+  - no hay CSP de scripts (R5');
+  - los datos en commits antiguos (R3 y R8).
+
+### P11.3 Qué se desvió del plan
+
+1. **R1 y R6 van en el mismo commit.** Los dos tocan `login` y se probaron juntos.
+2. **El E2E pedía un hash fijo.** Con la huella de la contraseña, la resiembra del E2E generaba un hash nuevo por test e invalidaba las sesiones del setup. Por eso existe `TEST_PASSWORD_HASH`, con un test que comprueba que corresponde a la contraseña.
+3. **El middleware cambió más de lo previsto.** Ya no redirige de `/admin/login` a `/admin`: con una cookie que la base rechaza, habría un bucle.
+4. **Dos tropiezos, corregidos antes del push:**
+   - el borrado del guion entró en el commit del seed, y se rehicieron los tres commits locales;
+   - la migración se generó dos veces, y se borró la vacía.
+5. **Ruido conocido:** con una sesión revocada, el servidor registra un `Unauthorized`. La página empieza a pedir datos a la vez que el layout redirige, pero el usuario llega al login.
+
+### P11.4 Cómo se comprobó
+
+- **Mutaciones sobre `auth-session.test.ts`**, con cuatro cambios a propósito: sin comparar la huella, con el rol leído de la cookie, sin bcrypt de relleno y sin la guarda del último ADMIN. Cada una pone en rojo al menos un test, y al restaurar vuelve a verde.
+- **El guardarraíl de datos**, con una mutación: un `.md` con el FUC lo pone en rojo, señalando el fichero y la línea, pero sin el valor.
+- **Suites:**
+  - 368 unitarios y de componentes;
+  - 210 de integración;
+  - 53 E2E, con dos pruebas nuevas de revocación, una del login con sesión y dos de cabeceras.
+- **Pendiente, en la preview tras el push** (ver «Lo que hay que verificar a mano», punto 7).
+
+### P11.5 Impacto en producción al fusionar con `main`
+
+| Cambio | Qué hacer |
+|---|---|
+| Migraciones `add_reservation_access_token` (ya pendiente) y `add_login_attempt` | Las dos son aditivas. `db:whoami:prod` y `db:deploy:prod` **antes** de desplegar |
+| La huella de la sesión | **Todo el personal vuelve a iniciar sesión una vez.** Fusionar fuera del horario de servicio y avisar |
+| Una consulta más por petición del panel | La parte pública no la hace: no suma al riesgo del incidente de julio |
+| `frame-ancestors 'none'` | Confirmar antes que nada incrusta la web del bar en un iframe |
+| `CRON_SECRET` de producción | Cambiarlo si fuera el literal de las guías antiguas |
+
 ---
 
 ## Fase 2 — Extracción de capa de dominio
@@ -1186,10 +1245,11 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, y comprobado en el móvil. Ver P8 | — | 13 · UI/UX |
 | ~~**P9**~~ | ~~Documentación. El CHANGELOG, el último.~~ **Hecho.** Sacó tres fallos de seguridad, ya arreglados (P9.1), y el error de `.env.production` (P9.2). Ver P9 | — | 10 · Fase 7, 14 · Seguridad |
 | ~~**P10**~~ | ~~Presentación. Las capturas, después de P8.~~ **Hecho**: 26 diapositivas, en Presentaciones de Google. Ver P10 | — | 11 · Fase 8 |
+| ~~**P11**~~ | ~~Seguridad antes de la entrega: la contraseña del seed, los datos privados del árbol y R1, R2, R5, R6 y R7.~~ **Hecho**, con la verificación en la preview pendiente. Ver P11 | Sesión del panel | RCA-275, RCA-286 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
-**Antes de publicar el repositorio**, con independencia del orden anterior: RCA-275, la contraseña del seed, que sigue pospuesta hasta que Ramón lo pida. El punto 6 de la verificación manual ya está hecho (28 de septiembre).
+**Antes de publicar el repositorio**: RCA-275 está hecho en P11. El historial no se reescribe, por decisión de Ramón. El punto 6 de la verificación manual ya está hecho (28 de septiembre).
 
 ---
 
@@ -1211,6 +1271,13 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 4. ~~Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.~~ **Hecho el 23 de septiembre**, en la preview de `academic`.
 5. ~~Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.~~ **Hecho en P5.5.**
 6. ~~Que `db:whoami:prod` sigue imprimiendo lo mismo al final de todo que al principio.~~ **Hecho el 28 de septiembre, tras P10, y correcto.** Coinciden el ref, las 5 migraciones, los asientos y los admins. Los eventos y las reservas bajaron. El punto de partida daba por hecho que solo podían subir, y no tuvo en cuenta que el cron de producción borra los eventos de más de 90 días con sus reservas. Se comprobó contra el volcado del 2 de septiembre que la bajada es exactamente eso, más lo creado desde entonces. Las cifras, en RCA-172. **Punto de partida tomado el 23 de septiembre, tras P5**, y guardado en la tarjeta de «09 · Fase 6» (RCA-172) y no aquí, porque los conteos de producción son datos del negocio. Las 5 migraciones de producción coinciden con las de `prisma/migrations/`. Al final tienen que coincidir el ref, las migraciones, los 47 asientos y los admins; eventos, reservas y equipos pueden subir, porque el bar sigue funcionando.
+7. **P11, en la preview de `academic` tras el push:**
+   - el login correcto y el fallido, y el bloqueo tras 5 fallos;
+   - con un WORKER abierto en otro navegador, cambiarle la contraseña desde el ADMIN: a la siguiente página sale al login;
+   - las cabeceras, con DevTools;
+   - **un pago real de prueba** hasta la confirmación, con la descarga del ticket;
+   - el informe mensual en PDF;
+   - `verify-management-fee.ts report` contra testing.
 
 ---
 
@@ -1223,7 +1290,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | Se "unifican" los `where` de confirmar y cancelar | Parecen iguales y no lo son | El escenario 8 de integración |
 | **La carrera de asientos es un bug real de producción** | El chequeo va fuera de la transacción | Arreglarlo en `academic` es correcto, pero decidir **aparte** si se porta a `main` como hotfix: afecta a clientes reales |
 | Tests dependientes del huso horario | `monthRange` usa constructores de fecha locales | `TZ` fijado en el config de Vitest, en el workflow y en Playwright |
-| El `Map` de `rate-limit` filtra entre tests | Estado de módulo compartido en el proceso | `vi.resetModules()` + import dinámico por test |
+| ~~El `Map` de `rate-limit` filtra entre tests~~ | ~~Estado de módulo compartido en el proceso~~ | **Ya no aplica desde P11**: el contador vive en la tabla `LoginAttempt`, que el `TRUNCATE` de cada test vacía |
 | El E2E se cuelga en `/admin/asientos` | `window.alert` nativo bloqueante | `page.on("dialog", …)` **antes** del clic |
 | `src/generated/prisma` no existe en CI | Está gitignoreado | `npx prisma generate` en los dos jobs |
 | Docker Desktop parado | Los tests de integración y E2E van contra el contenedor local | `npm run db:up` falla con un mensaje claro si el daemon no corre. En CI no aplica: usa `services: postgres` |

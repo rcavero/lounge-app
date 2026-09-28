@@ -13,6 +13,19 @@ entrega del máster y todavía no se ha fusionado. Lo que solo está en `academi
 ### Solo en `academic` (entrega del máster)
 
 #### Seguridad
+- La sesión del panel se comprueba contra la base en cada petición. Borrar a un usuario, quitarle
+  el rol o cambiarle la contraseña le cierra la sesión al instante, sin esperar los 7 días de la
+  cookie. El panel no deja quitarle el rol al último ADMIN ni borrarse a uno mismo. (RCA-286)
+- El límite de intentos del login se guarda en la base: en memoria era por instancia de Vercel y
+  se esquivaba. El login tarda lo mismo exista o no el email. (RCA-286)
+- Cabeceras de seguridad en todas las respuestas: la web no se puede incrustar en otra página.
+  (RCA-286)
+- `initializeSeatsForEvent` deja de ser una server action. (RCA-286)
+- El seed ya no lleva credenciales: el primer ADMIN sale de variables de entorno, y se crea como
+  ADMIN, no como WORKER. (RCA-275)
+- Fuera del árbol del repositorio: el correo de la propietaria, el guion de una reunión con ella, el
+  FUC de producción, claves y contraseñas de las guías antiguas. Un test impide que vuelvan.
+  (RCA-275)
 - El rol WORKER se comprueba en el servidor. Antes, 13 acciones y 8 páginas del ADMIN solo
   pedían sesión: por URL, un WORKER podía borrar eventos con sus reservas pagadas. (RCA-285)
 - Cada reserva lleva una llave aleatoria en las URL de vuelta del pago. Con el nº de pedido, que

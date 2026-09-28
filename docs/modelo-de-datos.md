@@ -1,12 +1,12 @@
 # Modelo de datos
 
 PostgreSQL en Supabase, con Prisma 6 como ORM. La fuente de verdad es
-[`prisma/schema.prisma`](../prisma/schema.prisma), más las seis migraciones de
+[`prisma/schema.prisma`](../prisma/schema.prisma), más las siete migraciones de
 [`prisma/migrations/`](../prisma/migrations/). Una de ellas añade un `CHECK` que el esquema de
 Prisma no sabe expresar. Este documento no repite cada campo: explica cómo encajan las piezas y
 qué reglas hay que respetar al tocarlas.
 
-## Las siete tablas
+## Las ocho tablas
 
 ```mermaid
 erDiagram
@@ -65,7 +65,7 @@ erDiagram
     }
 ```
 
-`AdminUser` y `ZoneLabel` no tienen relaciones y no salen en el diagrama.
+`AdminUser`, `ZoneLabel` y `LoginAttempt` no tienen relaciones y no salen en el diagrama.
 
 | Tabla | Qué es | Filas en producción |
 |---|---|---|
@@ -76,6 +76,7 @@ erDiagram
 | `Team` | Equipos sincronizados desde ESPN, con su escudo | Crece con el sync |
 | `AdminUser` | Personal del bar con acceso al panel, `ADMIN` o `WORKER` | Unas pocas |
 | `ZoneLabel` | Posición de los carteles `TV1`, `TV2` y `TV3` sobre el plano | Una por pantalla |
+| `LoginAttempt` | Fallos de login por IP en la ventana de 15 minutos (`lib/rate-limit.ts`) | Pocas: el cron borra las vencidas |
 
 ## La pieza central: `SeatStatus`
 
@@ -83,7 +84,7 @@ Un asiento no está libre u ocupado en general, sino **en un evento**. `SeatStat
 cruzada entre `Seat` y `Event`, y es la que se lee y se escribe en cada compra.
 
 - **Se crea tarde.** Las 47 filas de un evento se crean la primera vez que alguien abre su página
-  (`initializeSeatsForEvent`), no al crear el evento. Hasta entonces, un asiento sin fila se trata
+  (`initializeSeatsForEvent`, en `seating/lib/`), no al crear el evento. Hasta entonces, un asiento sin fila se trata
   como `AVAILABLE` (`seating/domain/availability.ts`).
 - **`@@unique([eventId, seatId])`**: un asiento tiene un único estado por evento. Es lo que
   impide que dos filas digan cosas distintas del mismo asiento.

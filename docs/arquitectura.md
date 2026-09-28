@@ -86,7 +86,9 @@ comprueba: añadir una acción a ese fichero es abrir un endpoint en el camino d
 El panel se protege en tres capas. Solo la última es imprescindible, porque es la única que no se
 puede esquivar llamando directamente a una acción:
 
-1. **`middleware.ts`**: sin sesión, cualquier ruta de `/admin` redirige al login.
+1. **`middleware.ts`**: sin cookie de sesión, cualquier ruta de `/admin` redirige al login. La
+   cookie no basta: `getSessionData` relee al usuario en la base en cada petición, y si lo han
+   borrado o le han cambiado la contraseña, el layout del panel lo manda al login (RCA-286).
 2. **Las páginas del ADMIN** llaman a `redirectUnlessAdmin()`, que devuelve al WORKER al menú.
 3. **Cada server action** llama a `requireAuth()` (basta con tener sesión) o a `requireAdmin()`
    (hace falta el rol).

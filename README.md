@@ -135,7 +135,7 @@ docs/                    documentación
 | Documento | Qué cuenta |
 |---|---|
 | [`docs/arquitectura.md`](docs/arquitectura.md) | Contexto, organización del código, autenticación y la secuencia completa del pago |
-| [`docs/modelo-de-datos.md`](docs/modelo-de-datos.md) | Las siete tablas, sus invariantes y los estados de una reserva |
+| [`docs/modelo-de-datos.md`](docs/modelo-de-datos.md) | Las ocho tablas, sus invariantes y los estados de una reserva |
 | [`docs/entornos.md`](docs/entornos.md) | Entornos, variables, scripts y cómo se migra producción |
 | [`docs/testing.md`](docs/testing.md) | La suite, cómo se simula Redsys y cómo se sabe que los tests sirven |
 | [`docs/seguridad.md`](docs/seguridad.md) | Modelo de amenazas, cómo se protege cada cosa y los riesgos que siguen abiertos |

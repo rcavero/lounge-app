@@ -20,9 +20,10 @@ entre clientes y filtró el `search_path` de un esquema a otro: testing dejó de
 que se limpió el pool. La historia completa está en `MASTER_IA.md`, apartado 0.4.
 
 Consecuencias de compartir base:
-- **`academic` no se siembra.** El seed crea un administrador con una contraseña conocida, y esa
-  base es de dos ramas. Los eventos, reservas y usuarios de testing se crean a mano desde el
-  panel.
+- **`academic` no se siembra.** Esa base es de dos ramas y ya tiene su plano: los eventos,
+  reservas y usuarios de testing se crean a mano desde el panel. Hasta septiembre de 2026 el seed
+  creaba además un administrador con una contraseña conocida; ahora solo lo crea con
+  `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`.
 - **Una migración de `academic` se aplica también a testing.** Tiene que ser compatible con el
   código de `testing`, que no la conoce: una columna nueva y anulable sí lo es, y quitar una
   columna no.
