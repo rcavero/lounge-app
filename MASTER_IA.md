@@ -996,7 +996,7 @@ En Linear, «11 · Fase 8» (RCA-174, con RCA-263 a RCA-266), del 28 de septiemb
   - 369 unitarios y de componentes;
   - 210 de integración;
   - 54 E2E, con tres pruebas nuevas de revocación (una con navegación en el cliente, añadida tras el fallo del punto 5), una del login con sesión y dos de cabeceras.
-- **Pendiente, en la preview tras el push** (ver «Lo que hay que verificar a mano», punto 7).
+- **En la preview:** hecho, con todo correcto tras el arreglo del punto 5 (ver «Lo que hay que verificar a mano», punto 7).
 
 ### P11.5 Impacto en producción al fusionar con `main`
 
@@ -1251,7 +1251,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P8**~~ | ~~Estados de carga, skeletons y animaciones.~~ **Hecho**, y comprobado en el móvil. Ver P8 | — | 13 · UI/UX |
 | ~~**P9**~~ | ~~Documentación. El CHANGELOG, el último.~~ **Hecho.** Sacó tres fallos de seguridad, ya arreglados (P9.1), y el error de `.env.production` (P9.2). Ver P9 | — | 10 · Fase 7, 14 · Seguridad |
 | ~~**P10**~~ | ~~Presentación. Las capturas, después de P8.~~ **Hecho**: 26 diapositivas, en Presentaciones de Google. Ver P10 | — | 11 · Fase 8 |
-| ~~**P11**~~ | ~~Seguridad antes de la entrega: la contraseña del seed, los datos privados del árbol y R1, R2, R5, R6 y R7.~~ **Hecho**, con la verificación en la preview pendiente. Ver P11 | Sesión del panel | RCA-275, RCA-286 |
+| ~~**P11**~~ | ~~Seguridad antes de la entrega: la contraseña del seed, los datos privados del árbol y R1, R2, R5, R6 y R7.~~ **Hecho**, y verificado en la preview. Ver P11 | Sesión del panel | RCA-275, RCA-286 |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
@@ -1277,13 +1277,13 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 4. ~~Que `/` sigue bloqueando los eventos a >48 h y <4 h **en un móvil real**.~~ **Hecho el 23 de septiembre**, en la preview de `academic`.
 5. ~~Que el plano de `/admin/asientos` no se ha movido ni un píxel tras el commit de `data-testid`.~~ **Hecho en P5.5.**
 6. ~~Que `db:whoami:prod` sigue imprimiendo lo mismo al final de todo que al principio.~~ **Hecho el 28 de septiembre, tras P10, y correcto.** Coinciden el ref, las 5 migraciones, los asientos y los admins. Los eventos y las reservas bajaron. El punto de partida daba por hecho que solo podían subir, y no tuvo en cuenta que el cron de producción borra los eventos de más de 90 días con sus reservas. Se comprobó contra el volcado del 2 de septiembre que la bajada es exactamente eso, más lo creado desde entonces. Las cifras, en RCA-172. **Punto de partida tomado el 23 de septiembre, tras P5**, y guardado en la tarjeta de «09 · Fase 6» (RCA-172) y no aquí, porque los conteos de producción son datos del negocio. Las 5 migraciones de producción coinciden con las de `prisma/migrations/`. Al final tienen que coincidir el ref, las migraciones, los 47 asientos y los admins; eventos, reservas y equipos pueden subir, porque el bar sigue funcionando.
-7. **P11, en la preview de `academic` tras el push:**
-   - el login correcto y el fallido, y el bloqueo tras 5 fallos;
-   - con un WORKER abierto en otro navegador, cambiarle la contraseña desde el ADMIN: a la siguiente página sale al login;
-   - las cabeceras, con DevTools;
-   - **un pago real de prueba** hasta la confirmación, con la descarga del ticket;
-   - el informe mensual en PDF;
-   - `verify-management-fee.ts report` contra testing.
+7. ~~**P11, en la preview de `academic` tras el push**: login, bloqueo tras 5 fallos, revocación de un WORKER, cabeceras, pago real con ticket, informe mensual y `verify-management-fee.ts report`.~~ **Hecho el 28 de septiembre, con todo correcto.**
+   - **La revocación falló en la primera pasada.** Salía «Application error» al pulsar un enlace: ver P11.3, punto 5. Se arregló con un segundo push, y Ramón la repitió: ya va al login.
+   - **Lo comprobó Ramón:** el volver a entrar tras el despliegue, el pago con su ticket, el informe mensual y el bloqueo tras 5 fallos. Con el bloqueo, no le dejó entrar ni con la contraseña buena.
+   - **Lo comprobó la IA:**
+     - las cabeceras, con `curl` contra la preview;
+     - el informe de importes contra testing: 80 reservas, 0 sin precio unitario y 0 con el total distinto del desglose;
+     - el CI #29 y el #30, en verde.
 
 ---
 
