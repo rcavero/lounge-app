@@ -230,11 +230,11 @@ model ZoneLabel {
   updatedAt DateTime @updatedAt
 }
 
-// Intentos fallidos de login por IP (RCA-286, R2). En la base y no en memoria: en Vercel
-// hay varias instancias a la vez y cada una se recicla, así que un contador en memoria se
-// podía esquivar. Lo escribe src/lib/rate-limit.ts; el cron de limpieza borra los vencidos.
+// Intentos fallidos de login por IP (RCA-286, R2) y de reautenticación por ADMIN (P12).
+// En la base y no en memoria: en Vercel hay varias instancias a la vez y cada una se
+// recicla, así que un contador en memoria se podía esquivar. Lo escribe src/lib/rate-limit.ts; el cron de limpieza borra los vencidos.
 model LoginAttempt {
-  key     String   @id // la IP
+  key     String   @id // la IP, o reauth:<id del ADMIN>
   count   Int
   resetAt DateTime // fin de la ventana; a partir de aquí el contador vuelve a empezar
 }

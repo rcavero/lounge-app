@@ -1,8 +1,9 @@
 import prisma from "@/lib/prisma";
 
 /**
- * Límite de intentos del login: 5 fallos por IP en una ventana fija de 15 minutos,
- * contada desde el primer fallo.
+ * Límite de intentos: 5 fallos por clave en una ventana fija de 15 minutos, contada
+ * desde el primer fallo. El login usa la IP como clave; la reautenticación del módulo
+ * de usuarios, `reauth:<id del ADMIN>` (P12).
  *
  * El contador vive en la tabla `LoginAttempt` y no en memoria (RCA-286, R2): en Vercel
  * hay varias instancias a la vez y se reciclan, y un Map por instancia se esquivaba
