@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
 import { ENTER, staggerDelay } from "@/shared/components/motion";
@@ -5,10 +6,17 @@ import { ArrowLeft, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllUsers } from "@/modules/users/actions";
 import { redirectUnlessAdmin } from "@/lib/auth-guard";
+import { getSessionData } from "@/modules/auth/actions";
+import { FlashToast } from "@/shared/components/toast";
 
 const roleLabels = {
   ADMIN: "Admin",
   WORKER: "Worker",
+};
+
+const MESSAGES = {
+  creado: "Usuario creado",
+  eliminado: "Usuario eliminado",
 };
 
 const roleColors = {
@@ -19,7 +27,7 @@ const roleColors = {
 export default async function AdminUsersPage() {
   await redirectUnlessAdmin();
 
-  const users = await getAllUsers();
+  const [users, session] = await Promise.all([getAllUsers(), getSessionData()]);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -67,6 +75,7 @@ export default async function AdminUsersPage() {
               <Link
                 key={user.id}
                 href={`/admin/usuarios/${user.id}`}
+                data-testid={`user-card-${user.id}`}
                 className={`block relative ${PRESSABLE} ${ENTER}`}
                 style={staggerDelay(i)}
               >
@@ -74,6 +83,11 @@ export default async function AdminUsersPage() {
                   <div className="flex-1 min-w-0">
                     <h3 className="text-white font-semibold text-base truncate">
                       {user.name || "Sin nombre"}
+                      {user.id === session.adminId && (
+                        <span className="ml-2 text-xs font-normal text-[#D4AF37]">
+                          Tú
+                        </span>
+                      )}
                     </h3>
                     <p className="text-white/50 text-sm truncate">{user.email}</p>
                   </div>
@@ -96,6 +110,10 @@ export default async function AdminUsersPage() {
           THE LOUNGE BEERHOUSE • VALENCIA
         </p>
       </footer>
+
+      <Suspense>
+        <FlashToast messages={MESSAGES} />
+      </Suspense>
     </div>
   );
 }

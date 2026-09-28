@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
-import { UserForm } from "../user-form";
+import { CreateUserForm } from "../components/create-user-form";
 import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 export default async function NewUserPage() {
@@ -29,7 +29,7 @@ export default async function NewUserPage() {
       {/* Form */}
       <main className="flex-1 px-4 py-4">
         <div className="max-w-lg mx-auto">
-          <UserForm mode="create" />
+          <CreateUserForm />
         </div>
       </main>
 
