@@ -1,5 +1,7 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 import { ArrowLeft, ClipboardList, Lock } from "lucide-react";
 import { formatEventDateMadrid } from "@/lib/utils";
 import { getEventWithReservations } from "@/modules/reservations/actions";
@@ -38,8 +40,7 @@ export default async function EventReservationsPage({ params }: Props) {
   const sportEmoji = getSportEmoji(event.competition);
 
   // Format date in Europe/Madrid (server runs in UTC in production)
-  const { formattedDay, dayNumber, monthName, time } =
-    formatEventDateMadrid(eventDate);
+  const { formattedDay, dayNumber, monthName, time } = formatEventDateMadrid(eventDate);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -55,11 +56,18 @@ export default async function EventReservationsPage({ params }: Props) {
             </Link>
             <div>
               <h1 className="text-white font-semibold text-sm">Reservas del evento</h1>
-              <p className="text-white/50 text-xs">{event.reservations.length} reserva{event.reservations.length !== 1 ? "s" : ""}</p>
+              <p className="text-white/50 text-xs">
+                {event.reservations.length} reserva
+                {event.reservations.length !== 1 ? "s" : ""}
+              </p>
             </div>
           </div>
           <Link href={`/admin/reservas/${id}/bloquear`}>
-            <Button size="sm" variant="outline" className="border-white/20 text-white/70 hover:text-white hover:bg-white/10">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-white/20 text-white/70 hover:text-white hover:bg-white/10"
+            >
               <Lock className="w-4 h-4 mr-1.5" />
               Bloquear asientos
             </Button>
@@ -71,7 +79,10 @@ export default async function EventReservationsPage({ params }: Props) {
         <div className="max-w-lg mx-auto space-y-4">
           {/* Event Info Card */}
           <div className="bg-[#1a1a1a] rounded-2xl p-4 relative">
-            <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
+            <CompetitionEmblem
+              competition={event.competition}
+              className="absolute top-2 left-2"
+            />
             <div className="flex items-center justify-between">
               {/* Home Team */}
               <div className="flex flex-col items-center w-20">
@@ -86,9 +97,7 @@ export default async function EventReservationsPage({ params }: Props) {
                 <span className="text-white/80 text-xs font-medium">
                   {formattedDay} {dayNumber} {monthName}
                 </span>
-                <span className="text-white text-2xl font-bold">
-                  {time}
-                </span>
+                <span className="text-white text-2xl font-bold">{time}</span>
                 <div className="flex gap-1 mt-1 flex-wrap justify-center">
                   {activeScreens.map((screen) => (
                     <span
@@ -125,7 +134,7 @@ export default async function EventReservationsPage({ params }: Props) {
               <h2 className="text-white/70 text-xs font-medium uppercase tracking-wider">
                 Listado de reservas
               </h2>
-              {event.reservations.map((reservation) => {
+              {event.reservations.map((reservation, i) => {
                 const seatCodes = reservation.seatStatuses
                   .map((ss) => ss.seat.code)
                   .join(", ");
@@ -135,7 +144,8 @@ export default async function EventReservationsPage({ params }: Props) {
                   <Link
                     key={reservation.id}
                     href={`/admin/reservas/${event.id}/${reservation.id}`}
-                    className="block"
+                    className={`block relative ${PRESSABLE} ${ENTER}`}
+                    style={staggerDelay(i)}
                   >
                     <div className="bg-[#1a1a1a] rounded-2xl p-4 hover:bg-[#222] transition-colors">
                       <div className="flex items-start justify-between mb-2">
@@ -161,13 +171,13 @@ export default async function EventReservationsPage({ params }: Props) {
 
                       <div className="border-t border-white/10 pt-2 mt-2">
                         <p className="text-white/50 text-[10px] uppercase tracking-wider mb-1">
-                          {reservation.numberOfSeats} asiento{reservation.numberOfSeats !== 1 ? "s" : ""}
+                          {reservation.numberOfSeats} asiento
+                          {reservation.numberOfSeats !== 1 ? "s" : ""}
                         </p>
-                        <p className="text-white text-sm">
-                          {seatCodes}
-                        </p>
+                        <p className="text-white text-sm">{seatCodes}</p>
                       </div>
                     </div>
+                    <LinkPendingIndicator className="top-auto bottom-2" />
                   </Link>
                 );
               })}

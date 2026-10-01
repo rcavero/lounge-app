@@ -59,12 +59,15 @@ export async function POST(request: Request, context: Context) {
 async function handleReturn(
   request: Request,
   context: Context,
-  notification: SignedNotification | null
+  notification: SignedNotification | null,
 ) {
   const { orderId } = await context.params;
   const { searchParams } = new URL(request.url);
   const isKo = searchParams.get("r") === "ko";
   const eventId = searchParams.get("eventId");
+  // La llave de la reserva, tal cual. Aquí no se comprueba: la exigen las páginas, que
+  // son las que enseñan o cancelan algo (RCA-285).
+  const token = searchParams.get("t");
 
   if (notification) {
     try {
@@ -82,7 +85,7 @@ async function handleReturn(
         });
       } else {
         console.error(
-          `[Payment return] orderId de la URL (${orderId}) distinto del firmado (${result.Ds_Order})`
+          `[Payment return] orderId de la URL (${orderId}) distinto del firmado (${result.Ds_Order})`,
         );
       }
     } catch (error) {
@@ -92,11 +95,14 @@ async function handleReturn(
     }
   }
 
+  const tokenParam = token ? `t=${encodeURIComponent(token)}` : "";
   const destination = isKo
     ? `/reserva/error?orderId=${encodeURIComponent(orderId)}${
         eventId ? `&eventId=${encodeURIComponent(eventId)}` : ""
-      }`
-    : `/reserva/confirmacion/${encodeURIComponent(orderId)}`;
+      }${tokenParam ? `&${tokenParam}` : ""}`
+    : `/reserva/confirmacion/${encodeURIComponent(orderId)}${
+        tokenParam ? `?${tokenParam}` : ""
+      }`;
 
   // 303 y no 302: es lo que convierte el POST de Redsys en un GET al redirigir. Con un
   // 302 algunos navegadores repiten el POST contra la página y vuelve el 405.

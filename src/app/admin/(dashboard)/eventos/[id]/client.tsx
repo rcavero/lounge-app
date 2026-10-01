@@ -72,12 +72,16 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
   // Common state
   const [eventDate, setEventDate] = useState<string>(formatDateForInput(event.eventDate));
   const [eventTime, setEventTime] = useState<string>(formatTimeForInput(event.eventDate));
-  const [selectedScreens, setSelectedScreens] = useState<string[]>(getInitialScreens(event));
+  const [selectedScreens, setSelectedScreens] = useState<string[]>(
+    getInitialScreens(event),
+  );
   const [pricePerSeat, setPricePerSeat] = useState<number>(event.pricePerSeat ?? 10);
   const [managementFeeCents, setManagementFeeCents] = useState<number>(
-    event.managementFeeCents
+    event.managementFeeCents,
   );
-  const [durationMinutes, setDurationMinutes] = useState<number>(event.durationMinutes ?? 120);
+  const [durationMinutes, setDurationMinutes] = useState<number>(
+    event.durationMinutes ?? 120,
+  );
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -107,7 +111,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
 
   const toggleScreen = (screenId: string) => {
     setSelectedScreens((prev) =>
-      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId]
+      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId],
     );
   };
 
@@ -190,17 +194,20 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               pricePerSeat,
               managementFeeCents,
               durationMinutes,
-            }
+            },
       );
 
       if (result.success) {
+        // Si ha ido bien NO se reactiva el botón: sigue «Guardando…» hasta que la
+        // navegación termina y la página se desmonta. Reactivarlo aquí dejaba un hueco en
+        // el que parecía que no había pasado nada, y un segundo toque repetía la acción.
         router.push("/admin/eventos");
       } else {
         setError(result.error || "Error al actualizar el evento");
+        setIsSaving(false);
       }
     } catch {
       setError("Error al actualizar el evento");
-    } finally {
       setIsSaving(false);
     }
   };
@@ -210,15 +217,16 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
     try {
       const result = await deleteEvent(event.id);
       if (result.success) {
+        // Como al guardar: sigue «Eliminando…» hasta que termina la navegación.
         router.push("/admin/eventos");
       } else {
         setError(result.error || "Error al eliminar el evento");
         setShowDeleteModal(false);
+        setIsDeleting(false);
       }
     } catch {
       setError("Error al eliminar el evento");
       setShowDeleteModal(false);
-    } finally {
       setIsDeleting(false);
     }
   };
@@ -241,6 +249,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="flex items-center gap-2">
             <CompetitionEmblem competition={competition} className="shrink-0" />
             <select
+              data-testid="event-competition"
               value={competition}
               onChange={(e) => handleCompetitionChange(e.target.value)}
               className={INPUT_CLASS}
@@ -272,6 +281,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Gran Premio</label>
             <input
+              data-testid="event-grand-prix"
               type="text"
               value={homeTeamName}
               onChange={(e) => setHomeTeamName(e.target.value)}
@@ -281,7 +291,9 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             {homeTeamName.trim() && (
               <div className="flex items-center justify-center gap-3 p-3 bg-[#1a1a1a] rounded-xl">
                 <span className="text-3xl">{sportEmoji}</span>
-                <span className="text-white text-sm font-medium">{homeTeamName.trim()}</span>
+                <span className="text-white text-sm font-medium">
+                  {homeTeamName.trim()}
+                </span>
               </div>
             )}
           </div>
@@ -289,8 +301,11 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           // Other manual sports: two text inputs
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium">Participante Local</label>
+              <label className="text-white/70 text-xs font-medium">
+                Participante Local
+              </label>
               <input
+                data-testid="event-home-name"
                 type="text"
                 value={homeTeamName}
                 onChange={(e) => setHomeTeamName(e.target.value)}
@@ -305,8 +320,11 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               )}
             </div>
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium">Participante Visitante</label>
+              <label className="text-white/70 text-xs font-medium">
+                Participante Visitante
+              </label>
               <input
+                data-testid="event-away-name"
                 type="text"
                 value={awayTeamName}
                 onChange={(e) => setAwayTeamName(e.target.value)}
@@ -327,6 +345,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             <div className="space-y-2">
               <label className="text-white/70 text-xs font-medium">Equipo Local</label>
               <select
+                data-testid="event-home-team"
                 value={homeTeamId}
                 onChange={(e) => setHomeTeamId(e.target.value)}
                 className={INPUT_CLASS}
@@ -347,8 +366,11 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             </div>
 
             <div className="space-y-2">
-              <label className="text-white/70 text-xs font-medium">Equipo Visitante</label>
+              <label className="text-white/70 text-xs font-medium">
+                Equipo Visitante
+              </label>
               <select
+                data-testid="event-away-team"
                 value={awayTeamId}
                 onChange={(e) => setAwayTeamId(e.target.value)}
                 className={INPUT_CLASS}
@@ -371,41 +393,52 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         )}
 
         {/* Match Preview */}
-        {isMotor ? null : isManual ? (
-          homeTeamName.trim() && awayTeamName.trim() && (
-            <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-              <div className="flex flex-col items-center">
-                <span className="text-3xl">{sportEmoji}</span>
-                <span className="text-white/70 text-xs mt-1">{homeTeamName.trim()}</span>
-              </div>
-              <span className="text-white/50 text-lg font-bold">vs</span>
-              <div className="flex flex-col items-center">
-                <span className="text-3xl">{sportEmoji}</span>
-                <span className="text-white/70 text-xs mt-1">{awayTeamName.trim()}</span>
-              </div>
-            </div>
-          )
-        ) : (
-          homeTeam && awayTeam && (
-            <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-              <div className="flex flex-col items-center">
-                <TeamLogo team={homeTeam} size="lg" />
-                <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
-              </div>
-              <span className="text-white/50 text-lg font-bold">vs</span>
-              <div className="flex flex-col items-center">
-                <TeamLogo team={awayTeam} size="lg" />
-                <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
-              </div>
-            </div>
-          )
-        )}
+        {isMotor
+          ? null
+          : isManual
+            ? homeTeamName.trim() &&
+              awayTeamName.trim() && (
+                <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <span className="text-3xl">{sportEmoji}</span>
+                    <span className="text-white/70 text-xs mt-1">
+                      {homeTeamName.trim()}
+                    </span>
+                  </div>
+                  <span className="text-white/50 text-lg font-bold">vs</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-3xl">{sportEmoji}</span>
+                    <span className="text-white/70 text-xs mt-1">
+                      {awayTeamName.trim()}
+                    </span>
+                  </div>
+                </div>
+              )
+            : homeTeam &&
+              awayTeam && (
+                <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                  <div className="flex flex-col items-center">
+                    <TeamLogo team={homeTeam} size="lg" />
+                    <span className="text-white/70 text-xs mt-1">
+                      {homeTeam.shortName}
+                    </span>
+                  </div>
+                  <span className="text-white/50 text-lg font-bold">vs</span>
+                  <div className="flex flex-col items-center">
+                    <TeamLogo team={awayTeam} size="lg" />
+                    <span className="text-white/70 text-xs mt-1">
+                      {awayTeam.shortName}
+                    </span>
+                  </div>
+                </div>
+              )}
 
         {/* Date and Time */}
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Fecha</label>
             <input
+              data-testid="event-date"
               type="date"
               value={eventDate}
               onChange={(e) => setEventDate(e.target.value)}
@@ -415,6 +448,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Hora</label>
             <input
+              data-testid="event-time"
               type="time"
               value={eventTime}
               onChange={(e) => setEventTime(e.target.value)}
@@ -450,6 +484,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             Gastos de gestión por asiento
           </label>
           <select
+            data-testid="event-fee"
             value={managementFeeCents}
             onChange={(e) => setManagementFeeCents(Number(e.target.value))}
             className={INPUT_CLASS}
@@ -461,8 +496,8 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             ))}
           </select>
           <p className="text-white/40 text-[11px]">
-            No se descuentan en consumiciones. Se aplican solo a las reservas nuevas: las ya
-            pagadas conservan su importe.
+            No se descuentan en consumiciones. Se aplican solo a las reservas nuevas: las
+            ya pagadas conservan su importe.
           </p>
         </div>
 
@@ -523,11 +558,12 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
         {/* Action Buttons */}
         <div className="space-y-3">
           <Button
+            data-testid="event-submit"
             type="submit"
-            disabled={isSaving}
+            loading={isSaving}
             className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"
           >
-            <Save className="w-4 h-4 mr-2" />
+            {!isSaving && <Save className="w-4 h-4 mr-2" />}
             {isSaving ? "Guardando..." : "Guardar Cambios"}
           </Button>
 
@@ -558,8 +594,8 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
             </div>
 
             <p className="text-white/70 text-sm mb-6">
-              ¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede deshacer y
-              se eliminarán todas las reservas asociadas.
+              ¿Estás seguro de que quieres eliminar este evento? Esta acción no se puede
+              deshacer y se eliminarán todas las reservas asociadas.
             </p>
 
             <div className="flex gap-3">
@@ -574,7 +610,7 @@ export function EditEventForm({ event, teams }: EditEventFormProps) {
               <Button
                 type="button"
                 onClick={handleDelete}
-                disabled={isDeleting}
+                loading={isDeleting}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
               >
                 {isDeleting ? "Eliminando..." : "Eliminar"}

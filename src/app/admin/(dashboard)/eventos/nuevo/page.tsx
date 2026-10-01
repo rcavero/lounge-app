@@ -1,7 +1,10 @@
 import { getAllTeams } from "@/modules/events/actions";
 import { NewEventForm } from "./client";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 export default async function NewEventPage() {
+  await redirectUnlessAdmin();
+
   const teams = await getAllTeams();
 
   return (

@@ -24,6 +24,11 @@ export interface ReservationTicketData {
   seatPriceCents: number;
   managementFeeCents: number;
   status: string;
+  /**
+   * Cobrada y anulada: el pago llegó con la reserva caducada y sus asientos ya eran de
+   * otro. Hay que devolver el dinero (RCA-276).
+   */
+  needsRefund: boolean;
   // Recibo de pago (Ds_AuthorisationCode, Ds_Date + Ds_Hour, Ds_Response). Son null
   // mientras no llegue una notificación firmada de Redsys: en las reservas anteriores
   // a esta funcionalidad y en los entornos donde el webhook no alcanza al servidor.

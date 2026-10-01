@@ -1,0 +1,7 @@
+# Formato y lint sobre lo que se está commiteando, y tipos sobre todo el proyecto.
+#
+# Deliberadamente NO corre la suite de tests: un hook que tarda un minuto se acaba
+# saltando con --no-verify, y un hook que se salta no protege nada. Los tests son
+# trabajo de CI.
+npx lint-staged
+npm run typecheck

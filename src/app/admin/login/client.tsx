@@ -15,6 +15,7 @@ export function LoginForm() {
           Email
         </label>
         <input
+          data-testid="login-email"
           id="email"
           name="email"
           type="email"
@@ -30,6 +31,7 @@ export function LoginForm() {
           Contrasena
         </label>
         <input
+          data-testid="login-password"
           id="password"
           name="password"
           type="password"
@@ -41,17 +43,21 @@ export function LoginForm() {
       </div>
 
       {state?.error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg p-3">
+        <div
+          data-testid="login-error"
+          className="bg-red-500/10 border border-red-500/30 rounded-lg p-3"
+        >
           <p className="text-red-400 text-sm">{state.error}</p>
         </div>
       )}
 
       <Button
+        data-testid="login-submit"
         type="submit"
-        disabled={isPending}
+        loading={isPending}
         className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"
       >
-        <LogIn className="w-4 h-4 mr-2" />
+        {!isPending && <LogIn className="w-4 h-4 mr-2" />}
         {isPending ? "Iniciando sesion..." : "Iniciar sesion"}
       </Button>
     </form>

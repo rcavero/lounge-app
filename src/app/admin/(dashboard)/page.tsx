@@ -1,10 +1,14 @@
 import Link from "next/link";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
 import { Calendar, Armchair, ClipboardList, Users } from "lucide-react";
 import { getSessionData } from "@/modules/auth/actions";
+import { getPaymentsToRefund } from "@/modules/reservations/actions";
+import { RefundAlert } from "./components/refund-alert";
 
 export default async function AdminDashboardPage() {
   const session = await getSessionData();
   const isAdmin = session.role === "ADMIN";
+  const paymentsToRefund = await getPaymentsToRefund();
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -14,62 +18,82 @@ export default async function AdminDashboardPage() {
             Panel de Administracion
           </h1>
 
+          <RefundAlert payments={paymentsToRefund} isAdmin={isAdmin} />
+
           <div className="space-y-3">
             {/* Workers only see Reservas */}
             {isAdmin && (
               <Link
+                data-testid="dashboard-events"
                 href="/admin/eventos"
-                className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
+                className={`flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 ${PRESSABLE}`}
               >
                 <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#D4AF37]/10">
                   <Calendar className="w-6 h-6 text-[#D4AF37]" />
                 </div>
                 <div>
                   <h2 className="text-white font-semibold text-sm">Configurar eventos</h2>
-                  <p className="text-white/50 text-xs">Crear, editar o eliminar eventos</p>
+                  <p className="text-white/50 text-xs">
+                    Crear, editar o eliminar eventos
+                  </p>
                 </div>
+                <LinkPendingIndicator className="static ml-auto" />
               </Link>
             )}
 
             <Link
+              data-testid="dashboard-reservations"
               href="/admin/reservas"
-              className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
+              className={`flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 ${PRESSABLE}`}
             >
               <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#D4AF37]/10">
                 <ClipboardList className="w-6 h-6 text-[#D4AF37]" />
               </div>
               <div>
                 <h2 className="text-white font-semibold text-sm">Administrar reservas</h2>
-                <p className="text-white/50 text-xs">Ver y gestionar reservas por evento</p>
+                <p className="text-white/50 text-xs">
+                  Ver y gestionar reservas por evento
+                </p>
               </div>
+              <LinkPendingIndicator className="static ml-auto" />
             </Link>
 
             {isAdmin && (
               <>
                 <Link
+                  data-testid="dashboard-seats"
                   href="/admin/asientos"
-                  className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
+                  className={`flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 ${PRESSABLE}`}
                 >
                   <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#D4AF37]/10">
                     <Armchair className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <h2 className="text-white font-semibold text-sm">Configurar asientos</h2>
-                    <p className="text-white/50 text-xs">Posicionar asientos en el mapa del local</p>
+                    <h2 className="text-white font-semibold text-sm">
+                      Configurar asientos
+                    </h2>
+                    <p className="text-white/50 text-xs">
+                      Posicionar asientos en el mapa del local
+                    </p>
                   </div>
+                  <LinkPendingIndicator className="static ml-auto" />
                 </Link>
 
                 <Link
+                  data-testid="dashboard-users"
                   href="/admin/usuarios"
-                  className="flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 transition-colors"
+                  className={`flex items-center gap-4 bg-[#1a1a1a] border border-white/10 rounded-xl p-4 hover:border-[#D4AF37]/50 ${PRESSABLE}`}
                 >
                   <div className="flex items-center justify-center w-12 h-12 rounded-lg bg-[#D4AF37]/10">
                     <Users className="w-6 h-6 text-[#D4AF37]" />
                   </div>
                   <div>
-                    <h2 className="text-white font-semibold text-sm">Administrar usuarios</h2>
+                    <h2 className="text-white font-semibold text-sm">
+                      Administrar usuarios
+                    </h2>
                     <p className="text-white/50 text-xs">Gestionar usuarios y permisos</p>
                   </div>
+                  <LinkPendingIndicator className="static ml-auto" />
                 </Link>
               </>
             )}

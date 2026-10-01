@@ -1,8 +1,8 @@
-import { clsx, type ClassValue } from "clsx"
-import { twMerge } from "tailwind-merge"
+import { clsx, type ClassValue } from "clsx";
+import { twMerge } from "tailwind-merge";
 
 export function cn(...inputs: ClassValue[]) {
-  return twMerge(clsx(inputs))
+  return twMerge(clsx(inputs));
 }
 
 /**
@@ -10,10 +10,10 @@ export function cn(...inputs: ClassValue[]) {
  * Sin símbolo: el € lo pone cada vista, que es como estaba escrito hasta ahora.
  */
 export function formatEuros(amount: number): string {
-  return amount.toFixed(2).replace(".", ",")
+  return amount.toFixed(2).replace(".", ",");
 }
 
-const MADRID_TZ = "Europe/Madrid"
+const MADRID_TZ = "Europe/Madrid";
 
 /**
  * Formatea una fecha de evento en la zona horaria de España (Europe/Madrid),
@@ -26,37 +26,36 @@ const MADRID_TZ = "Europe/Madrid"
  * tarjetas de evento).
  */
 export function formatEventDateMadrid(date: Date): {
-  formattedDay: string
-  dayNumber: string
-  monthName: string
-  time: string
+  formattedDay: string;
+  dayNumber: string;
+  monthName: string;
+  time: string;
 } {
-  const capitalize = (value: string) =>
-    value.charAt(0).toUpperCase() + value.slice(1)
+  const capitalize = (value: string) => value.charAt(0).toUpperCase() + value.slice(1);
 
   const formattedDay = capitalize(
     new Intl.DateTimeFormat("es-ES", {
       timeZone: MADRID_TZ,
       weekday: "long",
-    }).format(date)
-  )
+    }).format(date),
+  );
 
   const dayNumber = new Intl.DateTimeFormat("es-ES", {
     timeZone: MADRID_TZ,
     day: "numeric",
-  }).format(date)
+  }).format(date);
 
   const monthName = new Intl.DateTimeFormat("es-ES", {
     timeZone: MADRID_TZ,
     month: "long",
-  }).format(date)
+  }).format(date);
 
   const time = new Intl.DateTimeFormat("es-ES", {
     timeZone: MADRID_TZ,
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
-  }).format(date)
+  }).format(date);
 
-  return { formattedDay, dayNumber, monthName, time }
+  return { formattedDay, dayNumber, monthName, time };
 }

@@ -1,4 +1,9 @@
-import { createRedsysAPI, SANDBOX_URLS, PRODUCTION_URLS, isResponseCodeOk } from "redsys-easy";
+import {
+  createRedsysAPI,
+  SANDBOX_URLS,
+  PRODUCTION_URLS,
+  isResponseCodeOk,
+} from "redsys-easy";
 import { BASE_URL } from "./base-url";
 
 const secretKey = process.env.REDSYS_SECRET_KEY;
@@ -7,15 +12,16 @@ const merchantTerminal = process.env.REDSYS_TERMINAL;
 
 if (!secretKey || !merchantCode || !merchantTerminal) {
   throw new Error(
-    "Missing Redsys env vars: REDSYS_SECRET_KEY, REDSYS_MERCHANT_CODE and REDSYS_TERMINAL are required"
+    "Missing Redsys env vars: REDSYS_SECRET_KEY, REDSYS_MERCHANT_CODE and REDSYS_TERMINAL are required",
   );
 }
 
-const urls =
-  process.env.REDSYS_ENV === "production" ? PRODUCTION_URLS : SANDBOX_URLS;
+const urls = process.env.REDSYS_ENV === "production" ? PRODUCTION_URLS : SANDBOX_URLS;
 
-export const { createRedirectForm, processRedirectNotification } =
-  createRedsysAPI({ secretKey, urls });
+export const { createRedirectForm, processRedirectNotification } = createRedsysAPI({
+  secretKey,
+  urls,
+});
 
 export { isResponseCodeOk };
 

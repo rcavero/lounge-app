@@ -28,9 +28,7 @@ class EspnApiError extends Error {
  * `{ "code": 404 }` con HTTP 200), para que quien llama pueda saltárselo sin
  * abortar el resto de competiciones.
  */
-async function fetchApi<T extends { code?: number }>(
-  path: string
-): Promise<T | null> {
+async function fetchApi<T extends { code?: number }>(path: string): Promise<T | null> {
   const url = `${BASE_URL}${path}`;
   let lastError: unknown;
 
@@ -53,9 +51,7 @@ async function fetchApi<T extends { code?: number }>(
       }
 
       if (!response.ok) {
-        throw new EspnApiError(
-          `ESPN respondió ${response.status} para ${path}`
-        );
+        throw new EspnApiError(`ESPN respondió ${response.status} para ${path}`);
       }
 
       const body = (await response.json()) as T;
@@ -78,7 +74,7 @@ async function fetchApi<T extends { code?: number }>(
   throw new EspnApiError(
     `Fallo al pedir ${path}: ${
       lastError instanceof Error ? lastError.message : String(lastError)
-    }`
+    }`,
   );
 }
 
@@ -92,7 +88,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
  * aparece listado en el mes anterior. El margen cuesta como mucho una petición
  * más y elimina el caso de borde.
  */
-function espnMonths(from: Date, to: Date): string[] {
+export function espnMonths(from: Date, to: Date): string[] {
   const months: string[] = [];
   const cursor = new Date(from.getTime() - DAY_MS);
   const last = new Date(to.getTime() + DAY_MS);
@@ -127,15 +123,15 @@ function espnMonths(from: Date, to: Date): string[] {
  */
 export async function getScheduledMatches(
   code: string,
-  days: number = 14
+  days: number = 14,
 ): Promise<EspnScoreboardResponse | null> {
   const from = new Date();
   const to = new Date(from.getTime() + days * DAY_MS);
 
   const responses = await Promise.all(
     espnMonths(from, to).map((month) =>
-      fetchApi<EspnScoreboardResponse>(`/${code}/scoreboard?dates=${month}`)
-    )
+      fetchApi<EspnScoreboardResponse>(`/${code}/scoreboard?dates=${month}`),
+    ),
   );
 
   const found = responses.filter((r): r is EspnScoreboardResponse => r !== null);

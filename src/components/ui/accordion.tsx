@@ -25,7 +25,7 @@ export function Accordion({
     <div
       className={cn(
         "bg-[#1a1a1a] rounded-2xl border border-white/10 overflow-hidden",
-        className
+        className,
       )}
     >
       <button
@@ -40,7 +40,7 @@ export function Accordion({
         <ChevronDown
           className={cn(
             "w-5 h-5 text-white/50 transition-transform duration-200",
-            isOpen && "rotate-180"
+            isOpen && "rotate-180",
           )}
         />
       </button>

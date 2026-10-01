@@ -9,6 +9,10 @@ import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
 import { CompetitionEmblem } from "./competition-emblem";
 import { getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
+import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
+import { bookingWindowReason } from "../domain/booking-window";
+import { BOOKING_CLOSED_MESSAGES } from "./booking-messages";
 
 interface EventRowProps {
   event: EventWithTeams;
@@ -27,26 +31,22 @@ const screenColors: Record<string, string> = {
   TV2: "bg-[#3b82f6] text-white",
 };
 
-const MESSAGES = {
-  es: {
-    tooEarly: "Las reservas se desbloquearán 48 horas antes del evento",
-    tooLate: "Se han cerrado las reservas para este evento porque faltan menos de 4 horas para su inicio",
-  },
-  en: {
-    tooEarly: "Reservations will open 48 hours before the event",
-    tooLate: "Reservations for this event are closed because it starts in less than 4 hours",
-  },
-};
-
 export function EventRow({ event, href, checkAvailability = false }: EventRowProps) {
   const eventDate = new Date(event.eventDate);
   const activeScreens = getActiveScreens(event);
   const [tooltip, setTooltip] = useState<string | null>(null);
-  const [isSpanish, setIsSpanish] = useState(true);
+  const isSpanish = useIsSpanish();
   const tooltipTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  /**
+   * El reloj se lee UNA vez, al montar, y no en cada render: `Date.now()` en el cuerpo
+   * del componente es impuro (`react-hooks/purity`), y dos renders podían decidir
+   * distinto si el evento está en ventana. Con el inicializador perezoso de `useState`,
+   * lo que se ve al abrir la portada no cambia hasta recargarla.
+   */
+  const [now] = useState(() => Date.now());
+
   useEffect(() => {
-    setIsSpanish(navigator.language.startsWith("es"));
     return () => {
       if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
     };
@@ -60,15 +60,15 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
   const formattedDay = dayName.charAt(0).toUpperCase() + dayName.slice(1);
   const formattedMonth = monthName.charAt(0).toUpperCase() + monthName.slice(1);
 
-  // Availability check
-  const hoursUntilEvent = (eventDate.getTime() - Date.now()) / (1000 * 60 * 60);
-  const isTooEarly = checkAvailability && hoursUntilEvent > 48;
-  const isTooLate = checkAvailability && hoursUntilEvent >= 0 && hoursUntilEvent < 4;
-  const isLocked = isTooEarly || isTooLate;
+  // La misma regla que aplican la página del evento y el servidor (RCA-277).
+  const closedReason = checkAvailability
+    ? bookingWindowReason(eventDate, new Date(now))
+    : null;
+  const isLocked = closedReason !== null;
 
   const handleLockedClick = () => {
-    const msgs = isSpanish ? MESSAGES.es : MESSAGES.en;
-    setTooltip(isTooEarly ? msgs.tooEarly : msgs.tooLate);
+    if (!closedReason) return;
+    setTooltip(BOOKING_CLOSED_MESSAGES[isSpanish ? "es" : "en"][closedReason]);
     if (tooltipTimer.current) clearTimeout(tooltipTimer.current);
     tooltipTimer.current = setTimeout(() => setTooltip(null), 3000);
   };
@@ -103,9 +103,16 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
       className={`bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between transition-colors relative
         ${isLocked ? "opacity-50 cursor-not-allowed" : "hover:bg-[#222]"}`}
     >
-      <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
-      {isTooEarly && <Clock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
-      {isTooLate && <Lock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />}
+      <CompetitionEmblem
+        competition={event.competition}
+        className="absolute top-2 left-2"
+      />
+      {closedReason === "too-early" && (
+        <Clock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />
+      )}
+      {closedReason === "too-late" && (
+        <Lock className="absolute top-2 right-2 w-3.5 h-3.5 text-white/40" />
+      )}
 
       {/* Home Team / GP name */}
       <div className="flex flex-col items-center w-20">
@@ -132,7 +139,10 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
       {/* Tooltip */}
       {tooltip && (
         <div className="absolute inset-0 flex items-center justify-center z-10 rounded-2xl">
-          <div className="bg-[#111] text-white text-xs rounded-lg px-4 py-2.5 text-center max-w-[85%] shadow-xl">
+          <div
+            data-testid="event-row-tooltip"
+            className="bg-[#111] text-white text-xs rounded-lg px-4 py-2.5 text-center max-w-[85%] shadow-xl"
+          >
             {tooltip}
           </div>
         </div>
@@ -142,15 +152,28 @@ export function EventRow({ event, href, checkAvailability = false }: EventRowPro
 
   if (isLocked) {
     return (
-      <div className="relative" onClick={handleLockedClick}>
+      <div
+        data-testid="event-row"
+        data-event-id={event.id}
+        data-locked="true"
+        className="relative"
+        onClick={handleLockedClick}
+      >
         {cardContent}
       </div>
     );
   }
 
   return (
-    <Link href={href || `/eventos/${event.id}`} className="block">
+    <Link
+      data-testid="event-row"
+      data-event-id={event.id}
+      data-locked="false"
+      href={href || `/eventos/${event.id}`}
+      className={`block relative ${PRESSABLE}`}
+    >
       {cardContent}
+      <LinkPendingIndicator />
     </Link>
   );
 }

@@ -12,6 +12,10 @@
 
 # testing
 /coverage
+/test-results
+/playwright-report
+/tests/e2e/.auth
+/tests/e2e/.artifacts
 
 # next.js
 /.next/
@@ -58,4 +62,8 @@ nul
 scripts/.sync-snapshot.json
 
 # volcados de datos reales: llevan datos personales de clientes
-backups/*.json
+# Volcados de base de datos. Llevan datos personales de clientes reales (nombre,
+# email, telefono) y hashes bcrypt de usuarios admin: NUNCA se commitean.
+# Se ignora la carpeta entera por extension, no solo *.json: un pg_dump se llama
+# .dump y con la regla antigua se habria colado en un commit.
+backups/*

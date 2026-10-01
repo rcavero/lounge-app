@@ -63,7 +63,9 @@ function projectRef(url: string | undefined): string {
   });
 
   const creados = current.filter((t) => !original.has(t.id));
-  const borrables = creados.filter((t) => t._count.homeEvents + t._count.awayEvents === 0);
+  const borrables = creados.filter(
+    (t) => t._count.homeEvents + t._count.awayEvents === 0,
+  );
   const conEventos = creados.length - borrables.length;
 
   console.log(`\n  Proyecto            : ${actual}`);
@@ -84,7 +86,7 @@ function projectRef(url: string | undefined): string {
   // fiel: el sync los reescribe con los de ESPN, y si no se deshace, la
   // siguiente pasada emparejaría contra nombres que producción no tiene.
   const survivors = new Set(
-    (await prisma.team.findMany({ select: { id: true } })).map((t) => t.id)
+    (await prisma.team.findMany({ select: { id: true } })).map((t) => t.id),
   );
   const restorable = snapshot.filter((t) => survivors.has(t.id));
 
@@ -94,14 +96,14 @@ function projectRef(url: string | undefined): string {
         prisma.team.update({
           where: { id: t.id },
           data: { name: t.name, shortName: t.shortName, league: t.league },
-        })
-      )
+        }),
+      ),
     );
   }
 
   console.log(
     `\n  ✓ Borrados: ${deleted.count}   ·   externalId vaciados: ${cleared.count}` +
-      `   ·   nombres restaurados: ${restorable.length}\n`
+      `   ·   nombres restaurados: ${restorable.length}\n`,
   );
 
   await prisma.$disconnect();

@@ -2,6 +2,9 @@ import { NextResponse } from "next/server";
 import { processRedirectNotification, isResponseCodeOk } from "@/lib/redsys";
 import prisma from "@/lib/prisma";
 import { recordPaymentReceipt } from "@/modules/payments/lib/receipt";
+import { expectedCentsFromTotalPrice } from "@/modules/payments/domain/amount";
+import { applyPaymentOutcome } from "@/modules/payments/lib/apply-payment-outcome";
+import { settleAuthorisedPayment } from "@/modules/payments/lib/settle-payment";
 
 export async function POST(request: Request) {
   try {
@@ -20,7 +23,7 @@ export async function POST(request: Request) {
     const isSuccess = isResponseCodeOk(result.Ds_Response);
 
     console.log(
-      `[Payment notify] orderId=${orderId} response=${result.Ds_Response} success=${isSuccess}`
+      `[Payment notify] orderId=${orderId} response=${result.Ds_Response} success=${isSuccess}`,
     );
 
     const reservation = await prisma.reservation.findFirst({
@@ -52,45 +55,35 @@ export async function POST(request: Request) {
     // Desde que los eventos llevan gastos de gestión el importe ya no es un múltiplo del
     // precio del asiento. Esto es solo una traza de auditoría: no altera el flujo, porque
     // el importe va firmado y una discrepancia significaría un problema mucho mayor.
-    const expectedCents = Math.round(Number(reservation.totalPrice) * 100);
+    const expectedCents = expectedCentsFromTotalPrice(Number(reservation.totalPrice));
     if (Number(result.Ds_Amount) !== expectedCents) {
       console.error(
-        `[Payment notify] IMPORTE DISCREPANTE orderId=${orderId} redsys=${result.Ds_Amount} esperado=${expectedCents}`
+        `[Payment notify] IMPORTE DISCREPANTE orderId=${orderId} redsys=${result.Ds_Amount} esperado=${expectedCents}`,
       );
     }
 
     if (isSuccess) {
-      await prisma.$transaction(async (tx) => {
-        await tx.reservation.update({
-          where: { id: reservation.id },
-          data: {
-            status: "CONFIRMED",
-            paymentStatus: "COMPLETED",
-            confirmedAt: new Date(),
-          },
-        });
+      // Un OK tardío, sobre una reserva ya caducada, recupera sus asientos si siguen
+      // libres o la deja cobrada y anulada. Ver lib/settle-payment.ts (RCA-276).
+      const settled = await settleAuthorisedPayment(reservation.id);
 
-        await tx.seatStatus.updateMany({
-          where: { reservationId: reservation.id },
-          data: { status: "OCCUPIED" },
-        });
-      });
-
-      console.log(`[Payment notify] Reservation ${reservation.id} confirmed`);
+      if (settled === "refund") {
+        console.error(
+          `[Payment notify] COBRADA SIN ASIENTOS orderId=${orderId} reservation=${reservation.id}: hay que devolver el importe`,
+        );
+      } else {
+        console.log(`[Payment notify] Reservation ${reservation.id} ${settled}`);
+      }
     } else {
+      // El KO sigue sin filtro de estado: ver domain/outcome.ts.
       const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
 
-      await prisma.$transaction(async (tx) => {
-        await tx.reservation.update({
-          where: { id: reservation.id },
-          data: { status: "CANCELLED", paymentStatus: "FAILED" },
-        });
-
-        // Release seats back to available
-        await tx.seatStatus.updateMany({
-          where: { seatId: { in: seatIds }, eventId: reservation.eventId },
-          data: { status: "AVAILABLE", reservationId: null },
-        });
+      // Release seats back to available
+      await applyPaymentOutcome({
+        outcome: "ko",
+        reservationId: reservation.id,
+        eventId: reservation.eventId,
+        seatIds,
       });
 
       console.log(`[Payment notify] Reservation ${reservation.id} cancelled`);

@@ -3,8 +3,12 @@ import { ArrowLeft, Calendar, Plus, Download } from "lucide-react";
 import { getUpcomingEvents } from "@/modules/events/actions";
 import { EventRow } from "@/modules/events/components/event-row";
 import { Button } from "@/components/ui/button";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 export default async function AdminEventsPage() {
+  await redirectUnlessAdmin();
+
   const events = await getUpcomingEvents();
 
   return (
@@ -26,10 +30,7 @@ export default async function AdminEventsPage() {
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <Link href="/admin/eventos/nuevo">
-              <Button
-                size="sm"
-                className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
-              >
+              <Button size="sm" className="bg-[#D4AF37] hover:bg-[#b8972e] text-black">
                 <Plus className="w-4 h-4 mr-1" />
                 Añadir evento
               </Button>
@@ -53,10 +54,10 @@ export default async function AdminEventsPage() {
         {events.length === 0 ? (
           <div className="text-center py-16">
             <Calendar className="w-12 h-12 text-white/30 mx-auto mb-4" />
-            <h3 className="text-xl font-semibold text-white mb-2">No hay eventos programados</h3>
-            <p className="text-white/50 mb-6">
-              Crea tu primer evento para empezar.
-            </p>
+            <h3 className="text-xl font-semibold text-white mb-2">
+              No hay eventos programados
+            </h3>
+            <p className="text-white/50 mb-6">Crea tu primer evento para empezar.</p>
             <Link href="/admin/eventos/nuevo">
               <Button className="bg-[#D4AF37] hover:bg-[#b8972e] text-black">
                 <Plus className="w-4 h-4 mr-2" />
@@ -66,8 +67,10 @@ export default async function AdminEventsPage() {
           </div>
         ) : (
           <div className="max-w-lg mx-auto space-y-3">
-            {events.map((event) => (
-              <EventRow key={event.id} event={event} href={`/admin/eventos/${event.id}`} />
+            {events.map((event, i) => (
+              <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+                <EventRow event={event} href={`/admin/eventos/${event.id}`} />
+              </div>
             ))}
           </div>
         )}

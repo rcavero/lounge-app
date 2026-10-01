@@ -2,6 +2,7 @@ import { create } from "zustand";
 import type { SeatWithStatus } from "@/modules/seating/types";
 import type { EventWithTeams } from "@/modules/events/types";
 import { SEAT_PRICE } from "@/modules/events/types";
+import { computeReservationAmount } from "@/modules/payments/domain/amount";
 
 interface ReservationState {
   // Current event
@@ -78,12 +79,17 @@ export const useReservationStore = create<ReservationState>((set, get) => ({
     }),
 
   // Total que ve el cliente: ya incluye los gastos de gestión, igual que el cargo que
-  // hará Redsys. El importe autoritativo lo recalcula el servidor en initializePayment.
+  // hará Redsys. El importe autoritativo lo recalcula el servidor en initializePayment,
+  // con esta misma función: así lo que se ve y lo que se cobra no pueden divergir.
   getTotalPrice: () => {
     const { selectedSeats, event } = get();
-    const seatPriceCents = (event?.pricePerSeat ?? SEAT_PRICE) * 100;
-    const feeCents = event?.managementFeeCents ?? 0;
-    return (selectedSeats.length * (seatPriceCents + feeCents)) / 100;
+    return computeReservationAmount(
+      {
+        pricePerSeat: event?.pricePerSeat ?? SEAT_PRICE,
+        managementFeeCents: event?.managementFeeCents ?? 0,
+      },
+      selectedSeats.length,
+    ).totalPrice;
   },
 
   getSelectedSeatsData: () => {

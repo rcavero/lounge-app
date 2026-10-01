@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormStatus } from "react-dom";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/modules/auth/actions";
 import { LogOut } from "lucide-react";
@@ -17,17 +18,27 @@ export function AdminHeader({ email }: AdminHeaderProps) {
           <p className="text-white/50 text-xs">{email}</p>
         </div>
         <form action={logout}>
-          <Button
-            type="submit"
-            variant="ghost"
-            size="sm"
-            className="text-white/70 hover:text-white hover:bg-white/10"
-          >
-            <LogOut className="w-4 h-4 mr-1" />
-            Salir
-          </Button>
+          <LogoutButton />
         </form>
       </div>
     </header>
+  );
+}
+
+/** Dentro del `<form>`: `useFormStatus` solo ve el formulario que lo contiene. */
+function LogoutButton() {
+  const { pending } = useFormStatus();
+
+  return (
+    <Button
+      type="submit"
+      variant="ghost"
+      size="sm"
+      loading={pending}
+      className="text-white/70 hover:text-white hover:bg-white/10"
+    >
+      {!pending && <LogOut className="w-4 h-4 mr-1" />}
+      Salir
+    </Button>
   );
 }

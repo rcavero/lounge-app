@@ -8,12 +8,15 @@ import { getReservationByOrderId } from "@/modules/payments/actions";
 import type { ReservationTicketData } from "@/modules/payments/types";
 import type { MerchantInfo } from "@/lib/redsys";
 import { ConfirmationClient } from "./client";
+import { RefundNotice } from "./refund-notice";
 
 const POLL_INTERVAL_MS = 2500;
 const MAX_ATTEMPTS = 16; // ~40s waiting for the Redsys webhook
 
 interface Props {
   orderId: string;
+  /** La llave de la reserva: sin ella, el sondeo no recibe nada (RCA-285). */
+  token?: string;
   /** Datos del comercio para el recibo: solo se leen en el servidor. */
   merchant: MerchantInfo;
 }
@@ -22,9 +25,10 @@ type PollState =
   | { phase: "polling" }
   | { phase: "confirmed"; reservation: ReservationTicketData }
   | { phase: "failed"; eventId: string | null }
+  | { phase: "refund" }
   | { phase: "timeout" };
 
-export function ProcessingClient({ orderId, merchant }: Props) {
+export function ProcessingClient({ orderId, token, merchant }: Props) {
   const [state, setState] = useState<PollState>({ phase: "polling" });
 
   useEffect(() => {
@@ -37,7 +41,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
 
       let reservation: ReservationTicketData | null = null;
       try {
-        reservation = await getReservationByOrderId(orderId);
+        reservation = await getReservationByOrderId(orderId, token);
       } catch {
         // Transient network error — retry until attempts run out
       }
@@ -48,10 +52,13 @@ export function ProcessingClient({ orderId, merchant }: Props) {
         return;
       }
 
-      if (
-        reservation?.status === "CANCELLED" ||
-        reservation?.status === "EXPIRED"
-      ) {
+      // Antes que el fallo: también es CANCELLED, pero aquí sí se ha cobrado.
+      if (reservation?.needsRefund) {
+        setState({ phase: "refund" });
+        return;
+      }
+
+      if (reservation?.status === "CANCELLED" || reservation?.status === "EXPIRED") {
         setState({ phase: "failed", eventId: reservation.eventId });
         return;
       }
@@ -70,7 +77,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [orderId]);
+  }, [orderId, token]);
 
   if (state.phase === "confirmed") {
     return (
@@ -80,6 +87,10 @@ export function ProcessingClient({ orderId, merchant }: Props) {
         merchant={merchant}
       />
     );
+  }
+
+  if (state.phase === "refund") {
+    return <RefundNotice orderId={orderId} />;
   }
 
   if (state.phase === "failed") {
@@ -92,8 +103,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
               Pago no completado
             </h1>
             <p className="text-white/50 text-sm">
-              No se ha podido confirmar el pago. Los asientos han sido
-              liberados.
+              No se ha podido confirmar el pago. Los asientos han sido liberados.
             </p>
           </div>
 
@@ -129,12 +139,10 @@ export function ProcessingClient({ orderId, merchant }: Props) {
               Estamos confirmando tu pago
             </h1>
             <p className="text-white/50 text-sm">
-              Si has completado el pago, tu reserva se confirmará en unos
-              minutos. Guarda este código de pedido:
+              Si has completado el pago, tu reserva se confirmará en unos minutos. Guarda
+              este código de pedido:
             </p>
-            <p className="text-[#D4AF37] font-mono text-lg font-bold">
-              {orderId}
-            </p>
+            <p className="text-[#D4AF37] font-mono text-lg font-bold">{orderId}</p>
           </div>
 
           <div className="bg-[#1a1a1a] rounded-xl p-4 text-left border border-white/10">
@@ -174,8 +182,7 @@ export function ProcessingClient({ orderId, merchant }: Props) {
             Procesando tu pago
           </h1>
           <p className="text-white/50 text-sm">
-            Estamos confirmando tu reserva con el banco. Esto puede tardar unos
-            segundos.
+            Estamos confirmando tu reserva con el banco. Esto puede tardar unos segundos.
             <br />
             No cierres ni recargues esta ventana.
           </p>

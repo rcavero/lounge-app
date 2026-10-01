@@ -14,7 +14,7 @@
 | React | 19.2.3 | UI Library |
 | TypeScript | 5.x | Tipado estático |
 | Prisma | 6.19.2 | ORM para base de datos |
-| PostgreSQL (Supabase) | - | Base de datos en los dos entornos: `.env` → producción, `.env.testing` → testing |
+| PostgreSQL (Supabase) | - | Testing y producción en Supabase; local y tests en Docker. Un `.env*` por base, con `DB_ENV`: ver `docs/entornos.md` |
 | qrcode | 1.5.x | Generación de QR codes en cliente |
 | redsys-easy | - | Integración pasarela de pago Redsys (firma HMAC-SHA256) |
 | Tailwind CSS | 4.x | Estilos |
@@ -41,7 +41,9 @@ lounge-app/
 ├── src/
 │   ├── app/                        # Next.js App Router
 │   │   ├── layout.tsx              # Layout raíz
-│   │   ├── page.tsx                # Página principal pública
+│   │   ├── (inicio)/               # Grupo sin URL: la portada y su skeleton
+│   │   │   ├── page.tsx            # Página principal pública
+│   │   │   └── loading.tsx         # Skeleton de la portada (solo de ella: ver el propio fichero)
 │   │   ├── globals.css             # Estilos globales
 │   │   ├── admin/
 │   │   │   ├── (dashboard)/        # Grupo de rutas protegidas
@@ -64,13 +66,14 @@ lounge-app/
 │   │   │   │   │       └── [reservationId]/    # Detalle reserva
 │   │   │   │   ├── asientos/       # Editor de asientos
 │   │   │   │   │   ├── page.tsx, client.tsx
-│   │   │   │   └── usuarios/       # Gestión de usuarios
-│   │   │   │       ├── page.tsx, user-form.tsx
+│   │   │   │   └── usuarios/       # Gestión de usuarios (punto 15)
+│   │   │   │       ├── page.tsx            # Listado, con «Tú» y los avisos ?aviso=
+│   │   │   │       ├── components/         # Formularios, modales (contraseña, confirmar) y campos
 │   │   │   │       ├── nuevo/      # Crear usuario
-│   │   │   │       └── [id]/       # Editar usuario
+│   │   │   │       └── [id]/       # Ficha: datos, contraseña y eliminar
 │   │   │   └── login/              # Página de login (pública)
 │   │   │       ├── page.tsx, client.tsx
-│   │   ├── eventos/[id]/           # Vista pública de evento (selección de asientos + pago)
+│   │   ├── eventos/[id]/           # Vista pública de evento (selección de asientos + pago) + loading.tsx
 │   │   ├── reserva/
 │   │   │   ├── confirmacion/[orderId]/ # Página de éxito post-pago
 │   │   │   │   ├── page.tsx, client.tsx
@@ -104,6 +107,7 @@ lounge-app/
 │   │   ├── auth/
 │   │   │   ├── actions/index.ts    # Server actions (login, logout)
 │   │   │   ├── lib/session.ts      # Configuración de sesión
+│   │   │   ├── lib/session-data.ts # La sesión comprobada contra la base (punto 14)
 │   │   │   └── types/index.ts      # Tipos (SessionData, AdminRole)
 │   │   │
 │   │   ├── football-data/          # Integración con la API de ESPN + deportes manuales
@@ -132,6 +136,7 @@ lounge-app/
 │   │   │
 │   │   ├── seating/
 │   │   │   ├── actions/index.ts    # Gestión de asientos y ZoneLabels
+│   │   │   ├── lib/initialize-seats.ts # Crea los SeatStatus de un evento. Módulo PLANO, no action
 │   │   │   ├── components/         # Componentes del mapa de asientos
 │   │   │   │   ├── floor-plan-map.tsx
 │   │   │   │   ├── floor-plan-view.tsx
@@ -142,20 +147,26 @@ lounge-app/
 │   │   │   └── types/index.ts
 │   │   │
 │   │   ├── payments/               # Módulo de pagos Redsys
-│   │   │   ├── actions/index.ts    # initializePayment, confirmReservationByOrderId, cancelReservationByOrderId, getReservationByOrderId
+│   │   │   ├── actions/index.ts    # initializePayment y getReservationByOrderId (exige la llave). Nada más: ver punto 13
 │   │   │   ├── lib/customer-name.ts # Normaliza/valida el nombre. Módulo PLANO, no action
 │   │   │   ├── lib/receipt.ts      # Guarda el recibo firmado. Módulo PLANO, no action
+│   │   │   ├── lib/access-token.ts # La llave de las páginas de vuelta. Módulo PLANO
+│   │   │   ├── lib/return-pages.ts # Confirmar/cancelar desde las páginas de vuelta. Módulo PLANO
 │   │   │   └── types/index.ts      # InitializePaymentResult, ReservationTicketData
 │   │   │
 │   │   └── users/
-│   │       └── actions/index.ts    # CRUD de usuarios
+│   │       ├── actions/index.ts    # CRUD de usuarios y changeUserPassword
+│   │       ├── domain/permissions.ts # Qué puede hacer un ADMIN con cada ficha (punto 15)
+│   │       ├── lib/validation.ts   # Email, nombre y contraseña. Módulo PLANO
+│   │       └── lib/reauth.ts       # La contraseña del ADMIN conectado. Módulo PLANO
 │   │
 │   ├── shared/                     # Componentes y utilidades compartidas
 │   │   ├── components/
 │   │   │   ├── header.tsx          # Header público
 │   │   │   ├── footer.tsx          # Footer público
 │   │   │   ├── logo.tsx            # Logo de la app
-│   │   │   └── info-banner.tsx     # Banner informativo bilingüe (cierra con X)
+│   │   │   ├── info-banner.tsx     # Banner informativo bilingüe (cierra con X)
+│   │   │   └── toast.tsx           # Toast propio, useToast y FlashToast (?aviso=)
 │   │   └── hooks/
 │   │       ├── index.ts
 │   │       └── use-reservation-store.ts  # Store de reservas (Zustand)
@@ -172,7 +183,8 @@ lounge-app/
 ├── backups/                        # Backups de base de datos
 ├── components.json                 # Configuración de shadcn/ui
 ├── vercel.json                     # Configuración de cron jobs
-├── DEVELOPMENT.md                  # Progreso del desarrollo
+├── docs/historico/                 # Planes y guías ya ejecutados, sin editar: lo que era cierto al escribirlos
+├── MASTER_IA.md                    # Plan y registro de la entrega del máster
 └── CLAUDE.md                       # Este archivo
 ```
 
@@ -266,6 +278,7 @@ model Reservation {
   status          ReservationStatus @default(PENDING)
   paymentId       String?           // orderId de Redsys (12 dígitos) para relacionar webhook con reserva
   paymentStatus   PaymentStatus     @default(PENDING)
+  accessToken     String?           // Llave de las páginas de vuelta. NULL en las anteriores. Ver punto 13
   authorisationCode   String?       // Ds_AuthorisationCode. Ver punto 11
   paymentDateTime     String?       // Ds_Date + Ds_Hour: "28/08/2026 21:34". Texto a propósito
   paymentResponseCode String?       // Ds_Response ("0000".."0099" = autorizada)
@@ -349,6 +362,15 @@ model ZoneLabel {
 }
 ```
 
+### LoginAttempt
+```prisma
+model LoginAttempt {
+  key     String   @id // la IP
+  count   Int
+  resetAt DateTime // fin de la ventana de 15 minutos
+}
+```
+
 ---
 
 ## Patrones y Convenciones
@@ -426,8 +448,9 @@ if (!session.isLoggedIn) redirect("/admin/login");
    - OK (código 0000-0099): reserva → `CONFIRMED`, asientos → `OCCUPIED`
    - KO: reserva → `CANCELLED`, asientos → `AVAILABLE`
 6. Redsys redirige al cliente:
-   - OK → `/reserva/confirmacion/[orderId]`: confirma si el webhook no llegó (fallback local) + muestra ticket + descarga PDF
-   - KO → `/reserva/error`: cancela si el webhook no llegó (fallback local) + botón reintentar
+   - OK → `/reserva/confirmacion/[orderId]?t=<llave>`: confirma si el webhook no llegó (fallback local, **nunca en producción**) + muestra ticket + descarga PDF
+   - KO → `/reserva/error?…&t=<llave>`: cancela si el webhook no llegó (fallback local) + botón reintentar
+   - Sin la llave de la reserva, ninguna de las dos enseña ni toca nada (punto 13)
 
 **Nota sobre el webhook en local**: Redsys no puede alcanzar `localhost`. El fallback en las páginas de OK/KO es idempotente: si el webhook ya actuó, las páginas detectan que la reserva no está en estado `PENDING` y no hacen nada.
 
@@ -442,24 +465,26 @@ if (!session.isLoggedIn) redirect("/admin/login");
 
 ## Comandos de Desarrollo
 
+Sin sufijo es local (Docker); con sufijo `:testing` o `:prod`, remoto. Lista completa y
+procedimiento de migración en `docs/entornos.md`.
+
 ```bash
-# Iniciar desarrollo
-npm run dev
+npm run db:up               # Postgres local en Docker (puerto 5433)
+npm run dev                 # la app contra lounge_dev
+npm run db:migrate          # crear una migración nueva tras cambiar schema.prisma
+npm run db:deploy           # aplicar las migraciones a lounge_dev
+npm test                    # unitarios y componentes
+npm run test:integration    # contra lounge_test
+npm run e2e                 # build + Playwright en el 3100
 
-# Regenerar Prisma (si cambia schema)
-# IMPORTANTE: Detener servidor primero en Windows
-npx prisma db push
-npx prisma generate
-
-# Ver base de datos
-npx prisma studio
-
-# Seed de datos
-npm run db:seed
-
-# Build producción
-npm run build
+npm run db:whoami:testing   # SIEMPRE antes de tocar una base remota
 ```
+
+- **Nunca `db push` contra una base con datos**: el `CHECK` de importes vive en una migración
+  y `db push` no lo crea.
+- **Nunca un fichero `.env.production`**: Next lo carga solo en `build` y `start`, y un
+  `npm start` local arrancaría contra producción. El de producción se llama `.env.prod`.
+- En Windows, parar el servidor antes de `prisma generate` (punto 1).
 
 ---
 
@@ -469,13 +494,13 @@ npm run build
 
 2. **Decimal de Prisma**: No se puede serializar a cliente. Convertir a `Number()` antes de retornar.
 
-3. **Sesiones legacy**: Si la sesión no tiene `role`, se busca en BD automáticamente.
+3. **La cookie de sesión no es la verdad**: `getSessionData` relee al usuario en la base en cada petición (punto 14). Las cookies antiguas, sin rol o sin huella, ya no valen.
 
 4. **Navegación post-action**: Usar `window.location.href` para navegación confiable.
 
 5. **Cascade Delete**: Al eliminar Event, se eliminan Reservations y SeatStatuses automáticamente.
 
-6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `REDSYS.md` para la configuración por entorno.
+6. **Módulo de pagos**: Integración Redsys completa en `src/modules/payments/`. El entorno se controla con la variable `REDSYS_ENV` (sandbox por defecto; `production` solo en Vercel scope Production / rama `main`). Ver `docs/historico/REDSYS.md` para la configuración por entorno.
 
 7. **Gastos de gestión (`Event.managementFeeCents`)**: importe por asiento que se cobra junto a la
    reserva pero **no es descontable en consumiciones**. Se maneja siempre en céntimos enteros y solo
@@ -551,9 +576,38 @@ npm run build
       el envío de parámetros en las URLs de respuesta, sin esa ruta se rompería la pantalla de todos
       los clientes que acaban de pagar. La ruta **no confirma ni cancela nada**: solo anota el recibo.
 
-    - **En local y en testing el recibo sale con guiones**, porque ahí el webhook no llega y la
-      página autoconfirma. Para probarlo:
+    - **En local el recibo sale con guiones**, porque ahí el webhook no llega (Redsys no alcanza
+      `localhost`) y la página autoconfirma. En las previews de Vercel sí llega. Para probarlo en
+      local:
       `npx tsx scripts/simulate-redsys-notify.ts <orderId> [ok|ko]`, que firma una notificación con
       la clave del entorno y la manda a localhost. Aborta si `REDSYS_ENV=production` o si el destino
       no es localhost, y pide `--force` para un `ko` sobre una reserva ya confirmada (la cancelaría
       y liberaría sus asientos de forma irreversible).
+
+12. **Estados de carga** (septiembre 2026). Cada página tiene un `loading.tsx` que imita su forma: en producción `<Link>` lo precarga y sale en cuanto se pulsa. Las piezas están en `components/ui/skeleton.tsx` (`Skeleton`, `LoadingRegion`), en `admin/(dashboard)/components/page-skeleton.tsx` (`AdminPageSkeleton`), en `shared/components/link-pending.tsx` (el spinner de la tarjeta pulsada, con `useLinkStatus`) y en `shared/components/motion.ts` (animaciones, todas `motion-safe:`). Los botones de acción usan `<Button loading>`, y **si tras la acción se navega, el botón no se reactiva en el éxito**: solo en el error.
+    - **El menú del panel (`/admin`) no tiene `loading.tsx`, a propósito.** Con uno en `(dashboard)/`, la respuesta de «Ya está devuelto» a veces no se aplicaba (medido: 7–12 fallos de 30 frente a 0). Si se vuelve a poner, repetir el E2E de `admin/refunds.spec.ts` 30 veces.
+    - La portada vive en el grupo `(inicio)` para que su skeleton no haga de pantalla de carga de las demás rutas.
+
+13. **Roles y llave de las reservas** (septiembre 2026, RCA-285).
+    - **Las acciones del ADMIN exigen `requireAdmin`, no solo sesión**: eventos, sugerencias, plano, carteles, informes y usuarios. Sus páginas llaman a `redirectUnlessAdmin()` para devolver al WORKER al menú, pero lo que protege es la acción, que es un endpoint. El WORKER conserva las reservas y **bloquear asientos**, cuyo botón está en su vista. `tests/integration/roles.test.ts` recorre cada acción con la sesión de un WORKER: una acción nueva del panel va ahí.
+    - **El nº de pedido no basta para abrir una reserva.** Sale del reloj y se adivina. Cada reserva lleva `accessToken`, aleatorio, que `initializePayment` mete en la URLOK y la URLKO (`&t=`). La ruta de retorno lo pasa a las páginas, y estas y `getReservationByOrderId` lo exigen. Las reservas anteriores tienen `NULL` y se abren sin él, porque sus URL ya estaban repartidas.
+    - **`payments/actions` solo exporta `initializePayment` y `getReservationByOrderId`.** Confirmar y cancelar desde las páginas viven en `payments/lib/return-pages.ts`, y confirmar lleva dentro la guarda de producción. Un test comprueba la lista de exportaciones: si se añade una acción a ese fichero, que sea a propósito.
+    - Con `loading.tsx`, `notFound()` responde **200** con la pantalla de 404, porque el streaming ya ha empezado. No es un fallo: lo que cuenta es que no sale ningún dato.
+
+14. **Sesión revocable, login y datos privados** (septiembre 2026, RCA-286 y RCA-275).
+    - **La sesión se comprueba contra la base en cada petición del panel** (`auth/lib/session-data.ts`, con `cache()` de React). Al entrar, la cookie guarda una huella del hash de la contraseña. Si el usuario ya no existe o la huella no coincide, no hay sesión. El rol se lee siempre de la base. Borrar a un usuario, cambiarle el rol o la contraseña surte efecto **al instante**; por eso el último ADMIN no se puede bajar de rol ni borrar (punto 15).
+    - **El middleware ya no manda de `/admin/login` a `/admin`**: solo ve la cookie, y con una que la base rechaza habría un bucle. Lo hace la página del login; el layout del panel manda al login si la sesión no vale.
+    - **Sin sesión, `requireAuth` y `requireAdmin` hacen `redirect("/admin/login")`, no lanzan.** En una navegación con `<Link>` el layout no se vuelve a pintar, solo la página, así que la redirección del layout no basta. Con un error, un WORKER revocado veía «Application error» (lo encontró Ramón en la preview). Un WORKER con sesión que llama a una acción del ADMIN sigue recibiendo `Forbidden`.
+    - **Los usuarios de test llevan un hash fijo (`TEST_PASSWORD_HASH`)**: el E2E resiembra antes de cada test, y un hash nuevo invalidaría las sesiones del setup.
+    - **El límite del login vive en la tabla `LoginAttempt`** (`lib/rate-limit.ts`), con una suma atómica en SQL. El cron de limpieza borra las ventanas vencidas. Con un email inexistente, el login calcula bcrypt igualmente.
+    - **`initializeSeatsForEvent` está en `seating/lib/`**, fuera de `"use server"`, como confirmar y cancelar.
+    - **Cabeceras de seguridad** en `next.config.ts`: `frame-ancestors 'none'`, `X-Frame-Options` y tres más. Sin CSP de scripts, a propósito (ver `docs/seguridad.md`).
+    - **Nada privado en el árbol**: ni el FUC de producción, ni correos de terceros, ni claves, ni contraseñas. `tests/unit/no-private-data.test.ts` lo vigila por huella SHA-256; si hay que añadir un dato a la lista negra, se añade su huella, **nunca el valor**. El seed saca el primer ADMIN de `SEED_ADMIN_EMAIL` y `SEED_ADMIN_PASSWORD`. Los commits antiguos sí conservan esos datos: el propietario decidió no reescribir el historial.
+
+15. **Usuarios del panel** (septiembre 2026, P12). Todo es del ADMIN, y dentro de eso manda `users/domain/permissions.ts`, que usan la página y las acciones:
+    - **Otro ADMIN es de solo lectura**: ni datos, ni rol, ni contraseña, ni borrarlo. Si se le pudiera quitar el rol, se le podría degradar y después cambiarle la contraseña: cualquier regla sobre admins se saltaría en dos pasos. **Uno mismo** y **los WORKER**, todo.
+    - **El último ADMIN** no se puede bajar a WORKER ni borrar. Puede pulsar «Eliminar mi cuenta», y un toast le explica por qué no.
+    - **Piden la contraseña del ADMIN conectado** (`users/lib/reauth.ts`): cambiar cualquier contraseña, dar el rol ADMIN (al crear o ascender) y borrarse a sí mismo. Tiene el límite del login con la clave `reauth:<id>`. Borrar un WORKER solo pide confirmar en el modal.
+    - **La contraseña se cambia solo con `changeUserPassword`**; `updateUser` ya no la acepta. Al cambiar la propia se renueva la huella de la cookie; si no, R1 cerraría la sesión de quien la cambia.
+    - **Validación** en `users/lib/validation.ts`, compartida por el formulario y la acción: de 8 caracteres a **72 bytes** (bcrypt descarta el resto sin avisar), y la repetición tiene que coincidir.
+    - **Avisos**: `shared/components/toast.tsx`, sin librería. Tras navegar, con `?aviso=<código>` y `FlashToast`, que limpia la URL. Los errores de validación se quedan junto al formulario.

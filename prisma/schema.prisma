@@ -165,6 +165,12 @@ model Reservation {
   paymentId       String?           // ID de transacción Redsys
   paymentStatus   PaymentStatus     @default(PENDING)
 
+  // Llave aleatoria de las páginas de vuelta del pago (RCA-285). El nº de pedido sale
+  // del reloj y se adivina; esta viaja solo en las URL de vuelta que se firman para
+  // Redsys, así que únicamente la tiene quien compró. NULL en las reservas anteriores:
+  // esas se siguen abriendo solo con el nº de pedido, porque sus URL ya están repartidas.
+  accessToken     String?
+
   // Recibo de pago: lo exige CaixaBank en la URL OK. Se guardan tal cual los manda
   // Redsys y solo desde una notificación con la firma ya verificada, así que son
   // NULL en las reservas anteriores y allí donde el webhook no llega (local, testing).
@@ -222,4 +228,13 @@ model ZoneLabel {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// Intentos fallidos de login por IP (RCA-286, R2) y de reautenticación por ADMIN (P12).
+// En la base y no en memoria: en Vercel hay varias instancias a la vez y cada una se
+// recicla, así que un contador en memoria se podía esquivar. Lo escribe src/lib/rate-limit.ts; el cron de limpieza borra los vencidos.
+model LoginAttempt {
+  key     String   @id // la IP, o reauth:<id del ADMIN>
+  count   Int
+  resetAt DateTime // fin de la ventana; a partir de aquí el contador vuelve a empezar
 }

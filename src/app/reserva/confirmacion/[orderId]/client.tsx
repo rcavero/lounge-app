@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { CheckCircle, Download, Home, Loader2, Receipt } from "lucide-react";
+import { CheckCircle, Download, Home, Receipt } from "lucide-react";
+import { FADE_IN } from "@/shared/components/motion";
 import type { jsPDF as JsPdfDoc } from "jspdf";
 import { Button } from "@/components/ui/button";
 import type { ReservationTicketData } from "@/modules/payments/types";
@@ -88,8 +89,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
       //   · desglose de gastos de gestión: 9 mm (solo si el evento los cobra)
       //   · nombre del cliente: 6 mm, que es justo lo que avanza su bloque
       const nameHeight = hasName ? 6 : 0;
-      const ticketHeight =
-        98 + seatsHeight + qrSize + (hasFee ? 9 : 0) + nameHeight;
+      const ticketHeight = 98 + seatsHeight + qrSize + (hasFee ? 9 : 0) + nameHeight;
 
       const doc = new jsPDF({
         unit: "mm",
@@ -161,7 +161,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         // nombre más largo del máximo, se recorta en vez de desbordar los 80 mm.
         const [nameLine] = doc.splitTextToSize(
           reservation.customerName,
-          ticketWidth - margin * 2
+          ticketWidth - margin * 2,
         );
         doc.text(nameLine, ticketWidth / 2, yPos, { align: "center" });
       }
@@ -194,7 +194,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         `${reservation.totalSeats} asiento${reservation.totalSeats !== 1 ? "s" : ""}`,
         ticketWidth / 2,
         yPos,
-        { align: "center" }
+        { align: "center" },
       );
 
       yPos += 7;
@@ -219,7 +219,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           `Importe de la reserva: ${seatPrice}€ x ${seats} = ${seatTotal}€`,
           ticketWidth / 2,
           yPos,
-          { align: "center" }
+          { align: "center" },
         );
 
         yPos += 4;
@@ -227,7 +227,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           `Gastos de gestión: ${fee}€ x ${seats} = ${feeTotal}€`,
           ticketWidth / 2,
           yPos,
-          { align: "center" }
+          { align: "center" },
         );
       }
 
@@ -320,7 +320,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
 
       const rowsHeight = layout.reduce(
         (total, row) => total + (row.inline ? 5 : 5 + row.lines.length * 4),
-        0
+        0,
       );
       const receiptHeight = 52 + rowsHeight;
 
@@ -403,7 +403,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
     // la pantalla en un móvil, y centrar verticalmente algo que desborda pega el icono al
     // borde de arriba (y deja esa parte fuera del scroll). El padding hace de margen.
     <div className="min-h-screen bg-black flex flex-col items-center px-4 py-12">
-      <div className="max-w-sm w-full space-y-6">
+      <div className={`max-w-sm w-full space-y-6 ${FADE_IN}`}>
         {/* Success icon */}
         <div className="flex flex-col items-center gap-3">
           <CheckCircle className="w-16 h-16 text-[#D4AF37]" />
@@ -418,7 +418,10 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         </div>
 
         {/* Summary card */}
-        <div className="bg-[#1a1a1a] rounded-2xl p-4 space-y-3 border border-white/10">
+        <div
+          data-testid="ticket"
+          className="bg-[#1a1a1a] rounded-2xl p-4 space-y-3 border border-white/10"
+        >
           <div className="text-center">
             <p className="text-white font-semibold">
               {reservation.homeTeamName}{" "}
@@ -441,18 +444,14 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
 
           <div className="border-t border-white/10 pt-3 flex items-center justify-between">
             <div>
-              <p className="text-white/40 text-xs uppercase tracking-wider">
-                Asientos
-              </p>
-              <p className="text-white text-sm">
+              <p className="text-white/40 text-xs uppercase tracking-wider">Asientos</p>
+              <p data-testid="ticket-seats" className="text-white text-sm">
                 {reservation.seats.map((s) => s.code).join(", ")}
               </p>
             </div>
             <div className="text-right">
-              <p className="text-white/40 text-xs uppercase tracking-wider">
-                Total
-              </p>
-              <p className="text-[#D4AF37] text-lg font-bold">
+              <p className="text-white/40 text-xs uppercase tracking-wider">Total</p>
+              <p data-testid="ticket-total" className="text-[#D4AF37] text-lg font-bold">
                 {formatEuros(reservation.totalPrice)}€
               </p>
             </div>
@@ -471,9 +470,7 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
               </div>
               <div className="flex items-center justify-end gap-3 text-xs">
                 <span className="text-white/40">Gastos de gestión</span>
-                <span className="text-white tabular-nums">
-                  {formatEuros(feeTotal)}€
-                </span>
+                <span className="text-white tabular-nums">{formatEuros(feeTotal)}€</span>
               </div>
             </div>
           )}
@@ -491,18 +488,12 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           <ReceiptRow label="Comercio" value={merchant.name} />
           <ReceiptRow label="FUC" value={merchant.fuc} />
           <ReceiptRow label="URL" value={merchant.url} />
-          <ReceiptRow
-            label="Importe"
-            value={`${formatEuros(reservation.totalPrice)}€`}
-          />
+          <ReceiptRow label="Importe" value={`${formatEuros(reservation.totalPrice)}€`} />
           <ReceiptRow
             label="Cód. autorización"
             value={reservation.authorisationCode ?? "—"}
           />
-          <ReceiptRow
-            label="Fecha / hora"
-            value={reservation.paymentDateTime ?? "—"}
-          />
+          <ReceiptRow label="Fecha / hora" value={reservation.paymentDateTime ?? "—"} />
           <ReceiptRow label="Nº de pedido" value={orderId} />
           <ReceiptRow label="Producto" value={merchant.productDescription} />
         </div>
@@ -510,15 +501,13 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
         {/* Actions */}
         <div className="space-y-3">
           <Button
+            data-testid="ticket-pdf"
             onClick={() => handleDownloadTicket({ openInNewTab: true })}
-            disabled={isGenerating}
+            loading={isGenerating}
             className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
           >
             {isGenerating ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generando ticket...
-              </>
+              "Generando ticket..."
             ) : (
               <>
                 <Download className="w-4 h-4 mr-2" />
@@ -528,15 +517,13 @@ export function ConfirmationClient({ reservation, orderId, merchant }: Props) {
           </Button>
 
           <Button
+            data-testid="receipt-pdf"
             onClick={() => handleDownloadReceipt()}
-            disabled={isGeneratingReceipt}
+            loading={isGeneratingReceipt}
             className="w-full bg-[#1a1a1a] hover:bg-[#242424] text-white border border-white/15"
           >
             {isGeneratingReceipt ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generando recibo...
-              </>
+              "Generando recibo..."
             ) : (
               <>
                 <Receipt className="w-4 h-4 mr-2" />

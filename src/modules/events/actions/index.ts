@@ -2,20 +2,9 @@
 
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "../types";
-import { isManualSport, isMotorSport } from "@/modules/football-data/config/competitions";
-import { requireAuth } from "@/lib/auth-guard";
-import {
-  DEFAULT_MANAGEMENT_FEE_CENTS,
-  isValidManagementFeeCents,
-} from "../config/pricing";
-
-/**
- * Los gastos de gestión acaban en un cobro real, así que nunca se escribe lo que llega
- * del cliente sin comprobarlo contra la lista de valores admitidos.
- */
-function safeManagementFeeCents(value: number | undefined): number {
-  return isValidManagementFeeCents(value) ? value : DEFAULT_MANAGEMENT_FEE_CENTS;
-}
+import { requireAdmin } from "@/lib/auth-guard";
+import { safeManagementFeeCents } from "../config/pricing";
+import { resolveEventNaming } from "../domain/title";
 
 export async function getUpcomingEvents(): Promise<EventWithTeams[]> {
   const events = await prisma.event.findMany({
@@ -54,7 +43,7 @@ export async function getEventById(id: string): Promise<EventWithTeams | null> {
 }
 
 export async function getAllEvents(): Promise<EventWithTeams[]> {
-  await requireAuth();
+  await requireAdmin();
   const events = await prisma.event.findMany({
     include: {
       homeTeam: true,
@@ -70,7 +59,7 @@ export async function getAllEvents(): Promise<EventWithTeams[]> {
 
 // Get all teams for selection
 export async function getAllTeams() {
-  await requireAuth();
+  await requireAdmin();
   const teams = await prisma.team.findMany({
     orderBy: {
       name: "asc",
@@ -93,48 +82,23 @@ export async function createEvent(data: {
   managementFeeCents?: number;
   durationMinutes?: number;
 }): Promise<{ success: boolean; eventId?: string; error?: string }> {
-  await requireAuth();
+  await requireAdmin();
   try {
-    let title: string;
-    let homeTeamIdFinal: string | null = null;
-    let awayTeamIdFinal: string | null = null;
-    let homeTeamNameFinal: string | null = null;
-    let awayTeamNameFinal: string | null = null;
+    const naming = await resolveEventNaming(data, (id) =>
+      prisma.team.findUnique({ where: { id } }),
+    );
 
-    if (isManualSport(data.competition)) {
-      // Deporte manual: sin equipos en BD
-      if (isMotorSport(data.competition)) {
-        const gpName = data.homeTeamName?.trim() || "";
-        title = gpName || data.competition || "Gran Premio";
-        homeTeamNameFinal = gpName || null;
-      } else {
-        const home = data.homeTeamName?.trim() || "";
-        const away = data.awayTeamName?.trim() || "";
-        title = `${home} vs ${away}`;
-        homeTeamNameFinal = home || null;
-        awayTeamNameFinal = away || null;
-      }
-    } else {
-      // Fútbol: buscar equipos en BD
-      const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId! } });
-      const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId! } });
-
-      if (!homeTeam || !awayTeam) {
-        return { success: false, error: "Equipo no encontrado" };
-      }
-
-      title = `${homeTeam.shortName} vs ${awayTeam.shortName}`;
-      homeTeamIdFinal = data.homeTeamId!;
-      awayTeamIdFinal = data.awayTeamId!;
+    if (!naming) {
+      return { success: false, error: "Equipo no encontrado" };
     }
 
     const event = await prisma.event.create({
       data: {
-        title,
-        homeTeamId: homeTeamIdFinal,
-        awayTeamId: awayTeamIdFinal,
-        homeTeamName: homeTeamNameFinal,
-        awayTeamName: awayTeamNameFinal,
+        title: naming.title,
+        homeTeamId: naming.homeTeamId,
+        awayTeamId: naming.awayTeamId,
+        homeTeamName: naming.homeTeamName,
+        awayTeamName: naming.awayTeamName,
         eventDate: data.eventDate,
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
@@ -176,51 +140,26 @@ export async function updateEvent(
     pricePerSeat?: number;
     managementFeeCents?: number;
     durationMinutes?: number;
-  }
+  },
 ): Promise<{ success: boolean; error?: string }> {
-  await requireAuth();
+  await requireAdmin();
   try {
-    let title: string;
-    let homeTeamIdFinal: string | null = null;
-    let awayTeamIdFinal: string | null = null;
-    let homeTeamNameFinal: string | null = null;
-    let awayTeamNameFinal: string | null = null;
+    const naming = await resolveEventNaming(data, (id) =>
+      prisma.team.findUnique({ where: { id } }),
+    );
 
-    if (isManualSport(data.competition)) {
-      // Deporte manual
-      if (isMotorSport(data.competition)) {
-        const gpName = data.homeTeamName?.trim() || "";
-        title = gpName || data.competition || "Gran Premio";
-        homeTeamNameFinal = gpName || null;
-      } else {
-        const home = data.homeTeamName?.trim() || "";
-        const away = data.awayTeamName?.trim() || "";
-        title = `${home} vs ${away}`;
-        homeTeamNameFinal = home || null;
-        awayTeamNameFinal = away || null;
-      }
-    } else {
-      // Fútbol
-      const homeTeam = await prisma.team.findUnique({ where: { id: data.homeTeamId! } });
-      const awayTeam = await prisma.team.findUnique({ where: { id: data.awayTeamId! } });
-
-      if (!homeTeam || !awayTeam) {
-        return { success: false, error: "Equipo no encontrado" };
-      }
-
-      title = `${homeTeam.shortName} vs ${awayTeam.shortName}`;
-      homeTeamIdFinal = data.homeTeamId!;
-      awayTeamIdFinal = data.awayTeamId!;
+    if (!naming) {
+      return { success: false, error: "Equipo no encontrado" };
     }
 
     await prisma.event.update({
       where: { id },
       data: {
-        title,
-        homeTeamId: homeTeamIdFinal,
-        awayTeamId: awayTeamIdFinal,
-        homeTeamName: homeTeamNameFinal,
-        awayTeamName: awayTeamNameFinal,
+        title: naming.title,
+        homeTeamId: naming.homeTeamId,
+        awayTeamId: naming.awayTeamId,
+        homeTeamName: naming.homeTeamName,
+        awayTeamName: naming.awayTeamName,
         eventDate: data.eventDate,
         competition: data.competition || "Liga",
         screens: data.screens.join(","),
@@ -238,8 +177,10 @@ export async function updateEvent(
 }
 
 // Delete an event
-export async function deleteEvent(id: string): Promise<{ success: boolean; error?: string }> {
-  await requireAuth();
+export async function deleteEvent(
+  id: string,
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
   try {
     // First delete related seat statuses
     await prisma.seatStatus.deleteMany({

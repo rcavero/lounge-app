@@ -14,8 +14,15 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "The Lounge Beerhouse | Reservas",
-  description: "Reserva tu asiento para ver los mejores eventos deportivos en The Lounge Beerhouse",
-  keywords: ["bar deportivo", "reservas", "eventos deportivos", "futbol", "the lounge beerhouse"],
+  description:
+    "Reserva tu asiento para ver los mejores eventos deportivos en The Lounge Beerhouse",
+  keywords: [
+    "bar deportivo",
+    "reservas",
+    "eventos deportivos",
+    "futbol",
+    "the lounge beerhouse",
+  ],
 };
 
 export default function RootLayout({

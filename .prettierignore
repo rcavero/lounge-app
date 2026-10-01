@@ -1,0 +1,19 @@
+# Código que no es nuestro o que no se escribe a mano.
+node_modules
+.next
+out
+build
+coverage
+src/generated
+package-lock.json
+
+# Volcados de datos. No se commitean, pero que tampoco los toque nadie por error.
+backups
+
+# Migraciones de Prisma: SQL generado, y el fichero es el registro de lo que se
+# aplicó en producción. Reformatearlo no cambia nada y estorba al leerlo.
+prisma/migrations
+
+# La documentación va envuelta a mano, con los saltos de línea puestos donde ayudan a
+# leerla. Prettier la re-envolvería entera y el diff sería ruido puro.
+*.md

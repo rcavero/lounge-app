@@ -1,6 +1,7 @@
 "use client";
 
-import { Calendar, Download, FileText } from "lucide-react";
+import { useState } from "react";
+import { Calendar, Download, FileText, Loader2 } from "lucide-react";
 import { jsPDF } from "jspdf";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -9,9 +10,9 @@ import { EventRowWithBadge } from "@/modules/events/components/event-row-with-ba
 import type {
   EventWithReservationCount,
   ReportMonth,
-  MonthlyReportEvent,
 } from "@/modules/reservations/actions";
 import { getMonthlyReportData } from "@/modules/reservations/actions";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 
 interface ReservasClientProps {
   upcomingEvents: EventWithReservationCount[];
@@ -68,7 +69,7 @@ export function ReservasClient({
       doc.text(
         `${event.homeTeam?.shortName ?? event.homeTeamName ?? ""} vs ${event.awayTeam?.shortName ?? event.awayTeamName ?? ""}`,
         14,
-        y
+        y,
       );
       y += 5;
 
@@ -126,7 +127,11 @@ export function ReservasClient({
       doc.setFont("helvetica", "bold");
       doc.setFillColor(245, 245, 245);
       doc.rect(14, y - 3, pageWidth - 28, 6, "F");
-      doc.text(`Subtotal: ${event.reservations.length} reservas, ${subtotalSeats} asientos`, 16, y);
+      doc.text(
+        `Subtotal: ${event.reservations.length} reservas, ${subtotalSeats} asientos`,
+        16,
+        y,
+      );
       doc.text(`${subtotal.toFixed(2)} EUR`, pageWidth - 16, y, {
         align: "right",
       });
@@ -165,7 +170,7 @@ export function ReservasClient({
         `Generado el ${format(new Date(), "dd/MM/yyyy HH:mm")} - Página ${i} de ${pageCount}`,
         pageWidth / 2,
         doc.internal.pageSize.getHeight() - 10,
-        { align: "center" }
+        { align: "center" },
       );
     }
 
@@ -173,6 +178,19 @@ export function ReservasClient({
     const blob = doc.output("blob");
     const url = URL.createObjectURL(blob);
     window.open(url, "_blank");
+  };
+
+  // Leer el mes y montar el PDF tarda: sin esto, el botón no daba ninguna señal y un
+  // segundo toque abría dos pestañas.
+  const [generatingKey, setGeneratingKey] = useState<string | null>(null);
+  const handleReport = async (year: number, month: number, label: string) => {
+    if (generatingKey) return;
+    setGeneratingKey(`${year}-${month}`);
+    try {
+      await generatePDF(year, month, label);
+    } finally {
+      setGeneratingKey(null);
+    }
   };
 
   return (
@@ -183,8 +201,10 @@ export function ReservasClient({
           <h2 className="text-white/70 text-xs font-medium uppercase tracking-wider px-1">
             Próximos eventos
           </h2>
-          {upcomingEvents.map((event) => (
-            <EventRowWithBadge key={event.id} event={event} />
+          {upcomingEvents.map((event, i) => (
+            <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+              <EventRowWithBadge event={event} />
+            </div>
           ))}
         </div>
       )}
@@ -213,8 +233,10 @@ export function ReservasClient({
           }
         >
           <div className="space-y-3 pt-2">
-            {pastEvents.map((event) => (
-              <EventRowWithBadge key={event.id} event={event} />
+            {pastEvents.map((event, i) => (
+              <div key={event.id} className={ENTER} style={staggerDelay(i)}>
+                <EventRowWithBadge event={event} />
+              </div>
             ))}
           </div>
         </Accordion>
@@ -224,16 +246,16 @@ export function ReservasClient({
       {isAdmin && reportMonths.length > 0 && (
         <Accordion
           title="Informes de reservas"
-          badge={
-            <FileText className="w-4 h-4 text-white/50" />
-          }
+          badge={<FileText className="w-4 h-4 text-white/50" />}
         >
           <div className="space-y-2 pt-2">
             {reportMonths.map((month) => (
               <button
                 key={`${month.year}-${month.month}`}
-                onClick={() => generatePDF(month.year, month.month, month.label)}
-                className="w-full flex items-center justify-between bg-[#222] hover:bg-[#2a2a2a] rounded-xl px-4 py-3 transition-colors"
+                onClick={() => handleReport(month.year, month.month, month.label)}
+                disabled={generatingKey !== null}
+                aria-busy={generatingKey === `${month.year}-${month.month}` || undefined}
+                className="w-full flex items-center justify-between bg-[#222] hover:bg-[#2a2a2a] rounded-xl px-4 py-3 transition-colors disabled:opacity-60"
               >
                 <div className="flex items-center gap-3">
                   <FileText className="w-5 h-5 text-[#D4AF37]" />
@@ -246,7 +268,11 @@ export function ReservasClient({
                     </span>
                   </div>
                 </div>
-                <Download className="w-5 h-5 text-white/50" />
+                {generatingKey === `${month.year}-${month.month}` ? (
+                  <Loader2 className="w-5 h-5 text-[#D4AF37] motion-safe:animate-spin" />
+                ) : (
+                  <Download className="w-5 h-5 text-white/50" />
+                )}
               </button>
             ))}
           </div>

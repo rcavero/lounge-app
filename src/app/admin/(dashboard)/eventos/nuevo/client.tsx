@@ -71,7 +71,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
 
   const toggleScreen = (screenId: string) => {
     setSelectedScreens((prev) =>
-      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId]
+      prev.includes(screenId) ? prev.filter((s) => s !== screenId) : [...prev, screenId],
     );
   };
 
@@ -141,17 +141,20 @@ export function NewEventForm({ teams }: NewEventFormProps) {
               screens: selectedScreens,
               competition,
               durationMinutes,
-            }
+            },
       );
 
       if (result.success) {
+        // Si ha ido bien NO se reactiva el botón: sigue «Guardando…» hasta que la
+        // navegación termina y la página se desmonta. Reactivarlo aquí dejaba un hueco en
+        // el que parecía que no había pasado nada, y un segundo toque repetía la acción.
         router.push("/admin/eventos");
       } else {
         setError(result.error || "Error al crear el evento");
+        setIsSaving(false);
       }
     } catch {
       setError("Error al crear el evento");
-    } finally {
       setIsSaving(false);
     }
   };
@@ -173,6 +176,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
         <div className="flex items-center gap-2">
           <CompetitionEmblem competition={competition} className="shrink-0" />
           <select
+            data-testid="event-competition"
             value={competition}
             onChange={(e) => handleCompetitionChange(e.target.value)}
             className={INPUT_CLASS}
@@ -201,6 +205,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
         <div className="space-y-2">
           <label className="text-white/70 text-xs font-medium">Gran Premio</label>
           <input
+            data-testid="event-grand-prix"
             type="text"
             value={homeTeamName}
             onChange={(e) => setHomeTeamName(e.target.value)}
@@ -210,7 +215,9 @@ export function NewEventForm({ teams }: NewEventFormProps) {
           {homeTeamName.trim() && (
             <div className="flex items-center justify-center gap-3 p-3 bg-[#1a1a1a] rounded-xl">
               <span className="text-3xl">{sportEmoji}</span>
-              <span className="text-white text-sm font-medium">{homeTeamName.trim()}</span>
+              <span className="text-white text-sm font-medium">
+                {homeTeamName.trim()}
+              </span>
             </div>
           )}
         </div>
@@ -218,8 +225,11 @@ export function NewEventForm({ teams }: NewEventFormProps) {
         // Other manual sports: two text inputs
         <div className="grid grid-cols-2 gap-4">
           <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium">Participante Local</label>
+            <label className="text-white/70 text-xs font-medium">
+              Participante Local
+            </label>
             <input
+              data-testid="event-home-name"
               type="text"
               value={homeTeamName}
               onChange={(e) => setHomeTeamName(e.target.value)}
@@ -234,8 +244,11 @@ export function NewEventForm({ teams }: NewEventFormProps) {
             )}
           </div>
           <div className="space-y-2">
-            <label className="text-white/70 text-xs font-medium">Participante Visitante</label>
+            <label className="text-white/70 text-xs font-medium">
+              Participante Visitante
+            </label>
             <input
+              data-testid="event-away-name"
               type="text"
               value={awayTeamName}
               onChange={(e) => setAwayTeamName(e.target.value)}
@@ -257,6 +270,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Equipo Local</label>
             <select
+              data-testid="event-home-team"
               value={homeTeamId}
               onChange={(e) => setHomeTeamId(e.target.value)}
               className={INPUT_CLASS}
@@ -280,6 +294,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
           <div className="space-y-2">
             <label className="text-white/70 text-xs font-medium">Equipo Visitante</label>
             <select
+              data-testid="event-away-team"
               value={awayTeamId}
               onChange={(e) => setAwayTeamId(e.target.value)}
               className={INPUT_CLASS}
@@ -302,41 +317,48 @@ export function NewEventForm({ teams }: NewEventFormProps) {
       )}
 
       {/* Match Preview */}
-      {isMotor ? null : isManual ? (
-        homeTeamName.trim() && awayTeamName.trim() && (
-          <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-            <div className="flex flex-col items-center">
-              <span className="text-3xl">{sportEmoji}</span>
-              <span className="text-white/70 text-xs mt-1">{homeTeamName.trim()}</span>
-            </div>
-            <span className="text-white/50 text-lg font-bold">vs</span>
-            <div className="flex flex-col items-center">
-              <span className="text-3xl">{sportEmoji}</span>
-              <span className="text-white/70 text-xs mt-1">{awayTeamName.trim()}</span>
-            </div>
-          </div>
-        )
-      ) : (
-        homeTeam && awayTeam && (
-          <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
-            <div className="flex flex-col items-center">
-              <TeamLogo team={homeTeam} size="lg" />
-              <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
-            </div>
-            <span className="text-white/50 text-lg font-bold">vs</span>
-            <div className="flex flex-col items-center">
-              <TeamLogo team={awayTeam} size="lg" />
-              <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
-            </div>
-          </div>
-        )
-      )}
+      {isMotor
+        ? null
+        : isManual
+          ? homeTeamName.trim() &&
+            awayTeamName.trim() && (
+              <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center">
+                  <span className="text-3xl">{sportEmoji}</span>
+                  <span className="text-white/70 text-xs mt-1">
+                    {homeTeamName.trim()}
+                  </span>
+                </div>
+                <span className="text-white/50 text-lg font-bold">vs</span>
+                <div className="flex flex-col items-center">
+                  <span className="text-3xl">{sportEmoji}</span>
+                  <span className="text-white/70 text-xs mt-1">
+                    {awayTeamName.trim()}
+                  </span>
+                </div>
+              </div>
+            )
+          : homeTeam &&
+            awayTeam && (
+              <div className="bg-[#1a1a1a] rounded-xl p-4 flex items-center justify-center gap-4">
+                <div className="flex flex-col items-center">
+                  <TeamLogo team={homeTeam} size="lg" />
+                  <span className="text-white/70 text-xs mt-1">{homeTeam.shortName}</span>
+                </div>
+                <span className="text-white/50 text-lg font-bold">vs</span>
+                <div className="flex flex-col items-center">
+                  <TeamLogo team={awayTeam} size="lg" />
+                  <span className="text-white/70 text-xs mt-1">{awayTeam.shortName}</span>
+                </div>
+              </div>
+            )}
 
       {/* Date and Time */}
       <div className="grid grid-cols-2 gap-4">
         <div className="space-y-2">
           <label className="text-white/70 text-xs font-medium">Fecha</label>
           <input
+            data-testid="event-date"
             type="date"
             value={eventDate}
             onChange={(e) => setEventDate(e.target.value)}
@@ -346,6 +368,7 @@ export function NewEventForm({ teams }: NewEventFormProps) {
         <div className="space-y-2">
           <label className="text-white/70 text-xs font-medium">Hora</label>
           <input
+            data-testid="event-time"
             type="time"
             value={eventTime}
             onChange={(e) => setEventTime(e.target.value)}
@@ -410,11 +433,12 @@ export function NewEventForm({ teams }: NewEventFormProps) {
 
       {/* Submit Button */}
       <Button
+        data-testid="event-submit"
         type="submit"
-        disabled={isSaving}
+        loading={isSaving}
         className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold py-3"
       >
-        <Save className="w-4 h-4 mr-2" />
+        {!isSaving && <Save className="w-4 h-4 mr-2" />}
         {isSaving ? "Guardando..." : "Guardar Evento"}
       </Button>
     </form>

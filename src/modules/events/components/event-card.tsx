@@ -10,7 +10,11 @@ import Link from "next/link";
 import Image from "next/image";
 import type { EventWithTeams } from "../types";
 import { TeamLogo } from "./team-logo";
-import { COMPETITION_EMBLEM, getSportEmoji, isMotorSport } from "@/modules/football-data/config/competitions";
+import {
+  COMPETITION_EMBLEM,
+  getSportEmoji,
+  isMotorSport,
+} from "@/modules/football-data/config/competitions";
 
 interface EventCardProps {
   event: EventWithTeams;
@@ -69,11 +73,7 @@ export function EventCard({ event }: EventCardProps) {
             </span>
           ))}
         </div>
-        {isLive && (
-          <Badge className="bg-red-500 text-white animate-pulse">
-            EN VIVO
-          </Badge>
-        )}
+        {isLive && <Badge className="bg-red-500 text-white animate-pulse">EN VIVO</Badge>}
       </div>
 
       <CardContent className="p-4">
@@ -82,7 +82,9 @@ export function EventCard({ event }: EventCardProps) {
           {/* Home Team / GP name */}
           <div className="flex flex-col items-center gap-2 flex-1">
             <TeamLogo team={event.homeTeam} emoji={sportEmoji} size="lg" />
-            <span className="text-sm font-medium text-center line-clamp-2">{homeName}</span>
+            <span className="text-sm font-medium text-center line-clamp-2">
+              {homeName}
+            </span>
           </div>
 
           {/* VS */}
@@ -95,7 +97,9 @@ export function EventCard({ event }: EventCardProps) {
             {!isMotor && (
               <>
                 <TeamLogo team={event.awayTeam} emoji={sportEmoji} size="lg" />
-                <span className="text-sm font-medium text-center line-clamp-2">{awayName}</span>
+                <span className="text-sm font-medium text-center line-clamp-2">
+                  {awayName}
+                </span>
               </>
             )}
           </div>

@@ -2,18 +2,18 @@
 
 import prisma from "@/lib/prisma";
 import type { SeatWithStatus } from "../types";
-import type { SeatStatusType } from "@/generated/prisma";
 import { DEFAULT_ZONE_LABEL_POSITIONS, type ZoneLabelConfig } from "../constants";
-import { requireAuth } from "@/lib/auth-guard";
+import { requireAdmin, requireAuth } from "@/lib/auth-guard";
+import { overlappingEventIds } from "@/modules/events/domain/overlap";
+import { pendingExpiryCutoff } from "@/modules/reservations/domain/expiry";
+import { expirePendingReservation } from "@/modules/reservations/lib/expire";
+import { applyOverlapOccupancy, effectiveSeatStatus } from "../domain/availability";
 
 async function getOverlappingEventIds(
   excludeEventId: string,
   eventDate: Date,
-  durationMinutes: number
+  durationMinutes: number,
 ): Promise<string[]> {
-  const eventStart = eventDate.getTime();
-  const eventEnd = eventStart + durationMinutes * 60 * 1000;
-
   const candidates = await prisma.event.findMany({
     where: {
       id: { not: excludeEventId },
@@ -22,33 +22,17 @@ async function getOverlappingEventIds(
     select: { id: true, eventDate: true, durationMinutes: true },
   });
 
-  return candidates
-    .filter((e) => {
-      const start = e.eventDate.getTime();
-      const end = start + e.durationMinutes * 60 * 1000;
-      return eventStart < end && start < eventEnd;
-    })
-    .map((e) => e.id);
+  return overlappingEventIds({ eventDate, durationMinutes }, candidates);
 }
 
 async function expireStaleReservations(eventId: string): Promise<void> {
-  const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+  const expiryCutoff = pendingExpiryCutoff();
   const stale = await prisma.reservation.findMany({
-    where: { eventId, status: "PENDING", createdAt: { lt: fiveMinutesAgo } },
-    select: { id: true, seatStatuses: { select: { seatId: true } } },
+    where: { eventId, status: "PENDING", createdAt: { lt: expiryCutoff } },
+    select: { id: true },
   });
   for (const reservation of stale) {
-    const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
-    await prisma.$transaction(async (tx) => {
-      await tx.reservation.update({
-        where: { id: reservation.id },
-        data: { status: "EXPIRED" },
-      });
-      await tx.seatStatus.updateMany({
-        where: { seatId: { in: seatIds }, eventId },
-        data: { status: "AVAILABLE", reservationId: null },
-      });
-    });
+    await expirePendingReservation(reservation.id);
   }
 }
 
@@ -74,11 +58,15 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
     where: { eventId },
   });
 
-  const statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
+  let statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
 
   // If event exists, also check overlapping events
   if (event) {
-    const overlappingIds = await getOverlappingEventIds(eventId, event.eventDate, event.durationMinutes);
+    const overlappingIds = await getOverlappingEventIds(
+      eventId,
+      event.eventDate,
+      event.durationMinutes,
+    );
 
     if (overlappingIds.length > 0) {
       const overlappingStatuses = await prisma.seatStatus.findMany({
@@ -90,70 +78,19 @@ export async function getSeatsForEvent(eventId: string): Promise<SeatWithStatus[
 
       // Mark as OCCUPIED any seat that is taken in an overlapping event
       // but only if it's currently AVAILABLE in this event (don't override BLOCKED)
-      for (const os of overlappingStatuses) {
-        const currentStatus = statusMap.get(os.seatId) || "AVAILABLE";
-        if (currentStatus === "AVAILABLE") {
-          statusMap.set(os.seatId, "OCCUPIED");
-        }
-      }
+      statusMap = applyOverlapOccupancy(statusMap, overlappingStatuses);
     }
   }
 
   return seats.map((seat) => ({
     ...seat,
-    status: (statusMap.get(seat.id) || "AVAILABLE") as SeatStatusType,
-  }));
-}
-
-export async function initializeSeatsForEvent(eventId: string): Promise<void> {
-  // Check if seat statuses already exist for this event
-  const existingCount = await prisma.seatStatus.count({
-    where: { eventId },
-  });
-
-  if (existingCount > 0) {
-    return; // Already initialized
-  }
-
-  const seats = await prisma.seat.findMany();
-
-  // Create seat statuses for all seats
-  await prisma.seatStatus.createMany({
-    data: seats.map((seat) => ({
-      eventId,
-      seatId: seat.id,
-      status: "AVAILABLE" as const,
-    })),
-  });
-}
-
-export async function getSeatsByZone(eventId: string, zone: string): Promise<SeatWithStatus[]> {
-  const seats = await prisma.seat.findMany({
-    where: { zone: zone as "PROJECTOR" | "TV1" | "TV2" },
-    orderBy: [
-      { row: "asc" },
-      { number: "asc" },
-    ],
-  });
-
-  const seatStatuses = await prisma.seatStatus.findMany({
-    where: {
-      eventId,
-      seatId: { in: seats.map((s) => s.id) },
-    },
-  });
-
-  const statusMap = new Map(seatStatuses.map((s) => [s.seatId, s.status]));
-
-  return seats.map((seat) => ({
-    ...seat,
-    status: (statusMap.get(seat.id) || "AVAILABLE") as SeatStatusType,
+    status: effectiveSeatStatus(statusMap, seat.id),
   }));
 }
 
 // Get all seats (for admin purposes)
 export async function getAllSeats() {
-  await requireAuth();
+  await requireAdmin();
   const seats = await prisma.seat.findMany({
     orderBy: { code: "asc" },
   });
@@ -163,9 +100,9 @@ export async function getAllSeats() {
 
 // Update seat positions (admin function)
 export async function updateSeatPositions(
-  positions: { id: string; posX: number; posY: number }[]
+  positions: { id: string; posX: number; posY: number }[],
 ): Promise<void> {
-  await requireAuth();
+  await requireAdmin();
   // Update each seat position
   await Promise.all(
     positions.map((pos) =>
@@ -175,15 +112,15 @@ export async function updateSeatPositions(
           posX: pos.posX,
           posY: pos.posY,
         },
-      })
-    )
+      }),
+    ),
   );
 }
 
 // Block/unblock seats for a specific event
 export async function saveBlockedSeats(
   eventId: string,
-  seatIdsToBlock: string[]
+  seatIdsToBlock: string[],
 ): Promise<{ success: boolean; error?: string }> {
   await requireAuth();
   try {
@@ -236,10 +173,8 @@ export async function getZoneLabels(): Promise<ZoneLabelConfig[]> {
 }
 
 // Update zone labels configuration (admin function)
-export async function updateZoneLabels(
-  labels: ZoneLabelConfig[]
-): Promise<void> {
-  await requireAuth();
+export async function updateZoneLabels(labels: ZoneLabelConfig[]): Promise<void> {
+  await requireAdmin();
   await Promise.all(
     labels.map((label) =>
       prisma.zoneLabel.upsert({
@@ -257,8 +192,7 @@ export async function updateZoneLabels(
           scaleX: label.scaleX,
           rotation: label.rotation,
         },
-      })
-    )
+      }),
+    ),
   );
 }
-

@@ -1,7 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
+
+import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
 
 interface InfoBannerProps {
   message: string;
@@ -10,13 +12,8 @@ interface InfoBannerProps {
 
 export function InfoBanner({ message, messageEn }: InfoBannerProps) {
   const [visible, setVisible] = useState(true);
-  const [text, setText] = useState(message);
-
-  useEffect(() => {
-    if (messageEn && !navigator.language.startsWith("es")) {
-      setText(messageEn);
-    }
-  }, [message, messageEn]);
+  const isSpanish = useIsSpanish();
+  const text = messageEn && !isSpanish ? messageEn : message;
 
   if (!visible) return null;
 

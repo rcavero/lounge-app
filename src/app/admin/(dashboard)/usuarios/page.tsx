@@ -1,11 +1,22 @@
+import { Suspense } from "react";
 import Link from "next/link";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
+import { ENTER, staggerDelay } from "@/shared/components/motion";
 import { ArrowLeft, Plus, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { getAllUsers } from "@/modules/users/actions";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
+import { getSessionData } from "@/modules/auth/actions";
+import { FlashToast } from "@/shared/components/toast";
 
 const roleLabels = {
   ADMIN: "Admin",
   WORKER: "Worker",
+};
+
+const MESSAGES = {
+  creado: "Usuario creado",
+  eliminado: "Usuario eliminado",
 };
 
 const roleColors = {
@@ -14,7 +25,9 @@ const roleColors = {
 };
 
 export default async function AdminUsersPage() {
-  const users = await getAllUsers();
+  await redirectUnlessAdmin();
+
+  const [users, session] = await Promise.all([getAllUsers(), getSessionData()]);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -34,10 +47,7 @@ export default async function AdminUsersPage() {
             </div>
           </div>
           <Link href="/admin/usuarios/nuevo">
-            <Button
-              size="sm"
-              className="bg-[#D4AF37] hover:bg-[#b8972e] text-black"
-            >
+            <Button size="sm" className="bg-[#D4AF37] hover:bg-[#b8972e] text-black">
               <Plus className="w-4 h-4 mr-1" />
               Añadir usuario
             </Button>
@@ -51,9 +61,7 @@ export default async function AdminUsersPage() {
           <div className="text-center py-16">
             <Users className="w-12 h-12 text-white/30 mx-auto mb-4" />
             <h3 className="text-xl font-semibold text-white mb-2">No hay usuarios</h3>
-            <p className="text-white/50 mb-6">
-              Crea tu primer usuario para empezar.
-            </p>
+            <p className="text-white/50 mb-6">Crea tu primer usuario para empezar.</p>
             <Link href="/admin/usuarios/nuevo">
               <Button className="bg-[#D4AF37] hover:bg-[#b8972e] text-black">
                 <Plus className="w-4 h-4 mr-2" />
@@ -63,12 +71,23 @@ export default async function AdminUsersPage() {
           </div>
         ) : (
           <div className="max-w-lg mx-auto space-y-3">
-            {users.map((user) => (
-              <Link key={user.id} href={`/admin/usuarios/${user.id}`} className="block">
+            {users.map((user, i) => (
+              <Link
+                key={user.id}
+                href={`/admin/usuarios/${user.id}`}
+                data-testid={`user-card-${user.id}`}
+                className={`block relative ${PRESSABLE} ${ENTER}`}
+                style={staggerDelay(i)}
+              >
                 <div className="bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors border border-white/10">
                   <div className="flex-1 min-w-0">
                     <h3 className="text-white font-semibold text-base truncate">
                       {user.name || "Sin nombre"}
+                      {user.id === session.adminId && (
+                        <span className="ml-2 text-xs font-normal text-[#D4AF37]">
+                          Tú
+                        </span>
+                      )}
                     </h3>
                     <p className="text-white/50 text-sm truncate">{user.email}</p>
                   </div>
@@ -78,6 +97,7 @@ export default async function AdminUsersPage() {
                     {roleLabels[user.role]}
                   </span>
                 </div>
+                <LinkPendingIndicator />
               </Link>
             ))}
           </div>
@@ -90,6 +110,10 @@ export default async function AdminUsersPage() {
           THE LOUNGE BEERHOUSE • VALENCIA
         </p>
       </footer>
+
+      <Suspense>
+        <FlashToast messages={MESSAGES} />
+      </Suspense>
     </div>
   );
 }

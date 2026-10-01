@@ -28,7 +28,7 @@ export interface PaymentReceiptInput {
  */
 export async function recordPaymentReceipt(
   orderId: string,
-  receipt: PaymentReceiptInput
+  receipt: PaymentReceiptInput,
 ): Promise<void> {
   const paymentDateTime = [receipt.date, receipt.hour].filter(Boolean).join(" ").trim();
 

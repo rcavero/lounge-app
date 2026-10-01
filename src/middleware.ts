@@ -16,29 +16,16 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith("/admin") &&
     !request.nextUrl.pathname.startsWith("/admin/login")
   ) {
-    const session = await getIronSession<SessionData>(
-      request,
-      response,
-      sessionOptions
-    );
+    const session = await getIronSession<SessionData>(request, response, sessionOptions);
 
     if (!session.isLoggedIn) {
       return NextResponse.redirect(new URL("/admin/login", request.url));
     }
   }
 
-  // If logged in and visiting /admin/login, redirect to dashboard
-  if (request.nextUrl.pathname === "/admin/login") {
-    const session = await getIronSession<SessionData>(
-      request,
-      response,
-      sessionOptions
-    );
-
-    if (session.isLoggedIn) {
-      return NextResponse.redirect(new URL("/admin", request.url));
-    }
-  }
+  // Del login al panel con sesión abierta ya no redirige el middleware, sino la página
+  // del login: el middleware solo ve la cookie, y una cookie que la base ya no acepta
+  // (RCA-286, R1) haría un bucle entre /admin y /admin/login.
 
   return response;
 }

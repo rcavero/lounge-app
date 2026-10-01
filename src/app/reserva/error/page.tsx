@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { getReservationByOrderId } from "@/modules/payments/actions";
 import {
   cancelReservationByOrderId,
-  getReservationByOrderId,
-} from "@/modules/payments/actions";
+  hasReservationAccess,
+} from "@/modules/payments/lib/return-pages";
 import { MERCHANT_INFO } from "@/lib/redsys";
 import { formatEuros } from "@/lib/utils";
 
 interface Props {
-  searchParams: Promise<{ orderId?: string; eventId?: string }>;
+  searchParams: Promise<{ orderId?: string; eventId?: string; t?: string }>;
 }
 
 /** Fila etiqueta/valor, igual que en la pantalla de confirmación. */
@@ -23,13 +24,18 @@ function ReceiptRow({ label, value }: { label: string; value: string }) {
 }
 
 export default async function PaymentErrorPage({ searchParams }: Props) {
-  const { orderId, eventId } = await searchParams;
+  const { orderId, eventId, t: token } = await searchParams;
+
+  // Solo con la llave de la reserva: el nº de pedido se adivina, y con él se cancelaba
+  // la reserva de otro mientras pagaba (RCA-285). Sin ella, la página sale igual, pero
+  // no toca nada ni enseña el recibo.
+  const allowed = orderId ? await hasReservationAccess(orderId, token) : false;
 
   // Cancel the reservation immediately when the user lands on this page.
   // This handles the case where the Redsys webhook could not reach the server
   // (e.g. during local development). The webhook also does this in production,
   // but cancelReservationByOrderId is idempotent — cancelling twice is safe.
-  if (orderId) {
+  if (orderId && allowed) {
     await cancelReservationByOrderId(orderId);
   }
 
@@ -37,7 +43,8 @@ export default async function PaymentErrorPage({ searchParams }: Props) {
   // en el momento la llamada de "creo que me han cobrado": el código de respuesta de
   // Redsys dice por qué se rechazó. Se lee después de cancelar, para reflejar el estado
   // final de la reserva.
-  const reservation = orderId ? await getReservationByOrderId(orderId) : null;
+  const reservation =
+    orderId && allowed ? await getReservationByOrderId(orderId, token) : null;
 
   return (
     <div className="min-h-screen bg-black flex flex-col items-center justify-center px-4">
@@ -102,10 +109,7 @@ export default async function PaymentErrorPage({ searchParams }: Props) {
             />
             <ReceiptRow label="Nº de pedido" value={orderId} />
             {reservation.paymentDateTime && (
-              <ReceiptRow
-                label="Fecha / hora"
-                value={reservation.paymentDateTime}
-              />
+              <ReceiptRow label="Fecha / hora" value={reservation.paymentDateTime} />
             )}
             {reservation.paymentResponseCode && (
               <ReceiptRow

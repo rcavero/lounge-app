@@ -1,17 +1,17 @@
 import { notFound } from "next/navigation";
 import { getAllTeams, getEventById } from "@/modules/events/actions";
 import { EditEventForm } from "./client";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
 
 interface EditEventPageProps {
   params: Promise<{ id: string }>;
 }
 
 export default async function EditEventPage({ params }: EditEventPageProps) {
+  await redirectUnlessAdmin();
+
   const { id } = await params;
-  const [event, teams] = await Promise.all([
-    getEventById(id),
-    getAllTeams(),
-  ]);
+  const [event, teams] = await Promise.all([getEventById(id), getAllTeams()]);
 
   if (!event) {
     notFound();

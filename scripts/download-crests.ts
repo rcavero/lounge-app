@@ -69,8 +69,7 @@ function pickRemote(...candidates: Array<string | null>): string | null {
  * seguridad. La extensión tiene que salir del contenido.
  */
 function detectExtension(bytes: Buffer): string | null {
-  const hex = (start: number, end: number) =>
-    bytes.subarray(start, end).toString("hex");
+  const hex = (start: number, end: number) => bytes.subarray(start, end).toString("hex");
 
   if (hex(0, 8) === "89504e470d0a1a0a") return "png";
   if (hex(0, 3) === "474946") return "gif";
@@ -203,9 +202,7 @@ async function runPool(jobs: DownloadJob[]): Promise<DownloadReport[]> {
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(CONCURRENCY, jobs.length) }, worker)
-  );
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, jobs.length) }, worker));
   return results;
 }
 
@@ -237,13 +234,11 @@ function summarize(title: string, reports: DownloadReport[]): number {
 
   // Los formatos distintos de PNG merecen mención: es lo que obliga a derivar
   // la extensión del contenido en vez de asumirla.
-  const noPng = reports.filter(
-    (r) => r.filePath && !r.filePath.endsWith(".png")
-  );
+  const noPng = reports.filter((r) => r.filePath && !r.filePath.endsWith(".png"));
   if (noPng.length) {
     console.log(`     No son PNG    : ${noPng.length}`);
     noPng.forEach((r) =>
-      console.log(`        · ${r.job.label} → ${path.extname(r.filePath!)}`)
+      console.log(`        · ${r.job.label} → ${path.extname(r.filePath!)}`),
     );
   }
 
@@ -266,8 +261,8 @@ async function applyRelinks(relinks: Relink[]): Promise<void> {
         prisma.team.update({
           where: { id: r.id },
           data: { logo: r.logo, logoSource: r.logoSource },
-        })
-      )
+        }),
+      ),
     );
   }
 }
@@ -278,7 +273,7 @@ async function applyRelinks(relinks: Relink[]): Promise<void> {
   console.log("  " + "═".repeat(74));
   console.log(`\n  Proyecto Supabase : ${projectRef(process.env.DATABASE_URL)}`);
   console.log(
-    `  Modo              : ${dryRun ? "DRY RUN (no escribe nada)" : "real"}${force ? " · --force" : ""}`
+    `  Modo              : ${dryRun ? "DRY RUN (no escribe nada)" : "real"}${force ? " · --force" : ""}`,
   );
 
   if (!dryRun) {
@@ -296,11 +291,11 @@ async function applyRelinks(relinks: Relink[]): Promise<void> {
       base: path.basename(localPath, path.extname(localPath)),
       label: localPath,
       expectExt: path.extname(localPath).replace(".", ""),
-    })
+    }),
   );
   const emblemFailures = summarize(
     `1) Emblemas de competición (${emblemJobs.length})`,
-    await runPool(emblemJobs)
+    await runPool(emblemJobs),
   );
 
   // ── 2. Escudos de equipo (desde la base de datos) ────────────────────────
@@ -330,7 +325,7 @@ async function applyRelinks(relinks: Relink[]): Promise<void> {
   const crestReports = await runPool(crestJobs);
   const crestFailures = summarize(
     `2) Escudos de equipo (${crestJobs.length} de ${teams.length} equipos)`,
-    crestReports
+    crestReports,
   );
   console.log(`     Sin escudo en origen: ${withoutSource.length}`);
   if (withoutSource.length) {
@@ -379,16 +374,24 @@ async function applyRelinks(relinks: Relink[]): Promise<void> {
   const emblems = await dirSize(EMBLEMS_DIR);
 
   console.log(`\n  4) Peso en disco`);
-  console.log(`     public/escudos/       ${String(crests.files).padStart(4)} ficheros   ${mb(crests.bytes)}`);
-  console.log(`     public/competiciones/ ${String(emblems.files).padStart(4)} ficheros   ${mb(emblems.bytes)}`);
-  console.log(`     Total                                    ${mb(crests.bytes + emblems.bytes)}`);
+  console.log(
+    `     public/escudos/       ${String(crests.files).padStart(4)} ficheros   ${mb(crests.bytes)}`,
+  );
+  console.log(
+    `     public/competiciones/ ${String(emblems.files).padStart(4)} ficheros   ${mb(emblems.bytes)}`,
+  );
+  console.log(
+    `     Total                                    ${mb(crests.bytes + emblems.bytes)}`,
+  );
 
   console.log("\n  " + "─".repeat(74));
   const failures = emblemFailures + crestFailures;
   if (failures === 0) {
     console.log("  ✓ SIN FALLOS\n");
   } else {
-    console.log(`  ⚠ ${failures} descargas fallidas (esos equipos siguen apuntando a la URL remota)\n`);
+    console.log(
+      `  ⚠ ${failures} descargas fallidas (esos equipos siguen apuntando a la URL remota)\n`,
+    );
     process.exitCode = 1;
   }
 

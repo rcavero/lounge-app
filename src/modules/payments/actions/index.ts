@@ -10,14 +10,37 @@ import {
   PAY_METHODS,
   generateOrderId,
 } from "@/lib/redsys";
-import {
-  normalizeCustomerName,
-  validateCustomerName,
-} from "../lib/customer-name";
+import { BOOKING_CLOSED_MESSAGES } from "@/modules/events/components/booking-messages";
+import { bookingClosedReason } from "@/modules/events/domain/booking-window";
+import { overlappingEventIds } from "@/modules/events/domain/overlap";
+import { computeReservationAmount, toRedsysAmount } from "../domain/amount";
+import { needsRefund } from "../domain/outcome";
+import { accessTokenMatches, newAccessToken } from "../lib/access-token";
+import { normalizeCustomerName, validateCustomerName } from "../lib/customer-name";
 import type { InitializePaymentResult, ReservationTicketData } from "../types";
 
 /** Algún asiento pedido no se ha podido apartar dentro de la transacción. */
 class SeatsTakenError extends Error {}
+
+/** El mensaje de error si alguno de los asientos no existe o no está libre en este evento. */
+async function unavailableSeatsError(
+  eventId: string,
+  seatIds: string[],
+): Promise<string | null> {
+  const seatStatuses = await prisma.seatStatus.findMany({
+    where: { eventId, seatId: { in: seatIds } },
+    include: { seat: true },
+  });
+
+  // Uno que no existe en este evento se cobraría sin apartar nada (RCA-277).
+  if (seatStatuses.length !== seatIds.length) {
+    return "Alguno de los asientos no existe en este evento";
+  }
+
+  const unavailable = seatStatuses.filter((ss) => ss.status !== "AVAILABLE");
+  if (unavailable.length === 0) return null;
+  return `Asientos no disponibles: ${unavailable.map((s) => s.seat.code).join(", ")}`;
+}
 
 export async function initializePayment(data: {
   eventId: string;
@@ -28,6 +51,12 @@ export async function initializePayment(data: {
 
   if (seatIds.length === 0) {
     return { success: false, error: "No hay asientos seleccionados" };
+  }
+
+  // La interfaz no lo permite, pero esto es un endpoint público: un asiento repetido se
+  // cobraría dos veces (RCA-277).
+  if (new Set(seatIds).size !== seatIds.length) {
+    return { success: false, error: "Hay asientos repetidos en la selección" };
   }
 
   // Se valida antes de tocar la base de datos: un nombre inválido no puede llegar a
@@ -44,30 +73,26 @@ export async function initializePayment(data: {
   const event = await prisma.event.findUnique({ where: { id: eventId } });
   if (!event) return { success: false, error: "Evento no encontrado" };
 
+  // La ventana de 48 h – 4 h y el estado del evento. Antes solo los miraba la portada,
+  // y por enlace directo se compraba un partido que empezaba en una hora (RCA-277).
+  const closedReason = bookingClosedReason(event, new Date());
+  if (closedReason) {
+    return { success: false, error: BOOKING_CLOSED_MESSAGES.es[closedReason] };
+  }
+
   // Importes unitarios de la BD, nunca del cliente. Se trabaja en céntimos enteros:
   // Redsys exige el importe como entero de céntimos y así el desglose que se guarda
   // en la reserva no depende de ninguna división.
-  const seatPriceCents = event.pricePerSeat * 100;
-  const managementFeeCents = event.managementFeeCents;
+  const { seatPriceCents, managementFeeCents, totalCents, totalPrice } =
+    computeReservationAmount(event, seatIds.length);
 
-  // Verify all selected seats are available in this event
-  const seatStatuses = await prisma.seatStatus.findMany({
-    where: { eventId, seatId: { in: seatIds } },
-    include: { seat: true },
-  });
-
-  const unavailable = seatStatuses.filter((ss) => ss.status !== "AVAILABLE");
-  if (unavailable.length > 0) {
-    return {
-      success: false,
-      error: `Asientos no disponibles: ${unavailable.map((s) => s.seat.code).join(", ")}`,
-    };
-  }
+  // Comprobación temprana, para devolver un error con nombre de asiento antes de hacer
+  // más consultas. NO es la que protege frente a dos clientes a la vez: esa va dentro
+  // de la transacción, más abajo.
+  const unavailableError = await unavailableSeatsError(eventId, seatIds);
+  if (unavailableError) return { success: false, error: unavailableError };
 
   // Verify selected seats are not taken in overlapping events
-  const eventStart = event.eventDate.getTime();
-  const eventEnd = eventStart + event.durationMinutes * 60 * 1000;
-
   const overlappingCandidates = await prisma.event.findMany({
     where: {
       id: { not: eventId },
@@ -76,13 +101,7 @@ export async function initializePayment(data: {
     select: { id: true, eventDate: true, durationMinutes: true },
   });
 
-  const overlappingIds = overlappingCandidates
-    .filter((e) => {
-      const start = e.eventDate.getTime();
-      const end = start + e.durationMinutes * 60 * 1000;
-      return eventStart < end && start < eventEnd;
-    })
-    .map((e) => e.id);
+  const overlappingIds = overlappingEventIds(event, overlappingCandidates);
 
   if (overlappingIds.length > 0) {
     const takenInOverlap = await prisma.seatStatus.findMany({
@@ -103,9 +122,9 @@ export async function initializePayment(data: {
     }
   }
 
-  const totalCents = (seatPriceCents + managementFeeCents) * seatIds.length;
-  const totalPrice = totalCents / 100;
   const orderId = generateOrderId();
+  // La llave de las páginas de vuelta: el nº de pedido se adivina, esta no (RCA-285).
+  const accessToken = newAccessToken();
 
   // Crea la reserva PENDING y aparta los asientos, todo o nada.
   let reservation;
@@ -124,13 +143,13 @@ export async function initializePayment(data: {
           status: "PENDING",
           paymentStatus: "PENDING",
           paymentId: orderId,
+          accessToken,
         },
       });
 
-      // Solo aparta los que SIGUEN libres. La comprobación de arriba va fuera de la
-      // transacción: dos clientes que pulsen a la vez la pasan los dos. Con este
-      // `where`, Postgres hace esperar al segundo hasta que el primero termina, vuelve
-      // a evaluarlo y ya no cuenta el asiento. Si falta uno, se deshace todo, reserva
+      // Solo aparta los que SIGUEN libres. Si otro cliente ha apartado alguno desde la
+      // comprobación de arriba, Postgres espera a que su transacción termine, vuelve a
+      // evaluar el `where` y ya no lo cuenta. Si falta uno, se deshace todo, reserva
       // incluida: nunca se cobra un asiento que no se ha podido apartar.
       const claimed = await tx.seatStatus.updateMany({
         where: { eventId, seatId: { in: seatIds }, status: "AVAILABLE" },
@@ -142,29 +161,25 @@ export async function initializePayment(data: {
     });
   } catch (error) {
     if (!(error instanceof SeatsTakenError)) throw error;
-    // El mismo mensaje que la comprobación de arriba, con el asiento que se ha perdido.
-    const taken = await prisma.seatStatus.findMany({
-      where: { eventId, seatId: { in: seatIds }, status: { not: "AVAILABLE" } },
-      include: { seat: true },
-    });
     return {
       success: false,
       error:
-        taken.length > 0
-          ? `Asientos no disponibles: ${taken.map((s) => s.seat.code).join(", ")}`
-          : "Alguno de los asientos ya no está disponible. Elige otros.",
+        (await unavailableSeatsError(eventId, seatIds)) ??
+        "Alguno de los asientos ya no está disponible. Elige otros.",
     };
   }
 
   // Build Redsys signed redirect form
-  const amountInCents = String(totalCents);
+  const amountInCents = toRedsysAmount(totalCents);
   // Las vueltas de Redsys NO apuntan directamente a las páginas: pasan por una ruta
   // propia que acepta GET y POST. Las páginas son `page.tsx` y en el App Router un POST
   // contra ellas devuelve 405; si CaixaBank activa el envío de parámetros en las URLs de
   // respuesta, sin esta ruta se rompería la pantalla de todos los que acaban de pagar.
   // De paso, la ruta aprovecha esos parámetros para guardar el recibo.
-  const okUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ok`;
-  const koUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ko&eventId=${eventId}`;
+  // Las dos llevan la llave de la reserva: es el único camino por el que llega al
+  // cliente, y sin ella las páginas no enseñan ni cancelan nada (RCA-285).
+  const okUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ok&t=${accessToken}`;
+  const koUrl = `${BASE_URL}/api/payments/return/${orderId}?r=ko&eventId=${eventId}&t=${accessToken}`;
   const notifyUrl = `${BASE_URL}/api/payments/notify`;
 
   const form = createRedirectForm({
@@ -192,67 +207,15 @@ export async function initializePayment(data: {
   };
 }
 
-export async function confirmReservationByOrderId(orderId: string): Promise<void> {
-  // Only act on PENDING reservations — if the webhook already confirmed it, this is a no-op
-  const reservation = await prisma.reservation.findFirst({
-    where: { paymentId: orderId, status: "PENDING" },
-    select: { id: true },
-  });
-
-  if (!reservation) return;
-
-  await prisma.$transaction(async (tx) => {
-    await tx.reservation.update({
-      where: { id: reservation.id },
-      data: {
-        status: "CONFIRMED",
-        paymentStatus: "COMPLETED",
-        confirmedAt: new Date(),
-      },
-    });
-
-    await tx.seatStatus.updateMany({
-      where: { reservationId: reservation.id },
-      data: { status: "OCCUPIED" },
-    });
-  });
-
-  console.log(`[Payment] Reservation ${reservation.id} confirmed from success page`);
-}
-
-export async function cancelReservationByOrderId(orderId: string): Promise<void> {
-  const reservation = await prisma.reservation.findFirst({
-    where: { paymentId: orderId, status: { in: ["PENDING", "CONFIRMED"] } },
-    select: {
-      id: true,
-      eventId: true,
-      status: true,
-      seatStatuses: { select: { seatId: true } },
-    },
-  });
-
-  // Only cancel if the payment hasn't already been confirmed by the webhook
-  if (!reservation || reservation.status === "CONFIRMED") return;
-
-  const seatIds = reservation.seatStatuses.map((ss) => ss.seatId);
-
-  await prisma.$transaction(async (tx) => {
-    await tx.reservation.update({
-      where: { id: reservation.id },
-      data: { status: "CANCELLED", paymentStatus: "FAILED" },
-    });
-
-    await tx.seatStatus.updateMany({
-      where: { seatId: { in: seatIds }, eventId: reservation.eventId },
-      data: { status: "AVAILABLE", reservationId: null },
-    });
-  });
-
-  console.log(`[Payment] Reservation ${reservation.id} cancelled from error page`);
-}
-
+/**
+ * El ticket de una reserva. Es pública —la llama el sondeo de la página de confirmación—,
+ * así que exige la llave de la reserva: con el nº de pedido solo, que se adivina, se
+ * leía el ticket de cualquiera (RCA-285). Sin la llave, `null`, igual que un pedido que
+ * no existe, para no confirmar que existe.
+ */
 export async function getReservationByOrderId(
-  orderId: string
+  orderId: string,
+  token?: string | null,
 ): Promise<ReservationTicketData | null> {
   const reservation = await prisma.reservation.findFirst({
     where: { paymentId: orderId },
@@ -269,14 +232,16 @@ export async function getReservationByOrderId(
     },
   });
 
-  if (!reservation) return null;
+  if (!reservation || !accessTokenMatches(reservation.accessToken, token)) return null;
 
   return {
     id: reservation.id,
     eventId: reservation.eventId,
     customerName: reservation.customerName,
-    homeTeamName: reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
-    awayTeamName: reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
+    homeTeamName:
+      reservation.event.homeTeam?.name ?? reservation.event.homeTeamName ?? "",
+    awayTeamName:
+      reservation.event.awayTeam?.name ?? reservation.event.awayTeamName ?? "",
     eventDate: reservation.event.eventDate.toISOString(),
     seats: reservation.seatStatuses.map((ss) => ({
       id: ss.seat.id,
@@ -288,6 +253,7 @@ export async function getReservationByOrderId(
     seatPriceCents: reservation.seatPriceCents,
     managementFeeCents: reservation.managementFeeCents,
     status: reservation.status,
+    needsRefund: needsRefund(reservation),
     // Recibo: null mientras no haya llegado una notificación firmada de Redsys
     authorisationCode: reservation.authorisationCode,
     paymentDateTime: reservation.paymentDateTime,

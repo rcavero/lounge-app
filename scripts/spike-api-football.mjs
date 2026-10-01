@@ -51,7 +51,9 @@ async function call(path) {
     // CRÍTICO: API-Football devuelve HTTP 200 incluso en errores.
     // El fallo viene dentro del cuerpo, en `errors`.
     const errs = body.errors;
-    const hasErrors = Array.isArray(errs) ? errs.length > 0 : errs && Object.keys(errs).length > 0;
+    const hasErrors = Array.isArray(errs)
+      ? errs.length > 0
+      : errs && Object.keys(errs).length > 0;
     if (hasErrors) {
       return { ok: false, error: JSON.stringify(errs), body, headers: res.headers };
     }
@@ -83,7 +85,9 @@ async function checkStatus() {
   console.log(`   Cuenta      : ${s?.account?.email ?? "?"}`);
   console.log(`   Plan        : ${s?.subscription?.plan ?? "?"}`);
   console.log(`   Activa hasta: ${s?.subscription?.end ?? "?"}`);
-  console.log(`   Peticiones  : ${s?.requests?.current ?? "?"} / ${s?.requests?.limit_day ?? "?"} hoy`);
+  console.log(
+    `   Peticiones  : ${s?.requests?.current ?? "?"} / ${s?.requests?.limit_day ?? "?"} hoy`,
+  );
   return s;
 }
 
@@ -149,10 +153,14 @@ async function checkFixtures() {
   console.log("");
   for (const f of fx) {
     const d = new Date(f.fixture.date);
-    console.log(`   ${d.toISOString().slice(0, 16).replace("T", " ")} UTC  [${f.fixture.status.short}]`);
+    console.log(
+      `   ${d.toISOString().slice(0, 16).replace("T", " ")} UTC  [${f.fixture.status.short}]`,
+    );
     console.log(`      ${f.teams.home.name}  vs  ${f.teams.away.name}`);
     console.log(`      jornada: ${f.league.round}`);
-    console.log(`      escudos: ${f.teams.home.logo ? "sí" : "NO"} / ${f.teams.away.logo ? "sí" : "NO"}`);
+    console.log(
+      `      escudos: ${f.teams.home.logo ? "sí" : "NO"} / ${f.teams.away.logo ? "sí" : "NO"}`,
+    );
   }
 
   // Comprobamos que los datos que necesita la UI están todos presentes.
@@ -205,7 +213,9 @@ async function resolveIds() {
     for (const h of hits.slice(0, 5)) {
       const seasons = (h.seasons ?? []).map((s) => s.year);
       const max = seasons.length ? Math.max(...seasons) : "?";
-      console.log(`      id=${h.league.id}  ${h.league.name}  (${h.country?.name ?? "-"})  última temporada: ${max}`);
+      console.log(
+        `      id=${h.league.id}  ${h.league.name}  (${h.country?.name ?? "-"})  última temporada: ${max}`,
+      );
     }
     found[label] = hits[0].league.id;
   }

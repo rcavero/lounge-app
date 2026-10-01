@@ -1,24 +1,15 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import prisma from "@/lib/prisma";
 import type { EventWithTeams } from "@/modules/events/types";
-import { requireAuth } from "@/lib/auth-guard";
-
-export interface ReservationResult {
-  success: boolean;
-  error?: string;
-  reservation?: {
-    id: string;
-    eventId: string;
-    eventTitle: string;
-    homeTeamName: string;
-    awayTeamName: string;
-    eventDate: string;
-    seats: { id: string; code: string }[];
-    totalSeats: number;
-    totalPrice: number;
-  };
-}
+import { requireAdmin, requireAuth } from "@/lib/auth-guard";
+import { PAID_WITHOUT_SEATS } from "@/modules/payments/domain/outcome";
+import {
+  groupEventsByMonth,
+  monthRange,
+  type ReportMonth,
+} from "../domain/report-months";
 
 export interface ReservationWithSeats {
   id: string;
@@ -40,12 +31,8 @@ export interface EventWithReservationCount extends EventWithTeams {
   };
 }
 
-export interface ReportMonth {
-  year: number;
-  month: number;
-  label: string;
-  eventCount: number;
-}
+// Vive en el dominio; se reexporta porque la página de reservas la importa de aquí.
+export type { ReportMonth } from "../domain/report-months";
 
 export interface MonthlyReportEvent {
   id: string;
@@ -61,124 +48,10 @@ export interface MonthlyReportEvent {
   }[];
 }
 
-export async function createReservation(data: {
-  eventId: string;
-  seatIds: string[];
-  pricePerSeat: number;
-}): Promise<ReservationResult> {
-  await requireAuth();
-  try {
-    const { eventId, seatIds, pricePerSeat } = data;
-
-    if (seatIds.length === 0) {
-      return { success: false, error: "No hay asientos seleccionados" };
-    }
-
-    // Get event with teams
-    const event = await prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        homeTeam: true,
-        awayTeam: true,
-      },
-    });
-
-    if (!event) {
-      return { success: false, error: "Evento no encontrado" };
-    }
-
-    // Verify all seats are available
-    const seatStatuses = await prisma.seatStatus.findMany({
-      where: {
-        eventId,
-        seatId: { in: seatIds },
-      },
-      include: {
-        seat: true,
-      },
-    });
-
-    const unavailableSeats = seatStatuses.filter(
-      (ss) => ss.status !== "AVAILABLE"
-    );
-
-    if (unavailableSeats.length > 0) {
-      return {
-        success: false,
-        error: `Algunos asientos ya no están disponibles: ${unavailableSeats
-          .map((s) => s.seat.code)
-          .join(", ")}`,
-      };
-    }
-
-    // Mismo criterio que initializePayment: céntimos enteros y desglose congelado en
-    // la reserva. Los gastos de gestión se leen del evento, no del cliente.
-    const seatPriceCents = pricePerSeat * 100;
-    const managementFeeCents = event.managementFeeCents;
-    const totalCents = (seatPriceCents + managementFeeCents) * seatIds.length;
-    const totalPrice = totalCents / 100;
-
-    // Create reservation and update seat statuses in a transaction
-    const reservation = await prisma.$transaction(async (tx) => {
-      // Create the reservation
-      const newReservation = await tx.reservation.create({
-        data: {
-          eventId,
-          customerName: "Cliente",
-          customerEmail: "cliente@lounge.com",
-          numberOfSeats: seatIds.length,
-          totalPrice,
-          seatPriceCents,
-          managementFeeCents,
-          status: "CONFIRMED",
-          paymentStatus: "COMPLETED",
-          confirmedAt: new Date(),
-        },
-      });
-
-      // Update seat statuses to OCCUPIED and link to reservation
-      await tx.seatStatus.updateMany({
-        where: {
-          eventId,
-          seatId: { in: seatIds },
-        },
-        data: {
-          status: "OCCUPIED",
-          reservationId: newReservation.id,
-        },
-      });
-
-      return newReservation;
-    });
-
-    // Get seat codes for the response
-    const seats = seatStatuses.map((ss) => ({
-      id: ss.seat.id,
-      code: ss.seat.code,
-    }));
-
-    return {
-      success: true,
-      reservation: {
-        id: reservation.id,
-        eventId: event.id,
-        eventTitle: event.title,
-        homeTeamName: event.homeTeam?.name ?? event.homeTeamName ?? "",
-        awayTeamName: event.awayTeam?.name ?? event.awayTeamName ?? "",
-        eventDate: event.eventDate.toISOString(),
-        seats,
-        totalSeats: seatIds.length,
-        totalPrice,
-      },
-    };
-  } catch (error) {
-    console.error("Error creating reservation:", error);
-    return { success: false, error: "Error al crear la reserva" };
-  }
-}
-
 // Get all events with reservation counts
-export async function getEventsWithReservationCount(): Promise<EventWithReservationCount[]> {
+export async function getEventsWithReservationCount(): Promise<
+  EventWithReservationCount[]
+> {
   await requireAuth();
   const events = await prisma.event.findMany({
     where: {
@@ -287,7 +160,7 @@ export async function getPastEventsLast35Days(): Promise<EventWithReservationCou
 
 // Get available months for reports (last 90 days)
 export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
-  await requireAuth();
+  await requireAdmin();
   const now = new Date();
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
@@ -303,47 +176,16 @@ export async function getAvailableReportMonths(): Promise<ReportMonth[]> {
     },
   });
 
-  // Group events by month
-  const monthsMap = new Map<string, { year: number; month: number; count: number }>();
-  const monthNames = [
-    "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-    "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre"
-  ];
-
-  for (const event of events) {
-    const date = new Date(event.eventDate);
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const key = `${year}-${month}`;
-
-    if (monthsMap.has(key)) {
-      monthsMap.get(key)!.count++;
-    } else {
-      monthsMap.set(key, { year, month, count: 1 });
-    }
-  }
-
-  // Convert to array and sort by date descending
-  const months: ReportMonth[] = Array.from(monthsMap.values()).map((m) => ({
-    year: m.year,
-    month: m.month,
-    label: `${monthNames[m.month]} ${m.year}`,
-    eventCount: m.count,
-  }));
-
-  months.sort((a, b) => {
-    if (a.year !== b.year) return b.year - a.year;
-    return b.month - a.month;
-  });
-
-  return months;
+  return groupEventsByMonth(events.map((event) => event.eventDate));
 }
 
 // Get monthly report data for PDF generation
-export async function getMonthlyReportData(year: number, month: number): Promise<MonthlyReportEvent[]> {
-  await requireAuth();
-  const startDate = new Date(year, month, 1);
-  const endDate = new Date(year, month + 1, 0, 23, 59, 59, 999);
+export async function getMonthlyReportData(
+  year: number,
+  month: number,
+): Promise<MonthlyReportEvent[]> {
+  await requireAdmin();
+  const { startDate, endDate } = monthRange(year, month);
 
   const events = await prisma.event.findMany({
     where: {
@@ -387,4 +229,61 @@ export async function getMonthlyReportData(year: number, month: number): Promise
       totalPrice: Number(res.totalPrice),
     })),
   }));
+}
+
+export interface PaymentToRefund {
+  id: string;
+  paymentId: string | null;
+  customerName: string;
+  totalPrice: number;
+  authorisationCode: string | null;
+  paymentDateTime: string | null;
+  eventTitle: string;
+  eventDate: Date;
+}
+
+/**
+ * Reservas cobradas y anuladas: el pago llegó con la reserva caducada y sus asientos ya
+ * eran de otro (RCA-276). El bar tiene que devolver el importe desde el portal de Redsys.
+ * Las ve también el WORKER: si el cliente se presenta en la barra, tiene que saberlo.
+ */
+export async function getPaymentsToRefund(): Promise<PaymentToRefund[]> {
+  await requireAuth();
+  const reservations = await prisma.reservation.findMany({
+    where: PAID_WITHOUT_SEATS,
+    include: { event: { select: { title: true, eventDate: true } } },
+    orderBy: { createdAt: "asc" },
+  });
+
+  return reservations.map((r) => ({
+    id: r.id,
+    paymentId: r.paymentId,
+    customerName: r.customerName,
+    totalPrice: Number(r.totalPrice),
+    authorisationCode: r.authorisationCode,
+    paymentDateTime: r.paymentDateTime,
+    eventTitle: r.event.title,
+    eventDate: r.event.eventDate,
+  }));
+}
+
+/**
+ * El bar ya ha hecho la devolución en el portal de Redsys. Solo ADMIN, y solo sobre una
+ * reserva que de verdad esté pendiente de devolver: no sirve para anular una reserva
+ * confirmada.
+ */
+export async function markReservationRefunded(
+  reservationId: string,
+): Promise<{ success: boolean; error?: string }> {
+  await requireAdmin();
+  const { count } = await prisma.reservation.updateMany({
+    where: { id: reservationId, ...PAID_WITHOUT_SEATS },
+    data: { paymentStatus: "REFUNDED" },
+  });
+  // La respuesta de la acción trae ya el panel actualizado, sin una segunda petición
+  // (router.refresh) desde el cliente.
+  if (count === 1) revalidatePath("/admin");
+  return count === 1
+    ? { success: true }
+    : { success: false, error: "Esta reserva no está pendiente de devolución" };
 }

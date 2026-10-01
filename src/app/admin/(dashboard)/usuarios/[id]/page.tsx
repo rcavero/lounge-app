@@ -1,20 +1,29 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { getUserById } from "@/modules/users/actions";
-import { UserForm } from "../user-form";
+import { getUserForEdit } from "@/modules/users/actions";
+import { redirectUnlessAdmin } from "@/lib/auth-guard";
+import { FlashToast } from "@/shared/components/toast";
+import { EditUser } from "../components/edit-user";
 
 interface EditUserPageProps {
   params: Promise<{ id: string }>;
 }
 
-export default async function EditUserPage({ params }: EditUserPageProps) {
-  const { id } = await params;
-  const user = await getUserById(id);
+const MESSAGES = { guardado: "Cambios guardados" };
 
-  if (!user) {
+export default async function EditUserPage({ params }: EditUserPageProps) {
+  await redirectUnlessAdmin();
+
+  const { id } = await params;
+  const result = await getUserForEdit(id);
+
+  if (!result) {
     notFound();
   }
+
+  const { user, permissions } = result;
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -29,17 +38,18 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div>
-              <h1 className="text-white font-semibold text-sm">Editar Usuario</h1>
-              <p className="text-white/50 text-xs">Modifica los datos del usuario</p>
+              <h1 className="text-white font-semibold text-sm">
+                {permissions.isSelf ? "Mi cuenta" : "Editar Usuario"}
+              </h1>
+              <p className="text-white/50 text-xs">{user.name || user.email}</p>
             </div>
           </div>
         </div>
       </header>
 
-      {/* Form */}
       <main className="flex-1 px-4 py-4">
         <div className="max-w-lg mx-auto">
-          <UserForm mode="edit" user={user} />
+          <EditUser user={user} permissions={permissions} />
         </div>
       </main>
 
@@ -49,6 +59,10 @@ export default async function EditUserPage({ params }: EditUserPageProps) {
           THE LOUNGE BEERHOUSE • VALENCIA
         </p>
       </footer>
+
+      <Suspense>
+        <FlashToast messages={MESSAGES} />
+      </Suspense>
     </div>
   );
 }

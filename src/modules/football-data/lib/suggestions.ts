@@ -19,7 +19,7 @@ import type { MatchSuggestion, EspnEvent } from "../types";
 export function toSuggestion(
   event: EspnEvent,
   competition: Competition,
-  teamMap: Map<number, string>
+  teamMap: Map<number, string>,
 ): MatchSuggestion | null {
   // Solo partidos aún no jugados.
   if (event.status?.type?.state !== "pre") return null;

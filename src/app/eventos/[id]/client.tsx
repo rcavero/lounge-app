@@ -5,12 +5,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { FADE_IN, MODAL_BACKDROP, MODAL_CARD } from "@/shared/components/motion";
 import { Button } from "@/components/ui/button";
 import { formatEuros } from "@/lib/utils";
 import { centsToEuros } from "@/modules/events/config/pricing";
 import { FloorPlanMap } from "@/modules/seating/components/floor-plan-map";
 import { useReservationStore } from "@/shared/hooks";
+import { useIsSpanish } from "@/shared/hooks/use-is-spanish";
 import { initializePayment } from "@/modules/payments/actions";
 import {
   CUSTOMER_NAME_MAX_LENGTH,
@@ -33,7 +35,11 @@ interface EventReservationClientProps {
   zoneLabels: ZoneLabelConfig[];
 }
 
-export function EventReservationClient({ event, seats, zoneLabels }: EventReservationClientProps) {
+export function EventReservationClient({
+  event,
+  seats,
+  zoneLabels,
+}: EventReservationClientProps) {
   const {
     selectedSeats,
     toggleSeat,
@@ -49,7 +55,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const [showNameModal, setShowNameModal] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [nameError, setNameError] = useState<string | null>(null);
-  const [isSpanish, setIsSpanish] = useState(true);
+  const isSpanish = useIsSpanish();
   const redsysFormRef = useRef<HTMLFormElement>(null);
 
   // Initialize store with event and seats data
@@ -61,11 +67,6 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
       clearSelection();
     };
   }, [event, seats, setEvent, setSeatsData, clearSelection]);
-
-  // Detect browser language
-  useEffect(() => {
-    setIsSpanish(navigator.language.startsWith("es"));
-  }, []);
 
   const eventDate = new Date(event.eventDate);
   const totalPrice = getTotalPrice();
@@ -185,7 +186,6 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
   const awayShort = event.awayTeam?.shortName ?? event.awayTeamName ?? "";
   const homeCode = homeShort.substring(0, 3).toUpperCase();
   const awayCode = awayShort.substring(0, 3).toUpperCase();
-  const matchCode = awayCode ? `${homeCode} vs ${awayCode}` : homeCode;
 
   // Format date: "Mié 15 Ene • 20:00"
   const dayName = format(eventDate, "EEE", { locale: es });
@@ -213,9 +213,19 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         title: "CONDICIONES DE LA RESERVA",
         items: [
           { text: "No se admiten cancelaciones", bold: null },
-          { text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)", bold: null },
-          { before: "El pago de la reserva supone un consumo mínimo que ", bold: "será descontado del importe del ticket final", after: feeSuffixEs },
-          { text: "La reserva de los asientos es válida sólo durante la duración del evento", bold: null },
+          {
+            text: "Los asientos se liberarán 10 minutos después de la hora de inicio del evento (se exige puntualidad)",
+            bold: null,
+          },
+          {
+            before: "El pago de la reserva supone un consumo mínimo que ",
+            bold: "será descontado del importe del ticket final",
+            after: feeSuffixEs,
+          },
+          {
+            text: "La reserva de los asientos es válida sólo durante la duración del evento",
+            bold: null,
+          },
         ],
         accept: "Aceptar",
       }
@@ -223,9 +233,19 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         title: "RESERVATION CONDITIONS",
         items: [
           { text: "No cancellations accepted", bold: null },
-          { text: "Seats will be released 10 minutes after the event start time (punctuality is required)", bold: null },
-          { before: "The reservation payment represents a minimum consumption that ", bold: "will be deducted from the final ticket amount", after: feeSuffixEn },
-          { text: "Seat reservation is only valid for the duration of the event", bold: null },
+          {
+            text: "Seats will be released 10 minutes after the event start time (punctuality is required)",
+            bold: null,
+          },
+          {
+            before: "The reservation payment represents a minimum consumption that ",
+            bold: "will be deducted from the final ticket amount",
+            after: feeSuffixEn,
+          },
+          {
+            text: "Seat reservation is only valid for the duration of the event",
+            bold: null,
+          },
         ],
         accept: "Accept",
       };
@@ -234,8 +254,12 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
     <div className="min-h-screen bg-black flex flex-col">
       {/* Conditions modal */}
       {showConditions && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-5">
-          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+        <div
+          className={`fixed inset-0 z-[200] flex items-center justify-center bg-black/80 px-5 ${MODAL_BACKDROP}`}
+        >
+          <div
+            className={`bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10 ${MODAL_CARD}`}
+          >
             <h2 className="text-white font-bold text-sm tracking-widest text-center mb-5">
               {conditions.title}
             </h2>
@@ -260,6 +284,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
               ))}
             </ul>
             <Button
+              data-testid="conditions-accept"
               onClick={() => setShowConditions(false)}
               className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
             >
@@ -271,8 +296,13 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
       {/* Name modal - se abre al pulsar RESERVAR, antes de ir a la pasarela */}
       {showNameModal && (
-        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5">
-          <div className="bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10">
+        <div
+          data-testid="name-modal"
+          className={`fixed inset-0 z-[210] flex items-center justify-center bg-black/80 px-5 ${MODAL_BACKDROP}`}
+        >
+          <div
+            className={`bg-[#1a1a1a] rounded-2xl p-6 max-w-sm w-full border border-white/10 ${MODAL_CARD}`}
+          >
             <h2 className="text-white font-bold text-sm tracking-widest text-center mb-2">
               {nameModal.title}
             </h2>
@@ -286,6 +316,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
             {/* El <form> es lo que hace que Enter funcione en el teclado del movil */}
             <form onSubmit={handleReserve}>
               <input
+                data-testid="customer-name-input"
                 type="text"
                 autoFocus
                 autoComplete="name"
@@ -302,27 +333,23 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
               />
 
               {nameError && (
-                <p className="text-red-400 text-xs mt-2">{nameError}</p>
+                <p data-testid="name-error" className="text-red-400 text-xs mt-2">
+                  {nameError}
+                </p>
               )}
 
               <p className="text-white/40 text-[11px] mt-2 mb-5">{nameModal.help}</p>
 
               <Button
+                data-testid="pay-button"
                 type="submit"
                 disabled={
-                  isProcessing ||
                   normalizeCustomerName(customerName).length < CUSTOMER_NAME_MIN_LENGTH
                 }
+                loading={isProcessing}
                 className="w-full bg-[#D4AF37] hover:bg-[#b8972e] text-black font-semibold"
               >
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    {nameModal.processing}
-                  </>
-                ) : (
-                  nameModal.pay
-                )}
+                {isProcessing ? nameModal.processing : nameModal.pay}
               </Button>
             </form>
 
@@ -343,10 +370,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
         <div className="flex items-center justify-between px-4 py-4">
           {/* Left: Back button + team crests */}
           <div className="flex items-center gap-3">
-            <Link
-              href="/"
-              className="text-white/70 hover:text-white transition-colors"
-            >
+            <Link href="/" className="text-white/70 hover:text-white transition-colors">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="flex items-center gap-1">
@@ -398,6 +422,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
           {/* Right: Reserve button */}
           <Button
+            data-testid="reserve-button"
             disabled={selectedSeats.length === 0}
             onClick={openNameModal}
             className="bg-[#D4AF37] hover:bg-[#C5A028] text-black font-semibold px-5 py-1 text-base"
@@ -413,7 +438,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
           <p className="text-[10px] text-white/50 uppercase tracking-wide">
             {selectedSeats.length} asiento{selectedSeats.length !== 1 ? "s" : ""}
           </p>
-          <p className="text-white font-bold">
+          <p data-testid="selection-total" className="text-white font-bold">
             {formatEuros(totalPrice)}€
           </p>
           {feeCents > 0 && (
@@ -433,7 +458,7 @@ export function EventReservationClient({ event, seats, zoneLabels }: EventReserv
 
       {/* Main Content - Floor Plan */}
       <main className="flex-1 px-4 py-4">
-        <div className="max-w-md mx-auto">
+        <div className={`max-w-md mx-auto ${FADE_IN}`}>
           <FloorPlanMap
             seats={seats}
             selectedSeats={selectedSeats}

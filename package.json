@@ -2,16 +2,42 @@
   "name": "lounge-app",
   "version": "0.1.0",
   "private": true,
+  "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",
+    "dev:testing": "dotenv -e .env.testing -- next dev",
     "build": "prisma generate && next build",
     "start": "next start",
     "lint": "eslint",
+    "typecheck": "tsc --noEmit",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run --project unit --project ui",
+    "test:watch": "vitest --project unit --project ui",
+    "test:integration": "vitest run --project integration",
+    "test:coverage": "vitest run --coverage",
+    "e2e": "playwright test",
+    "e2e:report": "playwright show-report",
+    "prepare": "husky",
+    "db:up": "docker compose up -d --wait",
+    "db:down": "docker compose down",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:push": "prisma db push",
     "db:seed": "npx tsx prisma/seed.ts",
     "db:studio": "prisma studio",
-    "db:reset": "prisma migrate reset"
+    "db:reset": "prisma migrate reset",
+    "db:whoami": "npx tsx scripts/db-whoami.ts",
+    "db:whoami:testing": "dotenv -e .env.testing -- npx tsx scripts/db-whoami.ts",
+    "db:whoami:prod": "dotenv -e .env.prod -- npx tsx scripts/db-whoami.ts",
+    "db:deploy:testing": "dotenv -e .env.testing -- prisma migrate deploy",
+    "db:deploy:prod": "dotenv -e .env.prod -- prisma migrate deploy",
+    "db:studio:testing": "dotenv -e .env.testing -- prisma studio",
+    "db:backup:testing": "dotenv -e .env.testing -- npx tsx scripts/backup-db.ts",
+    "db:backup:prod": "dotenv -e .env.prod -- npx tsx scripts/backup-db.ts"
+  },
+  "engines": {
+    "node": "24.x"
   },
   "prisma": {
     "seed": "npx tsx prisma/seed.ts"
@@ -40,16 +66,26 @@
     "zustand": "^5.0.10"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/postcss": "^4",
+    "@testing-library/react": "^16.3.3",
+    "@testing-library/user-event": "^14.6.7",
     "@types/bcryptjs": "^2.4.6",
-    "@types/node": "^20",
+    "@types/node": "^24.13.6",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitest/coverage-v8": "^5.0.1",
+    "dotenv-cli": "^11.0.0",
     "eslint": "^9",
     "eslint-config-next": "16.1.5",
+    "husky": "^9.1.7",
+    "jsdom": "^30.1.1",
+    "lint-staged": "^17.5.1",
+    "prettier": "^3.9.8",
     "tailwindcss": "^4",
     "tsx": "^4.21.0",
     "tw-animate-css": "^1.4.0",
-    "typescript": "^5"
+    "typescript": "^5",
+    "vitest": "^5.0.1"
   }
 }

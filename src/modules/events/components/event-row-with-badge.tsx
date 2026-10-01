@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { LinkPendingIndicator, PRESSABLE } from "@/shared/components/link-pending";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import type { EventWithReservationCount } from "@/modules/reservations/actions";
@@ -66,10 +67,16 @@ export function EventRowWithBadge({ event, href }: EventRowWithBadgeProps) {
   );
 
   return (
-    <Link href={href || `/admin/reservas/${event.id}`} className="block">
+    <Link
+      href={href || `/admin/reservas/${event.id}`}
+      className={`block relative ${PRESSABLE}`}
+    >
       <div className="relative bg-[#1a1a1a] rounded-2xl px-4 py-4 flex items-center justify-between hover:bg-[#222] transition-colors">
         {/* Competition emblem */}
-        <CompetitionEmblem competition={event.competition} className="absolute top-2 left-2" />
+        <CompetitionEmblem
+          competition={event.competition}
+          className="absolute top-2 left-2"
+        />
         {/* Reservation count badge */}
         {reservationCount > 0 && (
           <div className="absolute -top-2 -right-2 bg-[#D4AF37] text-black text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center z-10">
@@ -99,6 +106,8 @@ export function EventRowWithBadge({ event, href }: EventRowWithBadgeProps) {
           )}
         </div>
       </div>
+      {/* Abajo: la esquina de arriba es del contador de reservas. */}
+      <LinkPendingIndicator className="top-auto bottom-2" />
     </Link>
   );
 }

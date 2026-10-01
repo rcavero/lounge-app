@@ -5,9 +5,9 @@
 
 /* Custom colors for The Lounge Beerhouse */
 :root {
-  --gold: #D4AF37;
-  --gold-light: #E8C864;
-  --gold-dark: #B8972E;
+  --gold: #d4af37;
+  --gold-light: #e8c864;
+  --gold-dark: #b8972e;
 }
 
 @theme inline {
@@ -60,36 +60,36 @@
 :root {
   --radius: 0.625rem;
   --background: #000000;
-  --foreground: #FAFAFA;
-  --card: #0A0A0A;
-  --card-foreground: #FAFAFA;
-  --popover: #0A0A0A;
-  --popover-foreground: #FAFAFA;
-  --primary: #D4AF37;
+  --foreground: #fafafa;
+  --card: #0a0a0a;
+  --card-foreground: #fafafa;
+  --popover: #0a0a0a;
+  --popover-foreground: #fafafa;
+  --primary: #d4af37;
   --primary-foreground: #000000;
-  --secondary: #1A1A1A;
-  --secondary-foreground: #FAFAFA;
-  --muted: #1A1A1A;
-  --muted-foreground: #A1A1A1;
-  --accent: #D4AF37;
+  --secondary: #1a1a1a;
+  --secondary-foreground: #fafafa;
+  --muted: #1a1a1a;
+  --muted-foreground: #a1a1a1;
+  --accent: #d4af37;
   --accent-foreground: #000000;
-  --destructive: #EF4444;
+  --destructive: #ef4444;
   --border: #262626;
   --input: #262626;
-  --ring: #D4AF37;
-  --chart-1: #D4AF37;
-  --chart-2: #22C55E;
-  --chart-3: #3B82F6;
-  --chart-4: #A855F7;
-  --chart-5: #F97316;
-  --sidebar: #0A0A0A;
-  --sidebar-foreground: #FAFAFA;
-  --sidebar-primary: #D4AF37;
+  --ring: #d4af37;
+  --chart-1: #d4af37;
+  --chart-2: #22c55e;
+  --chart-3: #3b82f6;
+  --chart-4: #a855f7;
+  --chart-5: #f97316;
+  --sidebar: #0a0a0a;
+  --sidebar-foreground: #fafafa;
+  --sidebar-primary: #d4af37;
   --sidebar-primary-foreground: #000000;
-  --sidebar-accent: #1A1A1A;
-  --sidebar-accent-foreground: #FAFAFA;
+  --sidebar-accent: #1a1a1a;
+  --sidebar-accent-foreground: #fafafa;
   --sidebar-border: #262626;
-  --sidebar-ring: #D4AF37;
+  --sidebar-ring: #d4af37;
 }
 
 @layer base {
@@ -108,7 +108,7 @@
 }
 
 ::-webkit-scrollbar-track {
-  background: #0A0A0A;
+  background: #0a0a0a;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -143,7 +143,12 @@
 
 /* Gold gradient text */
 .text-gold-gradient {
-  background: linear-gradient(135deg, var(--gold-light) 0%, var(--gold) 50%, var(--gold-dark) 100%);
+  background: linear-gradient(
+    135deg,
+    var(--gold-light) 0%,
+    var(--gold) 50%,
+    var(--gold-dark) 100%
+  );
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
