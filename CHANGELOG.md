@@ -17,6 +17,9 @@ cambio llega a `main` cuando se ha probado en `testing`.
   - Antes del código se aplicaron dos migraciones aditivas: la llave de cada reserva y la tabla
     del límite de intentos del login.
   - Todo el personal vuelve a iniciar sesión una vez.
+- **Las funciones de Vercel pasan de Washington (`iad1`) a Dublín (`dub1`)**, en la misma región
+  que la base de datos. Cada consulta cruzaba el Atlántico, y la página de un evento tardaba unos
+  3 s en completarse.
 
 ### Documentación
 - El plan de la fusión, con sus riesgos, el orden de los pasos y el rollback, en

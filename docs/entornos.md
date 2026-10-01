@@ -172,6 +172,12 @@ entorno y la manda a `localhost`.
   `curl -H "Authorization: Bearer $CRON_SECRET" <url>/api/cron/cleanup`.
 - **Desplegar no aplica migraciones.** `npm run build` es `prisma generate && next build`. Las
   migraciones se aplican a mano, antes que el código.
+- **Las funciones corren en Dublín (`dub1`).** Lo fija `vercel.json`, que manda sobre el ajuste
+  del panel, y vale para producción y para las previews.
+  - Dublín es la misma región de AWS que las dos bases de Supabase (`eu-west-1`).
+  - Hasta octubre de 2026 corrían en Washington (`iad1`), que es el valor por defecto. Cada
+    consulta cruzaba el Atlántico, y la página de un evento tardaba unos 3 s en completarse.
+  - En el plan Hobby solo se puede elegir una región.
 
 ## Migrar una base remota
 

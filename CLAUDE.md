@@ -182,7 +182,7 @@ lounge-app/
 │
 ├── backups/                        # Backups de base de datos
 ├── components.json                 # Configuración de shadcn/ui
-├── vercel.json                     # Configuración de cron jobs
+├── vercel.json                     # Cron jobs y región de las funciones (dub1, junto a Supabase)
 ├── docs/historico/                 # Planes y guías ya ejecutados, sin editar: lo que era cierto al escribirlos
 ├── MASTER_IA.md                    # Plan y registro de la entrega del máster
 └── CLAUDE.md                       # Este archivo
