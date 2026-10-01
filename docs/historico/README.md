@@ -1,7 +1,7 @@
 # Documentos históricos
 
 Planes, guías de migración y notas que se escribieron mientras la app se construía, de febrero a
-septiembre de 2026. Estaban en la raíz del repositorio y se trasladaron aquí con `git mv` y **sin
+octubre de 2026. Estaban en la raíz del repositorio y se trasladaron aquí con `git mv` y **sin
 editar**, así que `git log --follow` conserva su historia entera.
 
 La única excepción son los datos privados, que se quitaron en septiembre de 2026, antes de
@@ -38,6 +38,7 @@ vigente está en el código, en [`CLAUDE.md`](../../CLAUDE.md) y en el resto de 
 | [`PLAN_EDITOR_ASIENTOS_V2.md`](PLAN_EDITOR_ASIENTOS_V2.md) | ago 2026 | Nombres reales de los asientos y editor para crear, editar y borrar |
 | [`PLAN_IMPLEMENTACION_NOMBRE_CLIENTE.md`](PLAN_IMPLEMENTACION_NOMBRE_CLIENTE.md) | ago 2026 | Nombre del cliente en la reserva y recibo de pago que pide CaixaBank |
 | [`PLAN_IMPLEMENTACION_MAIL_CLIENTE.md`](PLAN_IMPLEMENTACION_MAIL_CLIENTE.md) | sep 2026 | Email de confirmación con el ticket en PDF adjunto |
+| [`PLAN_FUSION_PRODUCCION.md`](PLAN_FUSION_PRODUCCION.md) | oct 2026 | Paso de `academic` a `testing` y a producción: riesgos, orden, puertas y rollback |
 
 ## Por qué se conservan
 
