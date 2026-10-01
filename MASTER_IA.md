@@ -74,7 +74,9 @@ Estado de partida el 21 de septiembre, verificado entonces:
 > periódicamente para que el proyecto tenga actividad cuando lo revisen.
 
 - `academic` **no sustituye** a `testing` en Vercel: cada rama genera su propio Preview con su propia URL. Conviven.
-- **Nunca** se mergea `academic` hacia `testing` ni `main` mientras dure la entrega.
+- ~~**Nunca** se mergea `academic` hacia `testing` ni `main` mientras dure la entrega.~~ **Se
+  fusionó el 1 de octubre, por decisión de Ramón** (ver P13). Desde entonces las tres ramas van
+  juntas, y el flujo es `academic` → `testing` → `main`, siempre en fast-forward.
 - Protección de rama en GitHub para `main` y `testing`.
 - En `academic` **jamás** entran las credenciales reales de CaixaBank, solo sandbox.
 - Vercel **no ejecuta crons en Preview**: en `academic` se llaman a mano con `CRON_SECRET`.
@@ -1105,6 +1107,107 @@ Se hizo con un plan previo aprobado, y con un solo push.
 
 ---
 
+## Paso P13 — Fusión con producción · EJECUTADO
+
+1 de octubre. Ramón pidió llevar todo lo de `academic` primero a `testing` y, comprobado allí, a
+`main`, con un rollback sencillo y el mínimo de acciones suyas. El plan se escribió antes, con su
+aprobación, y está en
+[`docs/historico/PLAN_FUSION_PRODUCCION.md`](docs/historico/PLAN_FUSION_PRODUCCION.md).
+
+### P13.1 Qué se hizo
+
+- **El punto de partida.** `main` y `testing` tenían el mismo árbol, pero dos historias paralelas,
+  hechas por cherry-pick: la Fase −1 y el hotfix de P7.7. `academic` salía de `testing` y le
+  sacaba 137 commits.
+- **Dos merges en `testing` y fast-forward en `main`.**
+  - M1 (`18db912`): `main` en `testing`. No cambia ni un byte, solo une las historias.
+  - M2 (`d103a5a`): `academic` en `testing`. Un único conflicto, el previsto, en
+    `payments/actions/index.ts`. Se quedó la versión de `academic`, que ya llevaba el arreglo de
+    la carrera.
+  - **Puerta:** `git diff academic testing` vacío. Lo que llega a testing es exactamente lo que
+    se verificó en la preview de `academic`.
+  - `main` avanzó en fast-forward hasta `d103a5a`. **Producción despliega el mismo commit que se
+    probó en testing**, sin un merge nuevo que resolver otra vez.
+  - Después `academic` avanzó igual: las tres ramas quedaron en el mismo commit.
+- **Rollback.** Tres etiquetas: `pre-fusion-main`, `pre-fusion-testing` y `entrega-master-p12`,
+  que es la foto de la entrega. Si hiciera falta, primero el Instant Rollback de Vercel y después
+  `git revert -m 1` de M2. La base no se toca.
+- **Migraciones.** En testing no hubo que migrar, porque la base es compartida con `academic` y
+  ya tenía las dos. En producción, `add_reservation_access_token` y `add_login_attempt` se
+  aplicaron **antes** del código:
+  1. comprobar que no había ninguna reserva pendiente de pago;
+  2. copia de seguridad completa;
+  3. `db:whoami:prod` y `migrate status`, con exactamente las 2 pendientes;
+  4. `db:deploy:prod`;
+  5. comprobar que la web seguía respondiendo con el código viejo;
+  6. el push.
+
+### P13.2 Qué decidió Ramón y qué decidió la IA
+
+- **Ramón:**
+  - fusionar ahora, con la entrega ya cerrada;
+  - que `academic` siga siendo la rama de trabajo, alineada con las otras: el flujo es
+    `academic` → `testing` → `main`, siempre en fast-forward;
+  - hacer él las comprobaciones en el navegador: la compra en el sandbox y la web del bar. La IA
+    solo lee Vercel y GitHub Actions;
+  - borrar a mano las previews antiguas de Vercel;
+  - **no rotar `CRON_SECRET`** de momento: «no hay riesgo»;
+  - el momento, confirmado con las trabajadoras del bar;
+  - comprobar el pago real con el primero que entre, porque no había ningún evento abierto;
+  - y un OK explícito antes de cada push y antes de migrar producción.
+- **La IA:** la estrategia de ramas (M1, M2 y fast-forward), las etiquetas, el orden migración →
+  código, las puertas de cada fase y qué se comprueba en cada una.
+
+### P13.3 Tropiezos y hallazgos
+
+1. **Las ramas locales `main` y `testing` estaban desfasadas**: no tenían el hotfix. Se alinearon
+   con `origin` antes de nada. Fusionar sobre ellas habría dado un `main` sin el arreglo de la
+   carrera.
+2. **El almacenamiento de funciones de Vercel marcaba 9,25 GB de 10.**
+   - Lo llenaron los despliegues de `academic` del 21 al 25 de septiembre.
+   - Ramón borró a mano las previews anteriores al 23. La web no permite borrar en bloque; para
+     eso está la CLI.
+   - La cifra no bajó: es un dato diario y el del día aún no estaba calculado.
+   - Según el changelog de Vercel del 16 de septiembre, pasar del límite puede bloquear
+     despliegues, nunca borra la producción actual, y un despliegue bloqueado no rompe nada. El
+     push a testing sirvió de canario: Vercel no lo bloqueó.
+3. **El E2E falló 2 de 62 en la primera pasada**, los dos en `users.spec.ts`, por timeout de
+   30 s, con la máquina en frío (2,1 min). Lanzado solo, 12/12; la suite completa otra vez,
+   62/62 en 54 s. Es inestabilidad bajo carga. No hay tarjeta.
+4. **El cron a mano contra testing dio 401.** El `CRON_SECRET` del `.env.testing` local ya no es
+   el de Vercel. El cron está cubierto por la integración.
+5. **Una reserva de julio confirmada sin ningún asiento**, de la noche del incidente del pool. Se
+   confirmó a los 9 segundos de crearse, así que no fue un pago tardío. Es casi seguro la carrera
+   de RCA-175, que ya está arreglada. Se le pasó a Ramón por si hubo que atender al cliente.
+6. **Un error del pool de conexiones en el arranque en frío del despliegue de producción**: una
+   carga de la portada no consiguió conexión en 10 s. No se repitió en más de 40 peticiones
+   posteriores, entre ellas el login de Ramón y todo el panel.
+   - Es el modo de fallo del incidente de julio, que sigue sin arreglar.
+   - **De paso salió que las funciones corren en `iad1` (Washington) y la base en `eu-west-1`
+     (Irlanda):** cada consulta cruza el Atlántico. Viene de antes de la fusión, porque no hay
+     regiones configuradas.
+
+### P13.4 Cómo se comprobó
+
+| Momento | Qué |
+|---|---|
+| En local, antes del push | Árbol de `testing` idéntico al de `academic`. Lint, tipos y formato limpios. 389 unitarios y de componentes, 231 de integración y 62 E2E |
+| Testing | CI #33 en verde. Despliegue en ~45 s. Las 5 cabeceras, `/admin` al login, el cron sin cabecera con 401, y la confirmación sin llave sin datos |
+| Testing, con dinero de pruebas | Compra de Ramón de 2 asientos: confirmada, con llave, recibo completo, asientos ocupados y el importe congelado igual al del evento. `verify-management-fee.ts report`: 0 descuadres |
+| Producción, antes | 0 reservas pendientes, la copia de seguridad, el ref correcto y las 2 migraciones pendientes |
+| Producción, después | 7 migraciones, esquema al día. `main` == `testing` (`d103a5a`). Las cabeceras, las rutas y el login de Ramón en el panel |
+
+### P13.5 Lo que queda
+
+- **El primer pago real** en producción: comprobarlo en la base con su nº de pedido cuando entre.
+- **El cron de la mañana siguiente** en los logs de Vercel: es la primera vez que corre el código
+  nuevo de la limpieza.
+- **La región de las funciones (`dub1`) y los arreglos P0 del pool** del incidente de julio, que
+  pasan a ser lo siguiente.
+- Actualizar el `CRON_SECRET` del `.env.testing` local.
+
+---
+
 ## Fase 2 — Extracción de capa de dominio
 
 > **Ejecutada en P4**, con los desvíos de P4.3. La trampa 1 está corregida desde P3.
@@ -1348,6 +1451,7 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
 | ~~**P10**~~ | ~~Presentación. Las capturas, después de P8.~~ **Hecho**: 26 diapositivas, en Presentaciones de Google. Ver P10 | — | 11 · Fase 8 |
 | ~~**P11**~~ | ~~Seguridad antes de la entrega: la contraseña del seed, los datos privados del árbol y R1, R2, R5, R6 y R7.~~ **Hecho**, y verificado en la preview. Ver P11 | Sesión del panel | RCA-275, RCA-286 |
 | **P12** | Usuarios del panel: permisos entre admins, contraseñas con reautenticación, alta con repetición y avisos. **Hecho**, y verificado en la preview. Ver P12 | Panel | RCA-287 |
+| **P13** | Fusión con producción: `academic` → `testing` → `main`, con dos migraciones aditivas antes del código. **Hecho** el 1 de octubre. Ver P13 | **Producción** | — |
 
 **Cambio de orden del 24 de septiembre, decidido por Ramón.** El plan original ponía la documentación y la presentación en paralelo desde P3. Se retrasan hasta que el producto deje de cambiar: no tiene sentido documentar ni capturar pantallas de una app a la que aún le faltan tres arreglos de dinero y una revisión de UI. Entre los dos bloques que cambian el producto, los fallos de dinero van primero por tres motivos: afectan a cobros reales, la decisión del hotfix necesita el arreglo ya hecho, y los estados de carga se montan así sobre el botón de pago definitivo.
 
@@ -1381,6 +1485,12 @@ Las fases 1 a 3 se trocean así, y **el orden importa más que el contenido**: l
      - el informe de importes contra testing: 80 reservas, 0 sin precio unitario y 0 con el total distinto del desglose;
      - el CI #29 y el #30, en verde.
 8. ~~**P12, en la preview de `academic`**: alta de un WORKER y de un ADMIN, cambio de contraseñas, la ficha de otro ADMIN, ascenso, borrado, el último ADMIN y los avisos en el móvil.~~ **Hecho por Ramón el 28 de septiembre, con todo correcto.** CI #31, en verde.
+9. **P13, la fusión con producción.**
+   - ~~La compra en el sandbox de testing y el panel de testing.~~ **Hecho por Ramón el 1 de
+     octubre, con todo correcto.**
+   - ~~El inicio de sesión en el panel de producción.~~ **Hecho el 1 de octubre.**
+   - **Pendiente: el primer pago real en producción.** No había ningún evento abierto, así que se
+     comprueba con el primero que entre.
 
 ---
 

@@ -7,9 +7,10 @@ asiento en el plano del local y pagan con tarjeta desde el móvil, sin registrar
 gestiona eventos, reservas, bloqueos y usuarios desde un panel con roles.
 
 **Está en producción y cobra dinero real desde mayo de 2026**, a través de Redsys (CaixaBank).
-Esta rama, `academic`, es la versión preparada como proyecto de un máster de desarrollo de
-software asistido por IA: la misma aplicación, con una suite de tests, CI, refactor de la capa de
-dominio, los fallos que esos tests sacaron a la luz ya corregidos, y esta documentación.
+En septiembre de 2026 se preparó, en la rama `academic`, como proyecto de un máster de desarrollo
+de software asistido por IA: la misma aplicación, con una suite de tests, CI, refactor de la capa
+de dominio, los fallos que esos tests sacaron a la luz ya corregidos, y esta documentación. Todo
+eso está en producción desde el 1 de octubre de 2026.
 
 ## Qué hace
 

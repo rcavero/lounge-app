@@ -8,14 +8,18 @@ igual para una persona que para la IA.
 
 | Rama | Qué es | Cómo llega el código |
 |---|---|---|
-| `main` | **Producción.** Cobra dinero real | Solo desde `testing`, después de probar allí |
-| `testing` | La web de pruebas del bar, con la pasarela de pruebas | Donde se desarrolla y se prueba cada cambio para el bar |
-| `academic` | La entrega del máster: tests, CI, refactor y documentación | Rama propia. **No se fusiona con las otras mientras dure la entrega** |
+| `main` | **Producción.** Cobra dinero real | Solo desde `testing`, en fast-forward, después de probar allí |
+| `testing` | La web de pruebas del bar, con la pasarela de pruebas | Desde `academic`, en fast-forward |
+| `academic` | La rama de trabajo, con los tests y la CI. Fue la de la entrega del máster | Aquí se desarrolla cada cambio |
 
-Un cambio para el bar va primero a `testing`, se usa allí unos días y solo después pasa a `main`.
-Durante la entrega del máster, `main` y `testing` no se tocan salvo por un arreglo urgente de
-producción, que se decide explícitamente. Ha habido dos: una corrección de comentarios en la
-Fase −1 y el arreglo de la carrera de asientos en P7.
+Un cambio se hace en `academic`, pasa a `testing`, se usa allí unos días y solo después pasa a
+`main`. Las tres ramas avanzan en fast-forward, así que producción despliega exactamente el commit
+que se probó en testing.
+
+Hasta el 1 de octubre de 2026, mientras duró la entrega del máster, `academic` iba por su cuenta
+y `main` y `testing` no se tocaron, salvo dos arreglos decididos explícitamente: una corrección
+de comentarios en la Fase −1 y el arreglo de la carrera de asientos en P7. Ese día se fusionaron
+las tres (`MASTER_IA.md`, P13).
 
 Cada push despliega en Vercel. **Se agrupan los commits y se sube al cerrar un bloque de trabajo**,
 no uno a uno.
@@ -23,8 +27,8 @@ no uno a uno.
 ## Antes de empezar un cambio con riesgo
 
 Un cambio que toca dinero, el esquema de la base o algo que ve el cliente **se planifica por
-escrito antes de programarlo**. En las ramas del bar, el plan va como `.md` en la raíz, para
-comentarlo con la propietaria y con el otro ingeniero. En `academic`, en `MASTER_IA.md`. Un plan
+escrito antes de programarlo**. El plan va como `.md` en la raíz, para comentarlo con la
+propietaria y con el otro ingeniero; los pasos de la entrega del máster, en `MASTER_IA.md`. Un plan
 dice qué se cambia, qué se descarta y por qué, cómo se va a comprobar, y qué decisiones quedan
 pendientes y de quién son.
 

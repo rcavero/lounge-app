@@ -5,12 +5,26 @@ Historia del proyecto, sacada del `git log` y agrupada por mes. El formato sigue
 calidad** y **Documentación**. La aplicación no publica versiones: está en producción y cada
 cambio llega a `main` cuando se ha probado en `testing`.
 
-**Desde el 21 de septiembre de 2026 hay dos historias.** `main` es producción. `academic` es la
-entrega del máster y todavía no se ha fusionado. Lo que solo está en `academic` va marcado.
+**Del 21 de septiembre al 1 de octubre de 2026 hubo dos historias.** `main` era producción y
+`academic` la entrega del máster. El 1 de octubre `academic` se fusionó con `testing` y con
+`main`, y desde entonces las tres ramas van juntas.
+
+## Octubre de 2026
+
+### Cambiado
+- **La entrega del máster llega a producción** (1 de octubre). Es todo lo de septiembre que
+  estaba solo en `academic`. Producción despliega el mismo commit que se probó en `testing`.
+  - Antes del código se aplicaron dos migraciones aditivas: la llave de cada reserva y la tabla
+    del límite de intentos del login.
+  - Todo el personal vuelve a iniciar sesión una vez.
+
+### Documentación
+- El plan de la fusión, con sus riesgos, el orden de los pasos y el rollback, en
+  `docs/historico/PLAN_FUSION_PRODUCCION.md`.
 
 ## Septiembre de 2026
 
-### Solo en `academic` (entrega del máster)
+### En `academic` (entrega del máster), en producción desde el 1 de octubre
 
 #### Seguridad
 - Usuarios del panel (P12):
@@ -93,7 +107,7 @@ entrega del máster y todavía no se ha fusionado. Lo que solo está en `academi
   datos, entornos, testing, seguridad, siete ADR y el desarrollo asistido por IA.
 - Los planes y guías de cada etapa pasan a `docs/historico/`, sin editar.
 
-### En producción (`main`)
+### Directo en producción (`main`), antes de la fusión
 
 #### Corregido
 - **Dos clientes simultáneos podían comprar el mismo asiento.** Arreglo aplicado directamente en
