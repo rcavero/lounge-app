@@ -18,8 +18,12 @@ cambio llega a `main` cuando se ha probado en `testing`.
     del límite de intentos del login.
   - Todo el personal vuelve a iniciar sesión una vez.
 - **Las funciones de Vercel pasan de Washington (`iad1`) a Dublín (`dub1`)**, en la misma región
-  que la base de datos. Cada consulta cruzaba el Atlántico, y la página de un evento tardaba unos
-  3 s en completarse.
+  que la base de datos, porque cada consulta cruzaba el Atlántico. Medido en testing, mediana del
+  tiempo total:
+  - la página de un evento pasa de 2,97 s a 0,26 s, 11,5 veces más rápida;
+  - la portada, de 0,86 s a 0,19 s.
+
+  Ver ADR 0008.
 
 ### Documentación
 - El plan de la fusión, con sus riesgos, el orden de los pasos y el rollback, en

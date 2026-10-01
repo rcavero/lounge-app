@@ -140,7 +140,7 @@ docs/                    documentación
 | [`docs/entornos.md`](docs/entornos.md) | Entornos, variables, scripts y cómo se migra producción |
 | [`docs/testing.md`](docs/testing.md) | La suite, cómo se simula Redsys y cómo se sabe que los tests sirven |
 | [`docs/seguridad.md`](docs/seguridad.md) | Modelo de amenazas, cómo se protege cada cosa y los riesgos que siguen abiertos |
-| [`docs/adr/`](docs/adr/) | Siete decisiones de arquitectura, con sus alternativas |
+| [`docs/adr/`](docs/adr/) | Ocho decisiones de arquitectura, con sus alternativas |
 | [`docs/desarrollo-asistido-por-ia.md`](docs/desarrollo-asistido-por-ia.md) | Cómo se trabajó con IA: qué hizo, qué decidió la persona y qué salió mal |
 | [`MASTER_IA.md`](MASTER_IA.md) | El plan de la entrega y el registro de cada paso |
 | [`CLAUDE.md`](CLAUDE.md) | El contrato de arquitectura que lee la IA antes de tocar el código |

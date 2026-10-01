@@ -1202,9 +1202,55 @@ aprobación, y está en
 - **El primer pago real** en producción: comprobarlo en la base con su nº de pedido cuando entre.
 - **El cron de la mañana siguiente** en los logs de Vercel: es la primera vez que corre el código
   nuevo de la limpieza.
-- **La región de las funciones (`dub1`) y los arreglos P0 del pool** del incidente de julio, que
-  pasan a ser lo siguiente.
+- ~~**La región de las funciones (`dub1`)**~~: hecha en testing el mismo día, ver P13.6. **Los
+  arreglos P0 del pool** del incidente de julio siguen pendientes y pasan a ser lo siguiente.
 - Actualizar el `CRON_SECRET` del `.env.testing` local.
+
+### P13.6 La región de las funciones: de Washington a Dublín
+
+**Lo decidió Ramón**, con la opción que recomendó la IA: llevar el cambio en `vercel.json` por el
+flujo normal (`academic` → `testing` → `main`) y no cambiarlo en el panel. La decisión, con sus
+alternativas, está en [ADR 0008](docs/adr/0008-funciones-en-la-region-de-la-base.md). El commit
+es `ab86e11`.
+
+**Cómo se midió**
+
+- Con `curl` desde el portátil de Ramón, en Valencia. Las peticiones entraban por el nodo de
+  Vercel de París (`cdg1`).
+- 9 peticiones por URL, separadas 1 s, contra la preview de testing: la misma base y el mismo
+  código antes y después.
+- Se toma el **tiempo total** de la respuesta (`%{time_total}`) y se da la mediana, con el mínimo
+  y el máximo.
+- **El tiempo hasta el primer byte no sirve.** Fue el primer intento, y salía en ~0,22 s en todas
+  las páginas, porque con `loading.tsx` el esqueleto sale antes de consultar la base. Medido así,
+  el cambio de región no se habría visto.
+- La región se comprobó con la cabecera `x-vercel-id`. Antes del cambio decía `cdg1::iad1::…` y
+  después `cdg1::dub1::…`. Testing pasó a Dublín a los ~110 s del push.
+- Antes de cada serie hubo peticiones previas a las mismas URL, para no medir un arranque en frío.
+
+**Resultados**
+
+| URL | Región | Hora | Mínimo | Mediana | Máximo |
+|---|---|---|---|---|---|
+| Testing, página de un evento | `iad1` | 20:26 | 2,954 s | **2,967 s** | 3,033 s |
+| Testing, página de un evento | `dub1` | 20:34 | 0,248 s | **0,258 s** | 0,310 s |
+| Testing, portada | `iad1` | 20:26 | 0,848 s | **0,864 s** | 0,976 s |
+| Testing, portada | `dub1` | 20:34 | 0,169 s | **0,188 s** | 0,303 s |
+| Producción, portada (sin eventos) | `iad1` | 20:26 | 0,543 s | **0,564 s** | 0,643 s |
+
+| Página | Mediana antes → después | Diferencia | Factor |
+|---|---|---|---|
+| Un evento | 2,967 s → 0,258 s | −2,709 s (−91,3 %) | 11,5 veces más rápida |
+| Portada | 0,864 s → 0,188 s | −0,676 s (−78,2 %) | 4,6 veces más rápida |
+
+- **Las páginas llegan completas.** La del evento trae el plano con sus 47 asientos, con los dos
+  de la compra de prueba de Ramón ocupados. Ni el HTML ni los logs de Vercel muestran errores.
+- **Una lectura de la cifra del evento, que es una estimación y no una medida.** 2,7 s de
+  diferencia, a unos 70–80 ms por ida y vuelta entre Washington e Irlanda, son del orden de 35
+  idas y vueltas a la base en cada carga. Encaja con el primer amplificador del incidente de
+  julio: muchas consultas seguidas y sin caché en `/eventos/[id]`.
+- **Producción** se mide igual cuando se despliegue el cambio. La portada de producción no es
+  comparable con la de testing, porque no tenía ningún evento.
 
 ---
 

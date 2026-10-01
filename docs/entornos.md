@@ -175,9 +175,14 @@ entorno y la manda a `localhost`.
 - **Las funciones corren en Dublín (`dub1`).** Lo fija `vercel.json`, que manda sobre el ajuste
   del panel, y vale para producción y para las previews.
   - Dublín es la misma región de AWS que las dos bases de Supabase (`eu-west-1`).
-  - Hasta octubre de 2026 corrían en Washington (`iad1`), que es el valor por defecto. Cada
-    consulta cruzaba el Atlántico, y la página de un evento tardaba unos 3 s en completarse.
+  - Hasta octubre de 2026 corrían en Washington (`iad1`), que es el valor por defecto, y cada
+    consulta cruzaba el Atlántico. Medido en testing, mediana del tiempo total:
+    - la página de un evento pasó de 2,967 s a 0,258 s;
+    - la portada, de 0,864 s a 0,188 s.
   - En el plan Hobby solo se puede elegir una región.
+  - Para comprobar dónde corre: la cabecera `x-vercel-id` de cualquier respuesta, por ejemplo
+    `cdg1::dub1::…`, donde el segundo código es la región.
+  - La decisión, con sus alternativas, está en [ADR 0008](adr/0008-funciones-en-la-region-de-la-base.md).
 
 ## Migrar una base remota
 
